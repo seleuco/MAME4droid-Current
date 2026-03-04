@@ -76,6 +76,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Environment;
 import android.preference.PreferenceManager;
@@ -461,18 +462,6 @@ public class MainHelper {
         mm.overridePendingTransition(0, 0);
     }
 
-    public void updateVideoRender() {
-
-        if (Emulator.getVideoRenderMode() != mm.getPrefsHelper()
-                .getVideoRenderMode()) {
-            Emulator.setVideoRenderMode(mm.getPrefsHelper()
-                    .getVideoRenderMode());
-        } else {
-            Emulator.setVideoRenderMode(mm.getPrefsHelper()
-                    .getVideoRenderMode());
-        }
-    }
-
     public void updateEmuValues() {
 
         PrefsHelper prefsHelper = mm.getPrefsHelper();
@@ -513,8 +502,6 @@ public class MainHelper {
 		Emulator.setValue(Emulator.WARN_ON_EXIT,
 			prefsHelper.isWarnOnExit() ? 1 : 0);
 
-        Emulator.setValue(Emulator.DOUBLE_BUFFER, mm.getPrefsHelper()
-                .isDoubleBuffer() ? 1 : 0);
         Emulator.setValue(Emulator.PXASP1, mm.getPrefsHelper()
                 .isPlayerXasPlayer1() ? 1 : 0);
 		Emulator.setValue(Emulator.NODEADZONEANDSAT, mm.getPrefsHelper()
@@ -610,13 +597,9 @@ public class MainHelper {
             return;
         }
 
-        // updateVideoRender();
-        Emulator.setVideoRenderMode(mm.getPrefsHelper().getVideoRenderMode());
-
-        if (Emulator.isPortraitFull() != mm.getPrefsHelper()
-                .isPortraitFullscreen()
-		){
-            mm.inflateViews();}
+        if (Emulator.isPortraitFull() != mm.getPrefsHelper().isPortraitFullscreen()) {
+            mm.inflateViews();
+        }
 
         View emuView = mm.getEmuView();
 
@@ -850,6 +833,7 @@ galaxy sde	   --> 2560x1600 16:10
 	         */
         }
     }
+
 
     public void activityResult(int requestCode, int resultCode, Intent intent) {
 

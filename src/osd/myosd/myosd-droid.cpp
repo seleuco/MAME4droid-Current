@@ -10,6 +10,7 @@
 #include "myosd-droid.h"
 #include "opensl_snd.h"
 
+
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -50,10 +51,6 @@ static int myosd_droid_res_width_osd = 1;
 static int myosd_droid_res_height_osd = 1;
 static int myosd_droid_res_width_native = 1;
 static int myosd_droid_res_height_native = 1;
-static int myosd_droid_dbl_buffer = 1;
-
-static unsigned char *screenbuffer1 = nullptr;
-static unsigned char *screenbuffer2 = nullptr;
 
 //input - save
 static int myosd_droid_num_buttons = 0;
@@ -150,8 +147,6 @@ static OPENSL_SND *opensl_snd_ptr  = nullptr;
 //Android callbacks
 static void (*dumpVideo_callback)(void) = nullptr;
 
-static void (*initVideo_callback)(void *buffer, int width, int height, int pitch) = nullptr;
-
 static void
 (*changeVideo_callback)(int newWidth, int newHeight, int newVisWidth, int newVisHeight) = nullptr;
 
@@ -175,13 +170,11 @@ static void (*safCloseDir_callback)(int dirId) = nullptr;
 #define PIXEL_PITCH  4
 
 void myosd_droid_setVideoCallbacks(
-        void (*init_video_java)(void *, int, int, int),
         void (*dump_video_java)(void),
         void (*change_video_java)(int, int, int, int)) {
 
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "setVideoCallbacks");
 
-    initVideo_callback = init_video_java;
     dumpVideo_callback = dump_video_java;
     changeVideo_callback = change_video_java;
 }
@@ -372,9 +365,6 @@ void myosd_droid_setMyValue(int key, int i, int value) {
             break;
         case com_seleuco_mame4droid_Emulator_OSD_RESOLUTION:
             myosd_droid_resolution_osd = value;
-            break;
-        case com_seleuco_mame4droid_Emulator_DOUBLE_BUFFER:
-            myosd_droid_dbl_buffer = value;
             break;
         case com_seleuco_mame4droid_Emulator_PXASP1:
             myosd_droid_pxasp1 = value;
@@ -800,10 +790,6 @@ static void droid_dump_video(void) {
 
     //__android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "droid_dump_video");
 
-    if (myosd_droid_dbl_buffer)
-            memcpy(screenbuffer1, screenbuffer2,
-                   myosd_droid_video_width * myosd_droid_video_height * PIXEL_PITCH);
-
     if (dumpVideo_callback != nullptr)
         dumpVideo_callback();
 
@@ -969,25 +955,6 @@ static void droid_init(void) {
         myosd_droid_res_width_osd = reswidth_osd;
         myosd_droid_res_height_osd = resheight_osd;
 
-        int efective_reswidth = MAX(MAX(reswidth,reswidth_osd),640);
-        int efective_resheight = MAX(MAX(resheight,resheight_osd),480);
-
-        if (screenbuffer1 == nullptr) {
-            screenbuffer1 = (unsigned char *) malloc(
-                    efective_reswidth * efective_resheight * PIXEL_PITCH);
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "init creating screenbuffer1 %d %d",efective_reswidth,efective_resheight);
-        }
-
-        if(myosd_droid_dbl_buffer && screenbuffer2==NULL) {
-            screenbuffer2 = (unsigned char *) malloc(
-                    efective_reswidth * efective_resheight * PIXEL_PITCH);
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "init creating screenbuffer2 %d %d",efective_reswidth,efective_resheight);
-        }
-        myosd_screen_ptr  = myosd_droid_dbl_buffer ? screenbuffer2 : screenbuffer1;
-
-        if (initVideo_callback != nullptr)
-               initVideo_callback((void *) screenbuffer1, efective_reswidth, efective_resheight, PIXEL_PITCH);
-
         droid_set_video_mode(myosd_droid_res_width_osd, myosd_droid_res_height_osd,
                              myosd_droid_res_width_osd, myosd_droid_res_height_osd);
 
@@ -996,20 +963,6 @@ static void droid_init(void) {
         droid_map_keyboard();
 
         lib_inited = 1;
-    }
-}
-
-static void droid_deinit(void) {
-    if (lib_inited) {
-
-        __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "deinit");
-
-        if (screenbuffer1 != nullptr)
-            free(screenbuffer1);
-        if(screenbuffer2 != nullptr)
-            free(screenbuffer2);
-
-        lib_inited = 0;
     }
 }
 
@@ -1071,7 +1024,7 @@ static void droid_output_cb(int channel, const char *text) {
     }
 }
 
-static void droid_video_init_cb(int width, int height,int vis_width, int vis_height) {
+static void droid_video_change_cb(int width, int height,int vis_width, int vis_height) {
     droid_set_video_mode(width, height,vis_width,vis_height);
 }
 
@@ -1262,15 +1215,15 @@ int myosd_droid_main(int argc, char **argv) {
     droid_init();
 
     myosd_callbacks callbacks = {
-            .output_text= droid_output_cb,
-            .video_init = droid_video_init_cb,
-            .video_draw = droid_video_draw_cb,
-            .video_exit = droid_video_exit_cb,
-            .input_init = droid_input_init_cb,
-            .input_poll = droid_input_poll_cb,
-            .sound_init = droid_sound_init_cb,
-            .sound_play = droid_sound_play_cb,
-            .sound_exit = droid_sound_exit_cb,
+            .output_text  = droid_output_cb,
+            .video_change = droid_video_change_cb,
+            .video_draw   = droid_video_draw_cb,
+            .video_exit   = droid_video_exit_cb,
+            .input_init   = droid_input_init_cb,
+            .input_poll   = droid_input_poll_cb,
+            .sound_init   = droid_sound_init_cb,
+            .sound_play   = droid_sound_play_cb,
+            .sound_exit   = droid_sound_exit_cb,
 /*
             .game_list = m4i_game_list,
             .game_init = m4i_game_start,
@@ -1470,7 +1423,7 @@ int myosd_droid_main(int argc, char **argv) {
 
     myosd_main(n, (char**)args, &callbacks, sizeof(callbacks));
 
-    droid_deinit();
+    lib_inited = 0;
 
     return 0;
 }

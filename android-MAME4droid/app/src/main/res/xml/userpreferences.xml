@@ -352,27 +352,22 @@
 			android:summary="Select it to configure advanced postprocessing effects"
 			android:title="Shaders">
 
-			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
+			<CheckBoxPreference
 				android:defaultValue="false"
 				android:key="PREF_SHADERS_ENABLED"
-				android:summary="Enable alt renderer to use shaders. Note: This will set the resolution to 'auto' in emulation options for the scaling shaders to work correctly and it will be used a small font also"
-				android:title="Enable OpenGLES 3.2" />
+				android:summary="Enable renderer to use shaders. Note: This will set the resolution to 'auto' in emulation options for the scaling shaders to work correctly and it will be used a small font also"
+				android:title="Enable Effect shaders" />
 
 			<ListPreference
-				android:defaultValue="-1"
+				android:defaultValue="none"
 				android:dependency="PREF_SHADERS_ENABLED"
 				android:key="PREF_SHADER_EFFECT"
 				android:title='Effect shader' />
 
-			<CheckBoxPreference android:key="PREF_SHADER_IN_FRONTEND"
-				android:dependency="PREF_SHADERS_ENABLED"
-				android:title="Use shader in frontend" android:summary="Use the shaders effects also in the ROMs manager"
-				android:defaultValue="False" />
-
-			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_SHADER_30"
+<!--			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_SHADER_30"
 				android:dependency="PREF_SHADERS_ENABLED"
 				android:title="Force shaders as 3.0" android:summary="Force shaders to use 3.0 shader language for better accuracy, but some shaders may fail on older devices"
-				android:defaultValue="False" />
+				android:defaultValue="False" />-->
 
 		</PreferenceScreen>
 
@@ -470,7 +465,7 @@
     <PreferenceScreen android:key="advanced" android:title="Advanced"
         android:summary="Select it to open advanced options" android:persistent="false">
 
-       <com.seleuco.mame4droid.prefs.ListPrefWithWarn
+		<ListPreference
 			android:entries="@array/pref_global_video_render_options"
 			android:title='Video engine'
 			android:key="PREF_GLOBAL_VIDEO_RENDER_MODE"
@@ -488,10 +483,6 @@
 			android:key="PREF_EMU_NUM_PROCESSORS"
 			android:entryValues="@array/pref_osd_numprocessors_values"
 			android:defaultValue="-1" />
-
-        <com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_DOUBLE_BUFFER"
-			android:title="Double buffer" android:summary="Avoids flickering at the expense of input latency"
-			android:defaultValue="True" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn android:entries="@array/pref_low_norm_or_hight_options"
 			android:title='Main thread priority' android:key="PREF_MAIN_THREAD_PRIORITY"
