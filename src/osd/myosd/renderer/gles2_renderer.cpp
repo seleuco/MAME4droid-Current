@@ -52,7 +52,7 @@ static GLuint loadShader(const char* shaderSrc, GLenum type)
 	GLuint shader = glCreateShader(type);
 
 	if (shader == 0)
-		return 0;
+		throw std::runtime_error("GLES2: unable to allocate shader object");
 
 	//Load the shader source
 	glShaderSource(shader, 1, shaderSrc, NULL);
@@ -135,9 +135,9 @@ gles2_renderer::gles2_renderer(int width, int height)
 	on_viewport_change(width, height);
 }
 
-void gles_renderer::on_viewport_change(int width, int height)
+void gles2_renderer::on_viewport_change(int width, int height)
 {
-	float ortho_matrix[4*4];
+	static float ortho_matrix[4*4];
 	makeOrtho(ortho_matrix, 0.0f, width, height, 0.0f, -1.0f, 1.0f);
 
 	for (auto program_object : { m_line_program, m_quad_program })
@@ -224,7 +224,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 			{
 				//Check if we need to switch programs
 				if (!prevprim || prevprim->type != render_primitive::QUAD)// || PRIMFLAG_GET_TEXFORMAT(prevprim->flags) != PRIMFLAG_GET_TEXFORMAT(prim.flags))
-					use_quad_shader(PRIMFLAG_GET_TEXTFORMAT(prim.flags));
+					use_quad_shader();
 
 				update_texture(prim);
 
@@ -312,7 +312,7 @@ void gles2_renderer::update_texture(const render_primitive& prim)
 	{
 		//TODO: We found a previous allocated texture with the same dimensions, but did the pixel data change?
 		glTextureActive(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture.texture_id);
+		glBindTexture(GL_TEXTURE_2D, texture->texture_id);
 
 		//I don't know why but MAME osd render implementations check whether the texture data has changed by checking if 'seqid' value changed...
 		if (texture->texinfo.seqid != prim.texture.seqid)

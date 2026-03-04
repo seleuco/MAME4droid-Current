@@ -34,7 +34,7 @@ public:
 private:
 	GLuint create_program(GLuint vertex_shader, GLuint frag_shader);
 
-	void use_quad_shader(texture_format texformat);
+	void use_quad_shader();
 	void use_line_shader();
 
 	int m_last_blendmode;
