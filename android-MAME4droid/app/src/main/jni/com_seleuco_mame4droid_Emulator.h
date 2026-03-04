@@ -51,8 +51,6 @@ extern "C" {
 #define com_seleuco_mame4droid_Emulator_EMU_RESOLUTION 21L
 #undef com_seleuco_mame4droid_Emulator_ZOOM_TO_WINDOW
 #define com_seleuco_mame4droid_Emulator_ZOOM_TO_WINDOW 22L
-#undef com_seleuco_mame4droid_Emulator_DOUBLE_BUFFER
-#define com_seleuco_mame4droid_Emulator_DOUBLE_BUFFER 23L
 #undef com_seleuco_mame4droid_Emulator_PXASP1
 #define com_seleuco_mame4droid_Emulator_PXASP1 24L
 #undef com_seleuco_mame4droid_Emulator_VBEAM2X
@@ -210,6 +208,22 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setMouseData
  */
 JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setTouchData
   (JNIEnv *, jclass, jint, jint, jfloat, jfloat);
+
+/*
+ * Class:     com_seleuco_mame4droid_Emulator
+ * Method:    onSurfaceCreated
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_seleuco_mame4droid_Emulator
+ * Method:    onDrawFrame
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
+  (JNIEnv *, jclass);
 
 #ifdef __cplusplus
 }

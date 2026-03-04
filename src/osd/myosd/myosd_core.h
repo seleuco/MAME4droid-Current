@@ -260,10 +260,6 @@ enum myosd_keycode
     MYOSD_KEY_RESET,
 };
 
-// myosd_screen_ptr - needed 4 SW renderer
-
-extern uint8_t *myosd_screen_ptr;
-
 // myosd_get and myosd_set - get and set global state from the MAME driver.
 
 enum {

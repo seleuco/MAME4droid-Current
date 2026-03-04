@@ -17,18 +17,18 @@
 #include "ui/menu.h"
 
 #include "drivenum.h"
-#include "rendersw.hxx"
 
 //MYOSD headers
 #include "myosd.h"
 
-#define MIN(a,b) ((a)<(b) ? (a) : (b))
+#include "renderer/gles2_renderer.h"
+
 #define MAX(a,b) ((a)<(b) ? (b) : (a))
 
-// myosd_screen_ptr - needed 4 SW renderer
-uint8_t *myosd_screen_ptr;
 int myosd_fps;
 int myosd_zoom_to_window;
+
+static render_primitive_list* primlist;
 
 //============================================================
 //  video_init
@@ -70,6 +70,9 @@ void my_osd_interface::video_exit()
 //  update
 //============================================================
 
+//FlykeSpice: Need to hoist these variables here so they are used by GL renderer callbacks down below
+static int min_width, min_height;
+
 void my_osd_interface::update(bool skip_redraw)
 {
     osd_printf_verbose("my_osd_interface::update\n");
@@ -86,7 +89,6 @@ void my_osd_interface::update(bool skip_redraw)
     if (!skip_redraw && !m_video_none) {
 
         int vis_width, vis_height;
-        int min_width, min_height;
 
         //__android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "video min_width:%d min_height:%d",min_width,min_height);
 
@@ -137,28 +139,66 @@ void my_osd_interface::update(bool skip_redraw)
             m_vis_width = vis_width;
             m_vis_height = vis_height;
 
-            if (m_callbacks.video_init != nullptr) {
-                m_callbacks.video_init(min_width, min_height, vis_width, vis_height);
+            if (m_callbacks.video_changed != nullptr) {
+                m_callbacks.video_changed(min_width, min_height, vis_width, vis_height);
             }
+
+	    target()->set_bounds(min_width, min_height);
         }
+    }
 
-        target()->set_bounds(min_width, min_height);
-
-        render_primitive_list *primlist = &target()->get_primitives();
-
-        int const pitch = min_width;
-
-        primlist->acquire_lock();
-        //bgr888
-        software_renderer<uint32_t, 0, 0, 0, 0, 8, 16>::draw_primitives(*primlist, myosd_screen_ptr,
-                                                                        min_width,
-                                                                        min_height,
-                                                                        pitch);
-
-        primlist->release_lock();
+    if (!skip_redraw)
+    {
+	    primlist = &target()->get_primitives();
+	    //Let's acquire the lock here, it will be released on the GLThread
+	    primlist->acquire_lock();
     }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
 }
 
+//===============================================================================
+//	JNI callbacks called from GL thread (GLViewSurface.Renderer)
+//===============================================================================
+static gles2_renderer* gl_renderer = nullptr;
 
+void myosd_video_onSurfaceCreated()
+{
+	//Called whenever the surface is first created or recreated (Activity restart)
+	//we must to setup to GL state
+	delete gl_renderer; //destruct previous renderer object to cleanup resources
+	//gl_renderer = new gl_renderer;
+}
+
+static int old_width, old_height;
+void myosd_video_onDrawFrame()
+{
+	if (primlist)
+	{
+		if (min_width != old_width || min_height != old_height || gl_renderer == nullptr)
+		{
+			old_width = min_width; old_height = min_height;
+
+			if (gl_renderer == nullptr)
+				gl_renderer = new gl_renderer(min_width, min_height);
+			else
+				gl_renderer->on_viewport_change(min_width, min_height);
+		}
+
+		//primlist->acquire_lock();
+		gl_renderer->render(primlist);
+		primlist->release_lock();
+	}
+}
+
+#if 0
+//Called when configuration changed
+//TODO: Need to synchronize with mame running thread, otherwise things can break
+void myosd_video_onSurfaceChange(unsigned width, unsigned height)
+{
+	if (!gl_renderer)
+		gl_renderer = new gl_renderer(width, height);
+	else
+		gl_renderer->on_surface_changed(width, height);
+}
+#endif

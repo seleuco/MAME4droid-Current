@@ -60,8 +60,6 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_OLD_INSTALLATION_DIR = "PREF_OLD_INSTALLATION_DIR";
 
 
-	final static public String PREF_GLOBAL_VIDEO_RENDER_MODE = "PREF_GLOBAL_VIDEO_RENDER_MODE";
-
 	final static public String PREF_EMU_RESOLUTION = "PREF_EMU_RESOLUTION_2";
 	final static public String PREF_EMU_RESOLUTION_OSD = "PREF_EMU_RESOLUTION_OSD_2";
 	final static public String PREF_EMU_SOUND = "PREF_EMU_SOUND";
@@ -153,8 +151,6 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_MAIN_THREAD_PRIORITY = "PREF_MAIN_THREAD_PRIORITY";
 	final static public String PREF_SOUND_ENGINE = "PREF_SOUND_ENGINE";
 
-	final static public String PREF_DOUBLE_BUFFER = "PREF_DOUBLE_BUFFER";
-
 	final static public String PREF_FORCE_ALTGLPATH = "PREF_FORCE_ALTGLPATH";
 	final static public String PREF_PXASP1 = "PREF_PXASP1";
 	final static public String PREF_NODEADZONEANDSAT = "PREF_NODEADZONEANDSAT";
@@ -179,8 +175,6 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public int LOW = 1;
 	final static public int NORMAL = 2;
 	final static public int HIGHT = 2;
-
-	final static public int PREF_RENDER_GL = 1;
 
 	final static public int PREF_DIGITAL_DPAD = 1;
 	final static public int PREF_DIGITAL_STICK = 2;
@@ -293,10 +287,6 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 		return p.getString(PREF_DEFINED_KEYS, defaultKeys.toString());
 
-	}
-
-	public int getVideoRenderMode() {
-		return Integer.valueOf(getSharedPreferences().getString(PREF_GLOBAL_VIDEO_RENDER_MODE, "1")).intValue();
 	}
 
 	public int getEmulatedResolution() {
@@ -624,10 +614,6 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 	public int getSoundEngine() {
 		return Integer.valueOf(getSharedPreferences().getString(PREF_SOUND_ENGINE, "1")).intValue();
-	}
-
-	public boolean isDoubleBuffer() {
-		return getSharedPreferences().getBoolean(PREF_DOUBLE_BUFFER, true);
 	}
 
 	public boolean isAltGLPath() {
