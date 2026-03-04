@@ -42,9 +42,9 @@
 #define DEBUG 1
 
 //mame4droid funtions
-int  (*android_main)(int argc, char **argv)=NULL;
+int  (*android_main)(int argc, char **argv) = NULL;
 void (*setAudioCallbacks)(void *func1,void *func2,void *func3)= NULL;
-void (*setVideoCallbacks)(void *func1,void *func2,void *func3) = NULL;
+void (*setVideoCallbacks)(void *func1,void *func2) = NULL;
 void (*setInputCallbacks)(void *func1) = NULL;
 void (*setDigitalData)(int i, unsigned long digital_status) = NULL;
 void (*initMyOSD)(const char *path, int nativeWidth, int nativeHeight) = NULL;
@@ -62,6 +62,9 @@ int  (*setKeyData)(int keyCode, int keyAction, char keyChar)=NULL;
 int  (*setMouseData)(int i, int mouseAction, int button, float x, float y)=NULL;
 int  (*setTouchData)(int i, int touchAction, float x, float y)=NULL;
 
+void (*onSurfaceCreated)(void) = NULL;
+void (*onDrawFrame)(void) = NULL;
+
 /* Callbacks to Android */
 jmethodID android_dumpVideo;
 jmethodID android_changeVideo;
@@ -77,8 +80,6 @@ jmethodID android_safCloseDir;
 static JavaVM *jVM = NULL;
 static void *libdl = NULL;
 static jclass cEmulator = NULL;
-
-static jobject videoBuffer=NULL;//es un ByteBuffer wrappeando el buffer de video en la librería
 
 static jbyteArray jbaAudioBuffer = NULL;
 
@@ -153,22 +154,12 @@ static void load_lib(const char *str)
 
     setTouchData = dlsym(libdl, "myosd_droid_setTouchData");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_droid_setTouchData %d\n", setTouchData != NULL);
-}
 
-void myJNI_initVideo(void *buffer, int width, int height, int pitch)
-{
-    JNIEnv *env;
-    jobject tmp;
-    (*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4);
-#ifdef DEBUG
-    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "initVideo");
-#endif
-    tmp = (*env)->NewDirectByteBuffer(env, buffer, width * height * pitch);
+    onSurfaceCreated = dlsym(libdl, "myosd_video_onSurfaceCreated");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onSurfaceCreated %d\n", onSurfaceCreated != NULL);
 
-    videoBuffer = (jobject)(*env)->NewGlobalRef(env, tmp);
-
-    if(!videoBuffer) __android_log_print(ANDROID_LOG_ERROR, "mame4droid-jni", "yikes, unable to initialize video buffer");
-
+    onDrawFrame = dlsym(libdl, "myosd_video_onDrawFrame");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onDrawFrame %d\n", onDrawFrame != NULL);
 }
 
 void myJNI_dumpVideo()
@@ -180,7 +171,7 @@ void myJNI_dumpVideo()
     //__android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "dumpVideo");
 #endif
 
-   (*env)->CallStaticVoidMethod(env, cEmulator,  android_dumpVideo, videoBuffer);
+   (*env)->CallStaticVoidMethod(env, cEmulator, android_dumpVideo);
 }
 
 void myJNI_changeVideo(int newWidth, int newHeight, int newVisWidth, int newVisHeight)
@@ -430,15 +421,15 @@ int JNI_OnLoad(JavaVM* vm, void* reserved)
 
     cEmulator = (jclass) (*env)->NewGlobalRef(env,cEmulator );
 
-    android_dumpVideo = (*env)->GetStaticMethodID(env,cEmulator,"bitblt","(Ljava/nio/ByteBuffer;)V");
+    android_dumpVideo = (*env)->GetStaticMethodID(env,cEmulator,"requestRenderFrame","()V");
 
     if(android_dumpVideo==NULL)
     {
-        __android_log_print(ANDROID_LOG_ERROR, "mame4droid-jni", "Failed to find method bitblt");
+        __android_log_print(ANDROID_LOG_ERROR, "mame4droid-jni", "Failed to find method requestRenderFrame");
         return -1;
     }
 
-    android_changeVideo= (*env)->GetStaticMethodID(env,cEmulator,"changeVideo","(IIII)V");
+    android_changeVideo = (*env)->GetStaticMethodID(env,cEmulator,"changeVideo","(IIII)V");
 
     if(android_changeVideo==NULL)
     {
@@ -534,7 +525,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
 
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni","calling setVideoCallbacks");
     if(setVideoCallbacks!=NULL)
-        setVideoCallbacks(&myJNI_initVideo,&myJNI_dumpVideo,&myJNI_changeVideo);
+        setVideoCallbacks(&myJNI_dumpVideo,&myJNI_changeVideo);
 
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni","calling setAudioCallbacks");
     if(setAudioCallbacks!=NULL)
@@ -707,5 +698,14 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setTouchData
     return 0;
 }
 
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
+	(JNIEnv* env, jclass c)
+{
+	onSurfaceCreated();
+}
 
-
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
+	(JNIEnv* env, jclass c)
+{
+	onDrawFrame();
+}

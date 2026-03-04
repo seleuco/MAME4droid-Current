@@ -115,7 +115,6 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 
 		settings = PreferenceManager.getDefaultSharedPreferences(this);
 
-		mPrefGlobalVideoRenderMode = (ListPreference)getPreferenceScreen().findPreference(PrefsHelper.PREF_GLOBAL_VIDEO_RENDER_MODE);
 		mPrefResolution = (ListPreference)getPreferenceScreen().findPreference(PrefsHelper.PREF_EMU_RESOLUTION);
 		mPrefOSDResolution = (ListPreference)getPreferenceScreen().findPreference(PrefsHelper.PREF_EMU_RESOLUTION_OSD);
         mPrefPortraitMode = (ListPreference)getPreferenceScreen().findPreference(PrefsHelper.PREF_PORTRAIT_SCALING_MODE);
@@ -156,7 +155,6 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	        boolean enable;
 	        // Setup the initial values
 	        //mCheckBoxPreference.setSummary(sharedPreferences.getBoolean(key, false) ? "Disable this setting" : "Enable this setting");
-	        mPrefGlobalVideoRenderMode.setSummary("Current value is '" + mPrefGlobalVideoRenderMode.getEntry()+"'");
 
 	        mPrefResolution.setSummary("Current value is '" + mPrefResolution.getEntry()+"'");
 		    mPrefOSDResolution.setSummary("Current value is '" + mPrefOSDResolution.getEntry()+"'");
@@ -223,11 +221,6 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	        else if(key.equals(PrefsHelper.PREF_CONTROLLER_TYPE))
 	        {
 	            mPrefControllerType.setSummary("Current values is '" + mPrefControllerType.getEntry()+"'");
-	        }
-	        else if(key.equals(PrefsHelper.PREF_GLOBAL_VIDEO_RENDER_MODE))
-	        {
-				mPrefGlobalVideoRenderMode.setSummary("Current value is '" + mPrefGlobalVideoRenderMode.getEntry()+"'");
-				boolean enable = Integer.valueOf(mPrefGlobalVideoRenderMode.getValue()).intValue() ==PrefsHelper.PREF_RENDER_GL;
 	        }
 	        else if(key.equals(PrefsHelper.PREF_EMU_RESOLUTION))
 	        {

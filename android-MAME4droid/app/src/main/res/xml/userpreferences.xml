@@ -470,13 +470,6 @@
     <PreferenceScreen android:key="advanced" android:title="Advanced"
         android:summary="Select it to open advanced options" android:persistent="false">
 
-       <com.seleuco.mame4droid.prefs.ListPrefWithWarn
-			android:entries="@array/pref_global_video_render_options"
-			android:title='Video engine'
-			android:key="PREF_GLOBAL_VIDEO_RENDER_MODE"
-			android:entryValues="@array/pref_global_video_render_values"
-			android:defaultValue="1" />
-
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn android:entries="@array/pref_sound_engine_options"
 			android:title='Sound engine' android:key="PREF_SOUND_ENGINE"
 			android:entryValues="@array/pref_sound_engine_values"
@@ -488,10 +481,6 @@
 			android:key="PREF_EMU_NUM_PROCESSORS"
 			android:entryValues="@array/pref_osd_numprocessors_values"
 			android:defaultValue="-1" />
-
-        <com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_DOUBLE_BUFFER"
-			android:title="Double buffer" android:summary="Avoids flickering at the expense of input latency"
-			android:defaultValue="True" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn android:entries="@array/pref_low_norm_or_hight_options"
 			android:title='Main thread priority' android:key="PREF_MAIN_THREAD_PRIORITY"
