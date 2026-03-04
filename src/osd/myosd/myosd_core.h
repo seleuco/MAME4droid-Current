@@ -315,7 +315,7 @@ typedef struct {
     void (*game_list)(myosd_game_info *games, int count);
     void (*game_exit)(void);
 
-    void (*video_init)(int width, int height, int vis_width, int vis_height);
+    void (*video_change)(int width, int height, int vis_width, int vis_height);
     void (*video_draw)(int skip_redraw, int inGame, int inMenu, int running);
     void (*video_exit)(void);
 
