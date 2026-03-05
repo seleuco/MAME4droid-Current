@@ -14,6 +14,7 @@
 
 #include "osd/modules/render/copyutil.h"
 
+#include <string>
 #include <stdexcept>
 
 using gles2_texture = gles2_renderer::gles2_texture;
@@ -57,17 +58,34 @@ static GLuint loadShader(const char* shaderSrc, GLenum type)
 	GLuint shader = glCreateShader(type);
 
 	if (shader == 0)
-		throw std::runtime_error("GLES2: unable to allocate shader object");
+		throw std::runtime_error("GLES2: unable to allocate a shader object");
+
+	std::string _shaderSrc = "#version 100\n"; //GLES2 glsl version
+	if (type == GL_FRAGMENT_SHADER)
+	{
+		_shaderSrc +=
+			"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
+			"	precision highp float;\n"
+			"#else\n"
+			"	precision mediump float;\n"
+			"#endif\n";
+	}
+	_shaderSrc += shaderSrc;
 
 	//Load the shader source
-	glShaderSource(shader, 1, &shaderSrc, NULL);
+	glShaderSource(shader, 1, &_shaderSrc.c_str(), NULL);
 
 	glCompileShader(shader);
 
 	GLint compiled;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
 	if (!compiled)
-		throw std::runtime_error("GLES2: Failure on compiling shaders");
+	{
+		static char infoLog[100];
+
+		glGetShaderInfoLog(shader, 100, NULL, infoLog);
+		throw std::runtime_error(std::string("GLES2: Failure on compiling shaders: ") + infoLog);
+	}
 
 	return shader;
 }
@@ -78,7 +96,7 @@ GLuint gles2_renderer::create_program(GLuint vertex_shader, GLuint frag_shader)
 	GLuint programObject = glCreateProgram();
 	
 	if (programObject == 0)
-		throw std::runtime_error("GLES2: Unable to create program object");
+		throw std::runtime_error("GLES2: Unable to allocate a program object");
 
 	//Bind the attrib locations
 	glBindAttribLocation(programObject, m_attrib_position, "a_position");
