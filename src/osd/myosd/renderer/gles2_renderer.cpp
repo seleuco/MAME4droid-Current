@@ -287,7 +287,7 @@ static void texture_copy_data(gles2_texture* texture, const render_texinfo& texi
 	{
 		uint32_t *dst = (u32*)texture->base + (texinfo.rowpixels * y);
 
-		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y);
+		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y)
 
 		switch (texformat)
 		{
