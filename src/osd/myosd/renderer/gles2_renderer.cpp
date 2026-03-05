@@ -16,10 +16,10 @@
 
 #include <stdexcept>
 
-using gles2_renderer::gles2_texture;
+using gles2_texture = gles2_renderer::gles2_texture;
 
 //Prototypes
-static HashT texture_compute_hash(const render_texinfo& texture, const render_primitive& prim);
+static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
 static void texture_copy_data(gles2_texture& texture, const render_texinfo& texinfo);
 
 static void make_ortho(float* m,
@@ -311,7 +311,7 @@ static void texture_copy_data(gles2_texture& texture, const render_texinfo& texi
 
 void gles2_renderer::update_texture(const render_primitive& prim)
 {
-	const render_texinfo& texinfo = prim.texinfo;
+	const render_texinfo& texinfo = prim.texture;
 	gles2_texture* texture = texture_find(prim);
 
 	if (texture == nullptr)
@@ -319,7 +319,7 @@ void gles2_renderer::update_texture(const render_primitive& prim)
 	else
 	{
 		//TODO: We found a previous allocated texture with the same dimensions, but did the pixel data change?
-		glTextureActive(GL_TEXTURE0);
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture->texture_id);
 
 		//I don't know why but MAME osd render implementations check whether the texture data has changed by checking if 'seqid' value changed...
@@ -334,11 +334,11 @@ void gles2_renderer::update_texture(const render_primitive& prim)
 void gles2_renderer::texture_create(const render_primitive& prim)
 {
 	gles2_texture texture;
-	const render_texinfo& texinfo = prim.texinfo;
+	const render_texinfo& texinfo = prim.texture;
 
 	texture.hash = texture_compute_hash(texinfo, prim.flags);
 
-	glGenTexture(1, &texture.texture_id);
+	glGenTextures(1, &texture.texture_id);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture.texture_id);
@@ -382,7 +382,7 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 //=========================================================
 
 //Copy-pasted from osd/module/render/drawsdl3accel.cpp
-static inline HashT texture_compute_hash(const gles2_texture &texture, const uint32_t flags)
+static inline HashT texture_compute_hash(const render_texinfo &texture, const u32 flags)
 {
 	return (HashT)texture.base ^ (flags & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK));
 }
@@ -399,7 +399,7 @@ static bool compare_texture_primitive(const gles2_texture& texture, const render
 gles2_texture* gles2_renderer::texture_find(const render_primitive& prim)
 {
 	//Check if we have the texture cached by computing its hash with ours
-	const HashT hash = texture_compute_hash(prim);
+	const HashT hash = texture_compute_hash(prim.texture, prim.flags);
 	const osd_ticks_t now = osd_ticks();
 
 	for (auto texture = m_texlist.begin(); texture != m_texlist.end(); )
