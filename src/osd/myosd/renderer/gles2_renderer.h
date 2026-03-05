@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "emu/emucore.h"
 #include "emu/render.h"
 #include "osd/osdcore.h"
 
