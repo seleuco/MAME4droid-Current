@@ -157,6 +157,8 @@ gles2_renderer::gles2_renderer(int width, int height)
 	m_uniform_color_quad = glGetUniformLocation(m_quad_program, "u_color");
 
 	on_viewport_change(width, height);
+
+	m_last_program = 0;
 }
 
 void gles2_renderer::on_viewport_change(int width, int height)
@@ -171,17 +173,25 @@ void gles2_renderer::on_viewport_change(int width, int height)
 	}
 }
 
-void gles2_renderer::use_quad_shader()
+void gles2_renderer::use_quad_program()
 {
 	//Use quad shader program object and enable the quad vertex attrib
-	glUseProgram(m_quad_program);
+	if (m_last_program != m_quad_program)
+	{
+		glUseProgram(m_quad_program);
+		m_last_program = m_quad_program;
+	}
 
 }
 
-void gles2_renderer::use_line_shader()
+void gles2_renderer::use_line_program()
 {
 	//Use line shader
-	glUseProgram(m_line_program);
+	if (m_last_program != m_line_program)
+	{
+		glUseProgram(m_line_program);
+		m_last_program = m_line_program;
+	}
 }
 
 //copied from osd/modules/drawogl.cpp
@@ -217,7 +227,6 @@ void gles2_renderer::set_blendmode(int blendmode)
 
 void gles2_renderer::render(const render_primitive_list& primlist)
 {
-	const render_primitive* prevprim = nullptr;
 	//TODO: Batch many primitives that share the same properties (format, colors..) into a single draw call
 	for (const render_primitive& prim : primlist)
 	{
@@ -225,8 +234,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 		{
 			case render_primitive::LINE:
 			{
-				if (!prevprim || prevprim->type != render_primitive::LINE)
-					use_line_shader();
+				use_line_program();
 
 				const render_bounds& bounds = prim.bounds;
 				//Eeh not a quad, but we reuse the attrib on the line shader
@@ -246,13 +254,19 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 
 			case render_primitive::QUAD:
 			{
-				//Check if we need to switch programs
-				if (!prevprim || prevprim->type != render_primitive::QUAD)// || PRIMFLAG_GET_TEXFORMAT(prevprim->flags) != PRIMFLAG_GET_TEXFORMAT(prim.flags))
-					use_quad_shader();
+				bool has_texture = prim.texture.base != nullptr;
+				if (has_texture)
+				{
+					use_quad_program();
+					update_texture(prim);
+				}
+				else
+				{
+					//For drawing just the solid colors
+					use_line_program();
+				}
 
-				update_texture(prim);
-
-				glUniform4f(m_uniform_color_quad, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
+				glUniform4f(has_texture ? m_uniform_color_quad : m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
 
 				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
 
@@ -269,18 +283,21 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 				m_quad_verts[6] = bounds.x1;
 				m_quad_verts[7] = bounds.y0;
 
-				const render_quad_texuv& texuv = prim.texcoords;
-				m_quad_uv[0] = texuv.tl.u;
-				m_quad_uv[1] = texuv.tl.v;
+				if (has_texture)
+				{
+					const render_quad_texuv& texuv = prim.texcoords;
+					m_quad_uv[0] = texuv.tl.u;
+					m_quad_uv[1] = texuv.tl.v;
 
-				m_quad_uv[2] = texuv.tr.u;
-				m_quad_uv[3] = texuv.tr.v;
+					m_quad_uv[2] = texuv.tr.u;
+					m_quad_uv[3] = texuv.tr.v;
 
-				m_quad_uv[4] = texuv.bl.u;
-				m_quad_uv[5] = texuv.bl.v;
+					m_quad_uv[4] = texuv.bl.u;
+					m_quad_uv[5] = texuv.bl.v;
 
-				m_quad_uv[6] = texuv.br.u;
-				m_quad_uv[7] = texuv.br.v;
+					m_quad_uv[6] = texuv.br.u;
+					m_quad_uv[7] = texuv.br.v;
+				}
 
 				glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_BYTE, m_quad_indices);
 
@@ -295,8 +312,6 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 			//FlykeSpice: throw? or do nothing
 			break;
 		}
-
-		prevprim = &prim;
 	}
 }
 
@@ -304,7 +319,7 @@ static void texture_copy_data(gles2_texture* texture, const render_texinfo& texi
 {
 	for (int y=0; y<texinfo.height; y++)
 	{
-		uint32_t *dst = (u32*)texture->base + (texinfo.rowpixels * y);
+		uint32_t *dst = (u32*)texture->base + (texinfo.width * y);
 
 		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y)
 
@@ -365,19 +380,24 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 	texture.texinfo = texinfo;
 
 	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
+	
+	//Unfortunately, quad primitive textures often have strides (row padding) and OpenGLES 2.0 dont have support for those... so we need to manually copy all textures data
+	//should we jump to directly to GLES3? (which added strides support)
+#if 0
 	if ((texformat == TEXFORMAT_RGB32 || texformat == TEXFORMAT_ARGB32) && texinfo.palette == nullptr)
 	{
 		//RGB(A) mapping in the texture is direct, no need to copy over
 		texture.base = texinfo.base;
 		texture.owned = false; //We don't own the data (FIXME: we probably don't need this and can just keep texure.base nullptr and reference texinfo.base directly...)
 	}
+#endif
 	else 
 	{
 		//We need to copy over
-		texture.base = std::malloc((texinfo.rowpixels*4)*texinfo.height); //FIXME: Use an allocated memory pool rather than allocating every frame...
+		texture.base = std::malloc((texinfo.width*4)*texinfo.height); //FIXME: Use an allocated memory pool rather than allocating every frame...
 		texture.owned = true;
 
-		texture_copy_data(&texture, texinfo, PRIMFLAG_GET_TEXFORMAT(prim.flags));
+		texture_copy_data(&texture, texinfo, texformat);
 	}
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texinfo.width, texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.base);

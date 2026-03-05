@@ -55,8 +55,9 @@ public:
 private:
 	GLuint create_program(GLuint vertex_shader, GLuint frag_shader);
 
-	void use_quad_shader();
-	void use_line_shader();
+	GLuint m_last_program;
+	void use_quad_program();
+	void use_line_program();
 
 	int m_last_blendmode;
 	void set_blendmode(int blendmode);
