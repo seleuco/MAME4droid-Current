@@ -40,15 +40,15 @@ public:
 		render_texinfo texinfo; //Copy of the render_primitive texture info
 		osd_ticks_t last_access;
 
-		void* base; //ARGB format
+		void* base; //GL_ARGB format
 		bool owned; //Do we own the raw data pointer, or is it a direct reference to textinfo.base?
 
 		~gles2_texture()
 		{
+			glDeleteTextures(1, &texture_id);
+
 			if (owned)
 				std::free(base);
-
-			glDeleteTextures(1, &texture_id);
 		}
 	};
 

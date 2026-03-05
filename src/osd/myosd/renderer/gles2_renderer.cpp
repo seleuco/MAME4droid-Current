@@ -159,6 +159,9 @@ gles2_renderer::gles2_renderer(int width, int height)
 	on_viewport_change(width, height);
 
 	m_last_program = 0;
+
+	//Make sure all the GL state setup we did above are applied before we begin rendering next frame
+	glFinish();
 }
 
 void gles2_renderer::on_viewport_change(int width, int height)
@@ -312,7 +315,11 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 			//FlykeSpice: throw? or do nothing
 			break;
 		}
+		glFlush(); //Make sure the previous gl drawing commands are applied before we begin next quad
 	}
+
+	glFinish();
+
 }
 
 static void texture_copy_data(gles2_texture* texture, const render_texinfo& texinfo, u32 texformat)
@@ -413,7 +420,7 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 
 	texture.last_access = osd_ticks();
 
-	m_texlist.push_back(texture);
+	m_texlist.push_front(texture);
 }
 
 //=========================================================
@@ -428,9 +435,8 @@ static inline HashT texture_compute_hash(const render_texinfo &texture, const u3
 
 static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim)
 {
-	//Just compare if the underlying format and dimensions are the same, we can update the pixel data if they changed
-	return texture.base == prim.texture.base
-		&& texture.texinfo.width   == prim.texture.width
+	//Just compare if the dimensions are the same, we can update the pixel data if they changed
+	return texture.texinfo.width   	   == prim.texture.width
 		&& texture.texinfo.height  == prim.texture.height
 		&& texture.texinfo.palette == prim.texture.palette;
 }
@@ -443,7 +449,7 @@ gles2_texture* gles2_renderer::texture_find(const render_primitive& prim)
 
 	for (auto texture = m_texlist.begin(); texture != m_texlist.end(); )
 	{
-		if (texture->hash == hash && compare_texture_primitive(*texture, prim))
+		if (compare_texture_primitive(*texture, prim))
 		{
 			texture->last_access = now;
 			return &*texture;
