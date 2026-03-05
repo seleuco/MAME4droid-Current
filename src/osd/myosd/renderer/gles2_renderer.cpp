@@ -20,7 +20,7 @@ using gles2_texture = gles2_renderer::gles2_texture;
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
-static void texture_copy_data(gles2_texture& texture, const render_texinfo& texinfo);
+static void texture_copy_data(gles2_texture* texture, const render_texinfo& texinfo, u32 texformat);
 
 static void make_ortho(float* m,
                float left, float right,
@@ -277,35 +277,35 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 			break;
 		}
 
-		prevprim = prim;
+		prevprim = &prim;
 	}
 }
 
-static void texture_copy_data(gles2_texture& texture, const render_texinfo& texinfo)
+static void texture_copy_data(gles2_texture* texture, const render_texinfo& texinfo, u32 texformat)
 {
 	for (int y=0; y<texinfo.height; y++)
 	{
-		uint32_t *dst = texture.base + ((texinfo.rowpixels*4) * y);
+		uint32_t *dst = (u32*)texture->base + (texinfo.rowpixels * y);
 
-		template <class T>
-		const T *src = texinfo.base + ((texinfo.rowpixels*sizeof(T)) * y);
+		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y);
 
 		switch (texformat)
 		{
-			case TEXTFORMAT_RGB32:
-				copy_util::copyline_rgb32(dst, src<u32>, texinfo.width, texinfo.palette);
+			case TEXFORMAT_RGB32:
+				copy_util::copyline_rgb32(dst, src(u32), texinfo.width, texinfo.palette);
 				break;
 			case TEXFORMAT_ARGB32:
-				copy_util::copyline_argb32(dst, src<u32>, texinfo.width, texinfo.palette);
+				copy_util::copyline_argb32(dst, src(u32), texinfo.width, texinfo.palette);
 				break;
 			case TEXFORMAT_PALETTE16:
-				copy_util::copyline_palette16(dst, src<u16>, texinfo.width, texinfo.palette);
+				copy_util::copyline_palette16(dst, src(u16), texinfo.width, texinfo.palette);
 				break;
-			case TEXFORMAT_YUV16:
+			case TEXFORMAT_YUY16:
 				//TODO: If the YUV16 texture isn't paletted, we can just do the texel conversion on fragment shader...
-				copy_util::copyline_yuv16_to_argb(dst, src<u16>, texinfo.width, texinfo.palette, 1);
+				copy_util::copyline_yuy16_to_argb(dst, src(u16), texinfo.width, texinfo.palette, 1);
 				break;
 		}
+		#undef src
 	}
 }
 
@@ -326,7 +326,7 @@ void gles2_renderer::update_texture(const render_primitive& prim)
 		if (texture->texinfo.seqid != prim.texture.seqid)
 		{
 			texture->texinfo.seqid = prim.texture.seqid;
-			texture_copy_data(texture, texinfo);
+			texture_copy_data(texture, texinfo, PRIMFLAG_GET_TEXFORMAT(prim.flags));
 		}
 	}
 }
@@ -358,7 +358,7 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 		texture.base = std::malloc((texinfo.rowpixels*4)*texinfo.height); //FIXME: Use an allocated memory pool rather than allocating every frame...
 		texture.owned = true;
 
-		texture_copy_data(texture, texinfo);
+		texture_copy_data(&texture, texinfo, PRIMFLAG_GET_TEXFORMAT(prim.flags));
 	}
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texinfo.width, texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.base);
@@ -390,7 +390,7 @@ static inline HashT texture_compute_hash(const render_texinfo &texture, const u3
 static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim)
 {
 	//Just compare if the underlying format and dimensions are the same, we can update the pixel data if they changed
-	return texture.base == prim.texture.base;
+	return texture.base == prim.texture.base
 		&& texture.texinfo.width   == prim.texture.width
 		&& texture.texinfo.height  == prim.texture.height
 		&& texture.texinfo.palette == prim.texture.palette;
@@ -404,7 +404,7 @@ gles2_texture* gles2_renderer::texture_find(const render_primitive& prim)
 
 	for (auto texture = m_texlist.begin(); texture != m_texlist.end(); )
 	{
-		if (texture->hash == hash && compare_texture_primitive(texture, prim))
+		if (texture->hash == hash && compare_texture_primitive(*texture, prim))
 		{
 			texture->last_access = now;
 			return &*texture;
