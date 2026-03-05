@@ -444,7 +444,7 @@ static bool compare_texture_primitive(const gles2_texture& texture, const render
 gles2_texture* gles2_renderer::texture_find(const render_primitive& prim)
 {
 	//Check if we have the texture cached by computing its hash with ours
-	const HashT hash = texture_compute_hash(prim.texture, prim.flags);
+	//const HashT hash = texture_compute_hash(prim.texture, prim.flags);
 	const osd_ticks_t now = osd_ticks();
 
 	for (auto texture = m_texlist.begin(); texture != m_texlist.end(); )
