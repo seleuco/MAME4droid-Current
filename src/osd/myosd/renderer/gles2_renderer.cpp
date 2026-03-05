@@ -12,10 +12,15 @@
 
 #include "shader_sources.hxx"
 
+#include "osd/modules/render/copyutil.h"
+
 #include <stdexcept>
+
+using gles2_renderer::gles2_texture;
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const render_primitive& prim);
+static void texture_copy_data(gles2_texture& texture, const render_texinfo& texinfo);
 
 static void make_ortho(float* m,
                float left, float right,
@@ -55,7 +60,7 @@ static GLuint loadShader(const char* shaderSrc, GLenum type)
 		throw std::runtime_error("GLES2: unable to allocate shader object");
 
 	//Load the shader source
-	glShaderSource(shader, 1, shaderSrc, NULL);
+	glShaderSource(shader, 1, &shaderSrc, NULL);
 
 	glCompileShader(shader);
 
@@ -93,7 +98,7 @@ gles2_renderer::gles2_renderer(int width, int height)
 	//First and foremost, let's check whether a shader compiler is supported.
 	//Unfortunately, GLES 2 specification doesn't demand that every implementation bundle a shader compiler on the graphics driver
 	GLboolean supported;
-	glGetBooleaniv(GL_SHADER_COMPILER, &supported);
+	glGetBooleanv(GL_SHADER_COMPILER, &supported);
 	if (supported == GL_FALSE)
 	{
 		throw std::runtime_error("GLES2: Shader compilation isn't supported by your phone graphics driver");
@@ -121,16 +126,16 @@ gles2_renderer::gles2_renderer(int width, int height)
 	glVertexAttribPointer(m_attrib_position,  2, GL_FLOAT, GL_TRUE, 0, m_quad_verts);
 	glVertexAttribPointer(m_attrib_texuv, 	  2, GL_FLOAT, GL_TRUE, 0, m_quad_uv);
 
-	glEnableVertexAttrib(m_attrib_position);
-	glEnableVertexAttrib(m_attrib_texuv);
+	glEnableVertexAttribArray(m_attrib_position);
+	glEnableVertexAttribArray(m_attrib_texuv);
 
 	//We're not gonna be compiling shaders anymore, release up the shader compiler resources
 	glReleaseShaderCompiler();
 
 	//Solid color uniform for the line program
-	m_uniform_color_line = glUniformLocation(m_line_program, "u_color");
+	m_uniform_color_line = glGetUniformLocation(m_line_program, "u_color");
 
-	m_uniform_color_quad = glUniformLocation(m_quad_program, "u_color");
+	m_uniform_color_quad = glGetUniformLocation(m_quad_program, "u_color");
 
 	on_viewport_change(width, height);
 }
@@ -138,11 +143,11 @@ gles2_renderer::gles2_renderer(int width, int height)
 void gles2_renderer::on_viewport_change(int width, int height)
 {
 	static float ortho_matrix[4*4];
-	makeOrtho(ortho_matrix, 0.0f, width, height, 0.0f, -1.0f, 1.0f);
+	make_ortho(ortho_matrix, 0.0f, width, height, 0.0f, -1.0f, 1.0f);
 
 	for (auto program_object : { m_line_program, m_quad_program })
 	{
-		GLint uniform_ortho = glUniformLocation(program_object, "u_ortho");
+		GLint uniform_ortho = glGetUniformLocation(program_object, "u_ortho");
 		glUniformMatrix4fv(uniform_ortho, 1, GL_FALSE, ortho_matrix);
 	}
 }
@@ -193,7 +198,7 @@ void gles2_renderer::set_blendmode(int blendmode)
 
 void gles2_renderer::render(const render_primitive_list& primlist)
 {
-	render_primitive* prevprim = nullptr;
+	const render_primitive* prevprim = nullptr;
 	//TODO: Batch many primitives that share the same properties (format, colors..) into a single draw call
 	for (const render_primitive& prim : primlist)
 	{
@@ -212,7 +217,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 				m_quad_verts[1] = bounds.x1;
 				m_quad_verts[1] = bounds.y1;
 
-				set_blendmode(PRIMFLAGS_GET_BLENDMODE(prim.flags));
+				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
 
 				glUniform4f(m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
 
@@ -230,7 +235,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 
 				glUniform4f(m_uniform_color_quad, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
 
-				set_blendmode(PRIMFLAGS_GET_BLENDMODE(prim.flags));
+				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
 
 				const render_bounds& bounds = prim.bounds;
 				m_quad_verts[0] = bounds.x0;
@@ -266,13 +271,16 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 				}
 			}
 			break;
+
+			case render_primitive::INVALID:
+			//FlykeSpice: throw? or do nothing
+			break;
 		}
 
 		prevprim = prim;
 	}
 }
 
-#include "osd/modules/render/copyutil.h"
 static void texture_copy_data(gles2_texture& texture, const render_texinfo& texinfo)
 {
 	for (int y=0; y<texinfo.height; y++)

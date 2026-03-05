@@ -32,14 +32,6 @@ public:
 
 	void render(const render_primitive_list& primlist);
 	void on_viewport_change(int width, int height);
-private:
-	GLuint create_program(GLuint vertex_shader, GLuint frag_shader);
-
-	void use_quad_shader();
-	void use_line_shader();
-
-	int m_last_blendmode;
-	void set_blendmode(int blendmode);
 
 	struct gles2_texture
 	{
@@ -60,6 +52,15 @@ private:
 		}
 	};
 
+private:
+	GLuint create_program(GLuint vertex_shader, GLuint frag_shader);
+
+	void use_quad_shader();
+	void use_line_shader();
+
+	int m_last_blendmode;
+	void set_blendmode(int blendmode);
+
 	void update_texture(const render_primitive& prim);
 	gles2_texture* texture_find(const render_primitive& prim);
 	void texture_create(const render_primitive& prim);
@@ -78,7 +79,7 @@ private:
 
 	float m_quad_verts[4*2];
 	float m_quad_uv[4*2];
-	static const u8 const m_quad_indices[] = { 0, 1, 2, 1, 2, 3 }; //Indices to draw a quad with glDrawElements
+	static constexpr u8 m_quad_indices[] = { 0, 1, 2, 1, 2, 3 }; //Indices to draw a quad with glDrawElements
 	
 	std::list<gles2_texture> m_texlist; //Currently allocated textures
 };
