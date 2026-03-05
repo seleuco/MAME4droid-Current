@@ -390,8 +390,8 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 		texture.base = texinfo.base;
 		texture.owned = false; //We don't own the data (FIXME: we probably don't need this and can just keep texure.base nullptr and reference texinfo.base directly...)
 	}
-#endif
 	else 
+#endif
 	{
 		//We need to copy over
 		texture.base = std::malloc((texinfo.width*4)*texinfo.height); //FIXME: Use an allocated memory pool rather than allocating every frame...
