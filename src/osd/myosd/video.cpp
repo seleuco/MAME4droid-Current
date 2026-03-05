@@ -162,7 +162,7 @@ void my_osd_interface::update(bool skip_redraw)
 //===============================================================================
 static gles2_renderer* gl_renderer = nullptr;
 
-void myosd_video_onSurfaceCreated()
+extern "C" void myosd_video_onSurfaceCreated()
 {
 	//Called whenever the surface is first created or recreated (Activity restart)
 	//we must to setup to GL state
@@ -171,7 +171,7 @@ void myosd_video_onSurfaceCreated()
 }
 
 static int old_width, old_height;
-void myosd_video_onDrawFrame()
+extern "C" void myosd_video_onDrawFrame()
 {
 	if (primlist)
 	{
@@ -194,7 +194,7 @@ void myosd_video_onDrawFrame()
 #if 0
 //Called when configuration changed
 //TODO: Need to synchronize with mame running thread, otherwise things can break
-void myosd_video_onSurfaceChange(unsigned width, unsigned height)
+extern "C" void myosd_video_onSurfaceChange(unsigned width, unsigned height)
 {
 	if (!gl_renderer)
 		gl_renderer = new gl_renderer(width, height);

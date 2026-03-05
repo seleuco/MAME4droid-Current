@@ -15,7 +15,6 @@ extern "C" {
 #endif
 
 void myosd_droid_setVideoCallbacks(
-        void (*init_video_java)(void *, int, int, int),
         void (*dump_video_java)(void),
         void (*change_video_java)(int, int, int, int));
 void myosd_droid_setAudioCallbacks(
