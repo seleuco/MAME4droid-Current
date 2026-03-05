@@ -139,8 +139,8 @@ void my_osd_interface::update(bool skip_redraw)
             m_vis_width = vis_width;
             m_vis_height = vis_height;
 
-            if (m_callbacks.video_changed != nullptr) {
-                m_callbacks.video_changed(min_width, min_height, vis_width, vis_height);
+            if (m_callbacks.video_change != nullptr) {
+                m_callbacks.video_change(min_width, min_height, vis_width, vis_height);
             }
 
 	    target()->set_bounds(min_width, min_height);
@@ -180,13 +180,13 @@ void myosd_video_onDrawFrame()
 			old_width = min_width; old_height = min_height;
 
 			if (gl_renderer == nullptr)
-				gl_renderer = new gl_renderer(min_width, min_height);
+				gl_renderer = new gles2_renderer(min_width, min_height);
 			else
 				gl_renderer->on_viewport_change(min_width, min_height);
 		}
 
 		//primlist->acquire_lock();
-		gl_renderer->render(primlist);
+		gl_renderer->render(*primlist);
 		primlist->release_lock();
 	}
 }
