@@ -73,7 +73,8 @@ static GLuint loadShader(const char* shaderSrc, GLenum type)
 	_shaderSrc += shaderSrc;
 
 	//Load the shader source
-	glShaderSource(shader, 1, &_shaderSrc.c_str(), NULL);
+	const char* src = _shaderSrc.c_str();
+	glShaderSource(shader, 1, &src, NULL);
 
 	glCompileShader(shader);
 
