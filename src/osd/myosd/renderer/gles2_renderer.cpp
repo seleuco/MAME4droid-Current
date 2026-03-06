@@ -161,6 +161,8 @@ gles2_renderer::gles2_renderer(int width, int height)
 
 	m_last_program = 0;
 
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
 	//Make sure all the GL state setup we did above are applied before we begin rendering next frame
 	glFinish();
 }
