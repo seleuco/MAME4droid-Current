@@ -247,8 +247,8 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 				m_quad_verts[0] = bounds.x0;
 				m_quad_verts[1] = bounds.y0;
 
-				m_quad_verts[1] = bounds.x1;
-				m_quad_verts[1] = bounds.y1;
+				m_quad_verts[2] = bounds.x1;
+				m_quad_verts[3] = bounds.y1;
 
 				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
 

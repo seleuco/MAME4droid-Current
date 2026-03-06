@@ -30,7 +30,10 @@
 int myosd_fps;
 int myosd_zoom_to_window;
 
-static render_primitive_list* primlist;
+//GLES2 renderer related stuff
+static std::mutex gl_mutex;
+static bool gl_primlock_acquired = true;
+static render_primitive_list primlist;
 
 //============================================================
 //  video_init
@@ -151,19 +154,22 @@ void my_osd_interface::update(bool skip_redraw)
 
     if (!skip_redraw)
     {
+	    std::lock_guard lock(gl_mutex);
+
 	    primlist = &target()->get_primitives();
-	    //Let's acquire the lock here, it will be released on the GLThread
-	    primlist->acquire_lock();
+	    gl_primlock_acquired = false;
     }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
+
+    if (!skip_redraw)
+    	while (!gl_primlock_acquired);
 }
 
 //===============================================================================
 //	JNI callbacks called from GL thread (GLViewSurface.Renderer)
 //===============================================================================
 static gles2_renderer* gl_renderer = nullptr;
-static std::mutex gl_mutex;
 
 extern "C" void myosd_video_onSurfaceCreated()
 {
@@ -194,7 +200,9 @@ extern "C" void myosd_video_onDrawFrame()
 				gl_renderer->on_viewport_change(min_width, min_height);
 		}
 
-		//primlist->acquire_lock();
+		primlist->acquire_lock();
+		//Lock acquired let's signal MAME thread it can continue on with the updates
+		gl_primlock_acquired = true;
 		gl_renderer->render(*primlist);
 		primlist->release_lock();
 	}
