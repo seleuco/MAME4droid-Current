@@ -151,10 +151,11 @@ gles2_renderer::gles2_renderer(int width, int height)
 	//We're not gonna be compiling shaders anymore, release up the shader compiler resources
 	glReleaseShaderCompiler();
 
-	//Solid color uniform for the line program
 	m_uniform_color_line = glGetUniformLocation(m_line_program, "u_color");
-
 	m_uniform_color_quad = glGetUniformLocation(m_quad_program, "u_color");
+
+	auto sampler_uniform = glGetUniformLocation(m_quad_program, "s_texture");
+	glUniform1i(sampler_uniform, 0); //set sampler2D texture unit to 0
 
 	on_viewport_change(width, height);
 
