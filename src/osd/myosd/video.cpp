@@ -170,8 +170,11 @@ extern "C" void myosd_video_onSurfaceCreated()
 	std::lock_guard lock(gl_mutex);
 	//Called whenever the surface is first created or recreated (Activity restart)
 	//we must to setup to GL state
-	delete gl_renderer; //destruct previous renderer object to cleanup resources
-	//gl_renderer = new gl_renderer;
+	if (gl_renderer != nullptr)
+	{
+		delete gl_renderer; //destruct previous renderer object to cleanup resources
+		gl_renderer = nullptr;
+	}
 }
 
 static int old_width, old_height;
