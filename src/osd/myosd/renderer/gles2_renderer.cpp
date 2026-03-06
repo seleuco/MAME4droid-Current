@@ -315,10 +315,11 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 			//FlykeSpice: throw? or do nothing
 			break;
 		}
-		glFlush(); //Make sure the previous gl drawing commands are applied before we begin next quad
+		//glFlush(); //Make sure the previous gl drawing commands are applied before we begin next quad
+		glFinish();
 	}
 
-	glFinish();
+	//glFinish();
 
 }
 

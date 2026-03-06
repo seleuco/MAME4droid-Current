@@ -23,6 +23,8 @@
 
 #include "renderer/gles2_renderer.h"
 
+#include <mutex>
+
 #define MAX(a,b) ((a)<(b) ? (b) : (a))
 
 int myosd_fps;
@@ -161,9 +163,11 @@ void my_osd_interface::update(bool skip_redraw)
 //	JNI callbacks called from GL thread (GLViewSurface.Renderer)
 //===============================================================================
 static gles2_renderer* gl_renderer = nullptr;
+static std::mutex gl_mutex;
 
 extern "C" void myosd_video_onSurfaceCreated()
 {
+	std::lock_guard lock(gl_mutex);
 	//Called whenever the surface is first created or recreated (Activity restart)
 	//we must to setup to GL state
 	delete gl_renderer; //destruct previous renderer object to cleanup resources
@@ -175,6 +179,8 @@ extern "C" void myosd_video_onDrawFrame()
 {
 	if (primlist)
 	{
+		std::lock_guard lock(gl_mutex);
+
 		if (min_width != old_width || min_height != old_height || gl_renderer == nullptr)
 		{
 			old_width = min_width; old_height = min_height;
