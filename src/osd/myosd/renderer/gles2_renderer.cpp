@@ -378,8 +378,8 @@ void gles2_renderer::update_texture(const render_primitive& prim)
 
 void gles2_renderer::texture_create(const render_primitive& prim)
 {
-	gles2_texture texture;
 	const render_texinfo& texinfo = prim.texture;
+	gles2_texture& texture = m_texlist.emplace_front();
 
 	texture.hash = texture_compute_hash(texinfo, prim.flags);
 
@@ -423,8 +423,6 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 	//glBindTexture(GL_TEXTURE_2D, 0);
 
 	texture.last_access = osd_ticks();
-
-	m_texlist.push_front(texture);
 }
 
 //=========================================================
