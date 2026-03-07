@@ -254,7 +254,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 
 				glUniform4f(m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
 
-				glDrawArrays(GL_LINES, 1, 2);
+				glDrawArrays(GL_LINES, 0, 2);
 			}
 			break;
 
@@ -295,14 +295,14 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 					m_quad_uv[0] = texuv.tl.u;
 					m_quad_uv[1] = texuv.tl.v;
 
-					m_quad_uv[2] = texuv.tr.u;
-					m_quad_uv[3] = texuv.tr.v;
+					m_quad_uv[2] = texuv.bl.u;
+					m_quad_uv[3] = texuv.bl.v;
 
-					m_quad_uv[4] = texuv.bl.u;
-					m_quad_uv[5] = texuv.bl.v;
+					m_quad_uv[4] = texuv.br.u;
+					m_quad_uv[5] = texuv.br.v;
 
-					m_quad_uv[6] = texuv.br.u;
-					m_quad_uv[7] = texuv.br.v;
+					m_quad_uv[6] = texuv.tr.u;
+					m_quad_uv[7] = texuv.tr.v;
 				}
 
 				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, m_quad_indices);
