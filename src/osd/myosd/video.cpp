@@ -23,6 +23,7 @@
 
 #include "renderer/gles2_renderer.h"
 
+#include <condition_variable>
 #include <mutex>
 
 #define MAX(a,b) ((a)<(b) ? (b) : (a))
@@ -32,7 +33,7 @@ int myosd_zoom_to_window;
 
 //GLES2 renderer related stuff
 static std::mutex gl_mutex;
-static bool gl_primlock_acquired = true;
+static std::condition_variable cv;
 static render_primitive_list *primlist;
 
 //============================================================
@@ -153,17 +154,15 @@ void my_osd_interface::update(bool skip_redraw)
     }
 
     if (!skip_redraw)
-    {
-	    std::lock_guard lock(gl_mutex);
-
 	    primlist = &target()->get_primitives();
-	    gl_primlock_acquired = false;
-    }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
 
     if (!skip_redraw)
-    	while (!gl_primlock_acquired);
+    {
+	    std::unique_lock lock(gl_mutex);
+	    cv.wait(lock); //Wait until GLThread finishes rendering
+    }
 }
 
 //===============================================================================
@@ -173,7 +172,6 @@ static gles2_renderer* gl_renderer = nullptr;
 
 extern "C" void myosd_video_onSurfaceCreated()
 {
-	std::lock_guard lock(gl_mutex);
 	//Called whenever the surface is first created or recreated (Activity restart)
 	//we must to setup to GL state
 	if (gl_renderer != nullptr)
@@ -188,7 +186,7 @@ extern "C" void myosd_video_onDrawFrame()
 {
 	if (primlist)
 	{
-		std::lock_guard lock(gl_mutex);
+		std::unique_lock lock(gl_mutex);
 
 		if (min_width != old_width || min_height != old_height || gl_renderer == nullptr)
 		{
@@ -201,10 +199,11 @@ extern "C" void myosd_video_onDrawFrame()
 		}
 
 		primlist->acquire_lock();
-		//Lock acquired let's signal MAME thread it can continue on with the updates
-		gl_primlock_acquired = true;
 		gl_renderer->render(*primlist);
 		primlist->release_lock();
+
+		lock.unlock();
+		cv.notify_one();
 	}
 }
 
