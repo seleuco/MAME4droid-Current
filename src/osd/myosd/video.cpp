@@ -33,7 +33,7 @@ int myosd_zoom_to_window;
 //GLES2 renderer related stuff
 static std::mutex gl_mutex;
 static bool gl_primlock_acquired = true;
-static render_primitive_list primlist;
+static render_primitive_list *primlist;
 
 //============================================================
 //  video_init

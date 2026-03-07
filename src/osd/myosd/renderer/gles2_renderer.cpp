@@ -305,7 +305,7 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 					m_quad_uv[7] = texuv.br.v;
 				}
 
-				glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_BYTE, m_quad_indices);
+				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, m_quad_indices);
 
 				if (PRIMFLAG_GET_SCREENTEX(prim.flags))
 				{
