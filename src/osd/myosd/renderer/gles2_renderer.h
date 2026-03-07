@@ -80,7 +80,7 @@ private:
 
 	float m_quad_verts[4*2];
 	float m_quad_uv[4*2];
-	static constexpr u8 m_quad_indices[] = { 0, 1, 2, 1, 2, 3 }; //Indices to draw a quad with glDrawElements
+	static constexpr u8 m_quad_indices[] = { 0, 1, 2, 0, 2, 3 }; //Indices to draw a quad with glDrawElements
 	
 	std::list<gles2_texture> m_texlist; //Currently allocated textures
 };
