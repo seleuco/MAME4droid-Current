@@ -219,17 +219,12 @@ public class MAME4droid extends Activity {
 
 		FrameLayout fl = (FrameLayout) this.findViewById(R.id.EmulatorFrame);
 
-		Emulator.setVideoRenderMode(getPrefsHelper().getVideoRenderMode());
+		if (prefsHelper.getNavBarMode() != PrefsHelper.PREF_NAVBAR_VISIBLE)
+			this.getLayoutInflater().inflate(R.layout.emuview_gl_ext, fl);
+		else
+			this.getLayoutInflater().inflate(R.layout.emuview_gl, fl);
 
-		if (prefsHelper.getVideoRenderMode() == PrefsHelper.PREF_RENDER_GL) {
-
-			if (prefsHelper.getNavBarMode() != PrefsHelper.PREF_NAVBAR_VISIBLE)
-				this.getLayoutInflater().inflate(R.layout.emuview_gl_ext, fl);
-			else
-				this.getLayoutInflater().inflate(R.layout.emuview_gl, fl);
-
-			emuView = this.findViewById(R.id.EmulatorViewGL);
-		}
+		emuView = this.findViewById(R.id.EmulatorViewGL);
 
 		if (full && prefsHelper.isPortraitTouchController()
 		) {

@@ -48,7 +48,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.media.AudioAttributes;
@@ -70,7 +69,6 @@ import com.seleuco.mame4droid.views.EmulatorViewGL;
 import com.seleuco.mame4droid.widgets.WarnWidget;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 
 public class Emulator {
 
@@ -111,7 +109,6 @@ public class Emulator {
 
 	final static public int ZOOM_TO_WINDOW = 22;
 
-	final static public int DOUBLE_BUFFER = 23;
 	final static public int PXASP1 = 24;
 
 	final static public int VBEAM2X = 34;
@@ -174,8 +171,6 @@ public class Emulator {
 
 	private static final Object lock1 = new Object();
 
-	private static ByteBuffer screenBuff = null;
-
 	private static boolean emuFiltering = false;
 
 	public static boolean isEmuFiltering() {
@@ -187,8 +182,6 @@ public class Emulator {
 	}
 
 	private static final Paint debugPaint = new Paint();
-
-	private static final Matrix mtx = new Matrix();
 
 	private static int window_width = 320;
 
@@ -210,7 +203,6 @@ public class Emulator {
 	private static AudioTrack audioTrack = null;
 
 	private static boolean isDebug = false;
-	private static int videoRenderMode = PrefsHelper.PREF_RENDER_GL;
 
 	private static boolean inMenu = false;
 	private static boolean oldInMenu = false;
@@ -309,25 +301,8 @@ public class Emulator {
 		Emulator.isDebug = isDebug;
 	}
 
-	public static int getVideoRenderMode() {
-		return Emulator.videoRenderMode;
-	}
-
-	public static void setVideoRenderMode(int videoRenderMode) {
-		Emulator.videoRenderMode = videoRenderMode;
-	}
-
 	public static Paint getDebugPaint() {
 		return debugPaint;
-	}
-
-	public static Matrix getMatrix() {
-		return mtx;
-	}
-
-	//synchronized
-	public static ByteBuffer getScreenBuffer() {
-		return screenBuff;
 	}
 
 	public static void setMAME4droid(MAME4droid mm) {
@@ -341,21 +316,13 @@ public class Emulator {
 
 		window_width = w;
 		window_height = h;
-
-		if (videoRenderMode == PrefsHelper.PREF_RENDER_GL)
-			return;
-
-		mtx.setScale((float) (window_width / (float) emu_width), (float) (window_height / (float) emu_height));
 	}
 
-	//synchronized
-	static void bitblt(ByteBuffer sScreenBuff) {
+	//Method to update frame
+	static void requestRenderFrame() {
 
-		//Log.d("Thread Video", "fuera lock");
 		synchronized (lock1) {
 			try {
-				//Log.d("Thread Video", "dentro lock");
-				screenBuff = sScreenBuff;
 				Emulator.inMenu = Emulator.getValue(Emulator.IN_MENU) == 1;
 
 				if (inMenu != oldInMenu) {
@@ -376,13 +343,7 @@ public class Emulator {
 					}
 				}
 				oldInMenu = inMenu;
-
-				if (videoRenderMode == PrefsHelper.PREF_RENDER_GL) {
-					((EmulatorViewGL) mm.getEmuView()).requestRender();
-				} else {
-					Log.e("Thread Video", "Renderer not supported.");
-				}
-				//Log.d("Thread Video", "fin lock");
+				((EmulatorViewGL) mm.getEmuView()).requestRender();
 
 			} catch (/*Throwable*/NullPointerException t) {
 				Log.getStackTraceString(t);
@@ -405,15 +366,6 @@ public class Emulator {
 			emu_height = newHeight;
 			emu_visWidth = newVisWidth;
 			emu_visHeight = newVisHeight;
-
-			mtx.setScale((float) (window_width / (float) emu_width), (float) (window_height / (float) emu_height));
-
-			if (videoRenderMode == PrefsHelper.PREF_RENDER_GL) {
-				IGLRenderer r = (IGLRenderer) ((EmulatorViewGL) mm.getEmuView()).getRender();
-				if (r != null) r.changedEmulatedSize();
-			} else {
-				Log.e("Thread Video", "Error renderer not supported");
-			}
 
 			mm.getMainHelper().updateEmuValues();
 
@@ -839,4 +791,6 @@ public class Emulator {
 	public static native int setMouseData(int i, int mouseAction, int button, float cx, float cy);
 	public static native int setTouchData(int i, int touchAction, float cx, float cy);
 
+	public static native void onSurfaceCreated();
+	public static native void onDrawFrame();
 }
