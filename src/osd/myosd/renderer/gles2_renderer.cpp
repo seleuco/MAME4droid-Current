@@ -387,6 +387,7 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 	glBindTexture(GL_TEXTURE_2D, texture.texture_id);
 
 	texture.texinfo = texinfo;
+	texture.prim_flags = prim.flags;
 
 	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
 	
@@ -436,9 +437,10 @@ static inline HashT texture_compute_hash(const render_texinfo &texture, const u3
 static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim)
 {
 	//Just compare if the dimensions are the same, we can update the pixel data if they changed
-	return texture.texinfo.width   	   == prim.texture.width
+	return texture.texinfo.base == prim.texture.base
+		&& texture.texinfo.width   == prim.texture.width
 		&& texture.texinfo.height  == prim.texture.height
-		&& texture.texinfo.palette == prim.texture.palette;
+		&& ((texture.prim_flags ^ prim.flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) == 0;
 }
 
 gles2_texture* gles2_renderer::texture_find(const render_primitive& prim)

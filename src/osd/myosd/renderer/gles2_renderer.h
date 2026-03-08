@@ -38,6 +38,7 @@ public:
 		HashT hash;
 		GLuint texture_id; //GLES2 texture object id
 		render_texinfo texinfo; //Copy of the render_primitive texture info
+		u32 prim_flags;  //Copy of the render_primitive flags
 		osd_ticks_t last_access;
 
 		void* base; //GL_ARGB format
