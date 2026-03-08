@@ -438,8 +438,10 @@ static bool compare_texture_primitive(const gles2_texture& texture, const render
 {
 	//Just compare if the dimensions are the same, we can update the pixel data if they changed
 	return texture.texinfo.base == prim.texture.base
-		&& texture.texinfo.width   == prim.texture.width
-		&& texture.texinfo.height  == prim.texture.height
+		&& texture.texinfo.width     == prim.texture.width
+		&& texture.texinfo.height    == prim.texture.height
+		&& texture.texinfo.rowpixels == prim.texture.rowpixels
+		&& texture.texinfo.palette   == prim.texture.palette
 		&& ((texture.prim_flags ^ prim.flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) == 0;
 }
 

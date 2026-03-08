@@ -23,7 +23,6 @@
 
 #include "renderer/gles2_renderer.h"
 
-#include <condition_variable>
 #include <mutex>
 
 #define MAX(a,b) ((a)<(b) ? (b) : (a))
@@ -33,8 +32,7 @@ int myosd_zoom_to_window;
 
 //GLES2 renderer related stuff
 static std::mutex gl_mutex;
-static std::condition_variable cv;
-static render_primitive_list *primlist;
+static render_primitive_list *primlist = nullptr;
 
 //============================================================
 //  video_init
@@ -154,15 +152,17 @@ void my_osd_interface::update(bool skip_redraw)
     }
 
     if (!skip_redraw)
+    {
+	    std::lock_guard lock(gl_mutex);
+	    
+	    if (primlist)
+		    primlist->release_lock();
+
 	    primlist = &target()->get_primitives();
+	    primlist->acquire_lock();
+    }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
-
-    if (!skip_redraw)
-    {
-	    std::unique_lock lock(gl_mutex);
-	    cv.wait(lock); //Wait until GLThread finishes rendering
-    }
 }
 
 //===============================================================================
@@ -186,7 +186,7 @@ extern "C" void myosd_video_onDrawFrame()
 {
 	if (primlist)
 	{
-		std::unique_lock lock(gl_mutex);
+		std::lock_guard lock(gl_mutex);
 
 		if (min_width != old_width || min_height != old_height || gl_renderer == nullptr)
 		{
@@ -198,12 +198,7 @@ extern "C" void myosd_video_onDrawFrame()
 				gl_renderer->on_viewport_change(min_width, min_height);
 		}
 
-		primlist->acquire_lock();
 		gl_renderer->render(*primlist);
-		primlist->release_lock();
-
-		lock.unlock();
-		cv.notify_one();
 	}
 }
 
