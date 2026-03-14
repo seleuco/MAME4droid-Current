@@ -21,7 +21,9 @@
 //MYOSD headers
 #include "myosd.h"
 
+#include "renderer/myosd_renderer.h"
 #include "renderer/gles2_renderer.h"
+#include "renderer/gles2_rendersw.h"
 
 #include <mutex>
 
@@ -31,7 +33,7 @@ int myosd_fps;
 int myosd_zoom_to_window;
 
 //GLES2 renderer related stuff
-static std::mutex gl_mutex;
+static std::mutex rend_mutex;
 static render_primitive_list *primlist = nullptr;
 
 //============================================================
@@ -153,7 +155,7 @@ void my_osd_interface::update(bool skip_redraw)
 
     if (!skip_redraw)
     {
-	    std::lock_guard lock(gl_mutex);
+	    std::lock_guard lock(rend_mutex);
 	    
 	    if (primlist)
 		    primlist->release_lock();
@@ -168,18 +170,25 @@ void my_osd_interface::update(bool skip_redraw)
 //===============================================================================
 //	JNI callbacks called from GL thread (GLViewSurface.Renderer)
 //===============================================================================
-static gles2_renderer* gl_renderer = nullptr;
+enum
+{
+	GLES2_RENDERER = 1,
+	SOFTWARE_RENDERER
+};
+
+static myosd_renderer* my_renderer = nullptr;
+static int current_renderer = GLES2_RENDERER;
 
 extern "C" void myosd_video_onSurfaceCreated()
 {
 	//Called whenever the surface is first created or recreated (Activity restart)
 	//we must to setup to GL state
-	if (gl_renderer != nullptr)
+	if (my_renderer != nullptr)
 	{
-		std::lock_guard lock(gl_mutex);
+		std::lock_guard lock(rend_mutex);
 
-		delete gl_renderer; //destruct previous renderer object to cleanup resources
-		gl_renderer = nullptr;
+		delete my_renderer; //destruct previous renderer object to cleanup resources
+		my_renderer = nullptr;
 	}
 }
 
@@ -188,19 +197,45 @@ extern "C" void myosd_video_onDrawFrame()
 {
 	if (primlist)
 	{
-		std::lock_guard lock(gl_mutex);
+		std::lock_guard lock(rend_mutex);
 
-		if (min_width != old_width || min_height != old_height || gl_renderer == nullptr)
+		if (min_width != old_width || min_height != old_height || my_renderer == nullptr)
 		{
 			old_width = min_width; old_height = min_height;
 
-			if (gl_renderer == nullptr)
-				gl_renderer = new gles2_renderer(min_width, min_height);
+			if (my_renderer == nullptr)
+			{
+				switch (current_renderer)
+				{
+					case GLES2_RENDERER:
+						my_renderer = new gles2_renderer(min_width, min_height);
+					break;
+
+					case SOFTWARE_RENDERER:
+						my_renderer = new gles2_rendersw(min_width, min_height);
+					break;
+				}
+			}
 			else
-				gl_renderer->on_viewport_change(min_width, min_height);
+			{
+				my_renderer->on_viewport_change(min_width, min_height);
+			}
 		}
 
-		gl_renderer->render(*primlist);
+		my_renderer->render(*primlist);
+	}
+}
+
+extern "C" void myosd_video_onChooseRenderer(int renderer)
+{
+	std::lock_guard lock(rend_mutex);
+	current_renderer = renderer;
+
+	//Delete previously allocated renderer to force switch
+	if (my_renderer)
+	{
+		delete my_renderer;
+		my_renderer = nullptr;
 	}
 }
 
@@ -209,9 +244,9 @@ extern "C" void myosd_video_onDrawFrame()
 //TODO: Need to synchronize with mame running thread, otherwise things can break
 extern "C" void myosd_video_onSurfaceChange(unsigned width, unsigned height)
 {
-	if (!gl_renderer)
-		gl_renderer = new gl_renderer(width, height);
+	if (!my_renderer)
+		my_renderer = new my_renderer(width, height);
 	else
-		gl_renderer->on_surface_changed(width, height);
+		my_renderer->on_surface_changed(width, height);
 }
 #endif

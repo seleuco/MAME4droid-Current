@@ -9,6 +9,7 @@
 ***************************************************************************/
 
 #include "gles2_renderer.h"
+#include "gl_utils.hxx"
 
 #include "shader_sources.hxx"
 
@@ -51,44 +52,6 @@ static void make_ortho(float* m,
     m[13] = -(top + bottom) / tb;
     m[14] = -(farZ + nearZ) / fn;
     m[15] =  1.0f;
-}
-
-static GLuint loadShader(const char* shaderSrc, GLenum type)
-{
-	GLuint shader = glCreateShader(type);
-
-	if (shader == 0)
-		throw std::runtime_error("GLES2: unable to allocate a shader object");
-
-	std::string _shaderSrc = "#version 100\n"; //GLES2 glsl version
-	if (type == GL_FRAGMENT_SHADER)
-	{
-		_shaderSrc +=
-			"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
-			"	precision highp float;\n"
-			"#else\n"
-			"	precision mediump float;\n"
-			"#endif\n";
-	}
-	_shaderSrc += shaderSrc;
-
-	//Load the shader source
-	const char* src = _shaderSrc.c_str();
-	glShaderSource(shader, 1, &src, NULL);
-
-	glCompileShader(shader);
-
-	GLint compiled;
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-	if (!compiled)
-	{
-		static char infoLog[100];
-
-		glGetShaderInfoLog(shader, 100, NULL, infoLog);
-		throw std::runtime_error(std::string("GLES2: Failure on compiling shaders: ") + infoLog);
-	}
-
-	return shader;
 }
 
 GLuint gles2_renderer::create_program(GLuint vertex_shader, GLuint frag_shader)
@@ -134,12 +97,12 @@ gles2_renderer::gles2_renderer(int width, int height)
 
 	/* Init shader programs */
 
-	GLuint quad_vertex_shader = loadShader(quad_vertex_shader_src, GL_VERTEX_SHADER);
-	GLuint quad_frag_shader   = loadShader(quad_frag_shader_src,   GL_FRAGMENT_SHADER);
+	GLuint quad_vertex_shader = gl_utils::load_shader(quad_vertex_shader_src, GL_VERTEX_SHADER);
+	GLuint quad_frag_shader   = gl_utils::load_shader(quad_frag_shader_src,   GL_FRAGMENT_SHADER);
 	m_quad_program = create_program(quad_vertex_shader, quad_frag_shader);
 
-	GLuint line_vertex_shader = loadShader(line_vertex_shader_src, GL_VERTEX_SHADER);
-	GLuint line_frag_shader   = loadShader(line_frag_shader_src, GL_FRAGMENT_SHADER);
+	GLuint line_vertex_shader = gl_utils::load_shader(line_vertex_shader_src, GL_VERTEX_SHADER);
+	GLuint line_frag_shader   = gl_utils::load_shader(line_frag_shader_src, GL_FRAGMENT_SHADER);
 	m_line_program = create_program(line_vertex_shader, line_frag_shader);
 
 	glVertexAttribPointer(m_attrib_position,  2, GL_FLOAT, GL_TRUE, 0, m_quad_verts);

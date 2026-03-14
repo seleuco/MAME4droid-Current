@@ -8,13 +8,13 @@
 
 ***************************************************************************/
 
+#pragma once
+
 #ifndef GLES2_RENDERER_H
 #define GLES2_RENDERER_H
 
-#pragma once
+#include "myosd_renderer.h"
 
-#include "emu/emucore.h"
-#include "emu/render.h"
 #include "osd/osdcore.h"
 
 #include <GLES2/gl2.h>
@@ -25,13 +25,13 @@
 
 typedef uintptr_t HashT;
 
-class gles2_renderer
+class gles2_renderer : public myosd_renderer
 {
 public:
 	gles2_renderer(int width, int height);
 
-	void render(const render_primitive_list& primlist);
-	void on_viewport_change(int width, int height);
+	void render(const render_primitive_list& primlist) override;
+	void on_viewport_change(int width, int height) override;
 
 	struct gles2_texture
 	{
