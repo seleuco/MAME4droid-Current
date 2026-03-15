@@ -64,6 +64,7 @@ int  (*setTouchData)(int i, int touchAction, float x, float y)=NULL;
 
 void (*onSurfaceCreated)(void) = NULL;
 void (*onDrawFrame)(void) = NULL;
+void (*onChooseRenderer)(int) = NULL;
 
 /* Callbacks to Android */
 jmethodID android_dumpVideo;
@@ -160,6 +161,9 @@ static void load_lib(const char *str)
 
     onDrawFrame = dlsym(libdl, "myosd_video_onDrawFrame");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onDrawFrame %d\n", onDrawFrame != NULL);
+
+    onChooseRenderer = dlsym(libdl, "myosd_video_onChooseRenderer");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onChooseRenderer %d\n", onChooseRenderer != NULL);
 }
 
 void myJNI_dumpVideo()
@@ -701,11 +705,20 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setTouchData
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
 	(JNIEnv* env, jclass c)
 {
-	onSurfaceCreated();
+    if (onSurfaceCreated != NULL)
+	    onSurfaceCreated();
 }
 
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
 	(JNIEnv* env, jclass c)
 {
-	onDrawFrame();
+    if (onDrawFrame != NULL)
+	    onDrawFrame();
+}
+
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onChooseRenderer
+        (JNIEnv* env, jclass c, jint renderer)
+{
+    if (onChooseRenderer != NULL)
+        onChooseRenderer(renderer);
 }

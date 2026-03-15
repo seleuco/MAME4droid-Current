@@ -60,6 +60,8 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_OLD_INSTALLATION_DIR = "PREF_OLD_INSTALLATION_DIR";
 
 
+	final static public String PREF_GLOBAL_VIDEO_RENDER_MODE = "PREF_GLOBAL_VIDEO_RENDER_MODE";
+
 	final static public String PREF_EMU_RESOLUTION = "PREF_EMU_RESOLUTION_2";
 	final static public String PREF_EMU_RESOLUTION_OSD = "PREF_EMU_RESOLUTION_OSD_2";
 	final static public String PREF_EMU_SOUND = "PREF_EMU_SOUND";
@@ -287,6 +289,10 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 		return p.getString(PREF_DEFINED_KEYS, defaultKeys.toString());
 
+	}
+
+	public int getVideoRenderMode() {
+		return Integer.valueOf(getSharedPreferences().getString(PREF_GLOBAL_VIDEO_RENDER_MODE, "1")).intValue();
 	}
 
 	public int getEmulatedResolution() {

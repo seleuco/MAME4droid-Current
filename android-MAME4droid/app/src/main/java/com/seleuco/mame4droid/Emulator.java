@@ -689,6 +689,8 @@ public class Emulator {
 
 				mm.getMainHelper().updateEmuValues();
 
+				onChooseRenderer(mm.getPrefsHelper().getVideoRenderMode());
+
 				runT();
 
 				if (extROM) {
@@ -793,4 +795,9 @@ public class Emulator {
 
 	public static native void onSurfaceCreated();
 	public static native void onDrawFrame();
+
+	public final static int RENDERER_SOFTWARE = 1;
+	public final static int RENDERER_GLES2 = 2;
+
+	public static native void onChooseRenderer(int renderer);
 }

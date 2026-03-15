@@ -172,8 +172,8 @@ void my_osd_interface::update(bool skip_redraw)
 //===============================================================================
 enum
 {
-	GLES2_RENDERER = 1,
-	SOFTWARE_RENDERER
+	SOFTWARE_RENDERER = 1,
+	GLES2_RENDERER
 };
 
 static myosd_renderer* my_renderer = nullptr;
@@ -207,12 +207,12 @@ extern "C" void myosd_video_onDrawFrame()
 			{
 				switch (current_renderer)
 				{
+                    case SOFTWARE_RENDERER:
+                        my_renderer = new gles2_rendersw(min_width, min_height);
+                    break;
+
 					case GLES2_RENDERER:
 						my_renderer = new gles2_renderer(min_width, min_height);
-					break;
-
-					case SOFTWARE_RENDERER:
-						my_renderer = new gles2_rendersw(min_width, min_height);
 					break;
 				}
 			}

@@ -225,6 +225,14 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
   (JNIEnv *, jclass);
 
+/*
+ * Class:     com_seleuco_mame4droid_Emulator
+ * Method:    onChooseRenderer
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onChooseRenderer
+        (JNIEnv *, jclass, jint);
+
 #ifdef __cplusplus
 }
 #endif

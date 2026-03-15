@@ -47,6 +47,7 @@ package com.seleuco.mame4droid.render;
 import android.opengl.GLSurfaceView.Renderer;
 
 import com.seleuco.mame4droid.Emulator;
+import com.seleuco.mame4droid.MAME4droid;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -60,6 +61,7 @@ public final class GLRendererES20 implements Renderer, IGLRenderer {
 	 * Sets the MAME4droid instance for the renderer.
 	 * @param mm The MAME4droid application instance.
 	 */
+	@Override
 	public void setMAME4droid(MAME4droid mm) {
 		//this.mm = mm;
 	}
@@ -68,6 +70,7 @@ public final class GLRendererES20 implements Renderer, IGLRenderer {
 	 * Notifies the renderer that the emulated screen size has changed.
 	 * This forces the texture to be re-initialized in the next frame.
 	 */
+	@Override
 	public void changedEmulatedSize() {
 		//FlykeSpice: We do nothing
 	}
@@ -80,8 +83,7 @@ public final class GLRendererES20 implements Renderer, IGLRenderer {
 
 	@Override
 	public void onSurfaceChanged(GL10 gl, int w, int h) {
-		//Nothing?
-		super.onSurfaceChanged(gl, w, h);
+		//Nothing
 	}
 
 	@Override
