@@ -59,8 +59,8 @@ import android.view.inputmethod.InputMethodManager;
 
 // Imports of MAME4droid specific classes.
 import com.seleuco.mame4droid.Emulator;
-import com.seleuco.mame4droid.render.GLRendererES10;
-import com.seleuco.mame4droid.render.GLRendererES32;
+import com.seleuco.mame4droid.render.GLRendererES20;
+//import com.seleuco.mame4droid.render.GLRendererES32;
 import com.seleuco.mame4droid.MAME4droid;
 import com.seleuco.mame4droid.helpers.PrefsHelper;
 import com.seleuco.mame4droid.render.IGLRenderer;
@@ -155,15 +155,15 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 
 		if(mm != null) {
 			// Check if shaders are enabled in the preferences.
-			if (mm.getPrefsHelper().isShadersEnabled()) {
-				// If so, use OpenGL ES 3.2 for advanced effects.
-				setEGLContextClientVersion(3);
-				render = new GLRendererES32();
-			} else {
-				// Otherwise, use the more compatible OpenGL ES 1.0.
-				setEGLContextClientVersion(1);
-				render = new GLRendererES10();
-			}
+			//if (mm.getPrefsHelper().isShadersEnabled()) {
+			//	// If so, use OpenGL ES 3.2 for advanced effects.
+			//	setEGLContextClientVersion(3);
+			//	render = new GLRendererES32();
+			//} else {
+				// Otherwise, use the more faster GLES2
+				setEGLContextClientVersion(2);
+				render = new GLRendererES20();
+			//}
 
 			// Assign the renderer to the GLSurfaceView.
 			setRenderer(render);
@@ -186,7 +186,7 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 		} else {
 			// If ready, ask the MainHelper to calculate the optimal dimensions.
 			ArrayList<Integer> l = mm.getMainHelper().measureWindow(widthMeasureSpec, heightMeasureSpec, scaleType);
-            setMeasuredDimension(l.get(0).intValue(), l.get(1).intValue());
+            		setMeasuredDimension(l.get(0).intValue(), l.get(1).intValue());
 		}
 	}
 

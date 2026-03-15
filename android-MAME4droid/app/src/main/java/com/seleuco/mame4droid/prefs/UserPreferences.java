@@ -153,10 +153,9 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	  @Override
 	    protected void onResume() {
 	        super.onResume();
-	        boolean enable;
 	        // Setup the initial values
 	        //mCheckBoxPreference.setSummary(sharedPreferences.getBoolean(key, false) ? "Disable this setting" : "Enable this setting");
-	        mPrefGlobalVideoRenderMode.setSummary("Current value is '" + mPrefGlobalVideoRenderMode.getEntry()+"'");
+		  	mPrefGlobalVideoRenderMode.setSummary("Current value is '" + mPrefGlobalVideoRenderMode.getEntry()+"'");
 
 	        mPrefResolution.setSummary("Current value is '" + mPrefResolution.getEntry()+"'");
 		    mPrefOSDResolution.setSummary("Current value is '" + mPrefOSDResolution.getEntry()+"'");
@@ -224,11 +223,13 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	        {
 	            mPrefControllerType.setSummary("Current values is '" + mPrefControllerType.getEntry()+"'");
 	        }
-	        else if(key.equals(PrefsHelper.PREF_GLOBAL_VIDEO_RENDER_MODE))
-	        {
+			else if(key.equals(PrefsHelper.PREF_GLOBAL_VIDEO_RENDER_MODE))
+			{
 				mPrefGlobalVideoRenderMode.setSummary("Current value is '" + mPrefGlobalVideoRenderMode.getEntry()+"'");
-				boolean enable = Integer.valueOf(mPrefGlobalVideoRenderMode.getValue()).intValue() ==PrefsHelper.PREF_RENDER_GL;
-	        }
+
+				//TODO: Setup renderer switch real-time rather than forcing restart
+				//Emulator.onChooseRenderer(Integer.parseInt(sharedPreferences.getString(key, "1")));
+			}
 	        else if(key.equals(PrefsHelper.PREF_EMU_RESOLUTION))
 	        {
 	        	mPrefResolution.setSummary("Current value is '" + mPrefResolution.getEntry()+"'");
