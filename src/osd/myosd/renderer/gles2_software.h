@@ -27,7 +27,7 @@ public:
 	gles2_software(int width, int height);
 
 	void render(const render_primitive_list& primlist) override;
-	void on_viewport_change(int width, int height) override;
+	void on_emulatedsize_change(int width, int height) override;
 
 	//Shaders not supported by software renderer..
 	void set_shader(const char* shader_name) override {}

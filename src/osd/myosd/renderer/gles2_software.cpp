@@ -54,6 +54,9 @@ gles2_software::gles2_software(int width, int height)
 	m_program = gl_utils::create_program(vert_shader, frag_shader);
 	glUseProgram(m_program);
 
+	glDeleteShader(vert_shader);
+	glDeleteShader(frag_shader);
+
 	auto attrib_position = glGetAttribLocation(m_program, "a_position");
 	if (attrib_position == -1)
 		throw std::runtime_error("GLES2 Software: unable to retrieve attribute a_position location");
@@ -79,7 +82,7 @@ gles2_software::gles2_software(int width, int height)
 	auto sampler_uniform = glGetUniformLocation(m_program, "s_texture");
 	glUniform1i(sampler_uniform, 0); //set sampler2D texture unit to 0
 
-	on_viewport_change(width, height);
+	on_emulatedsize_change(width, height);
 }
 
 void gles2_software::render(const render_primitive_list& primlist)
@@ -92,7 +95,7 @@ void gles2_software::render(const render_primitive_list& primlist)
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void gles2_software::on_viewport_change(int width, int height)
+void gles2_software::on_emulatedsize_change(int width, int height)
 {
 	m_width = width;
 	m_height = height;
@@ -101,4 +104,6 @@ void gles2_software::on_viewport_change(int width, int height)
 
 	m_screenbuff = std::realloc(m_screenbuff, m_pitch*height*4);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+	glViewport(0, 0, width, height);
 }

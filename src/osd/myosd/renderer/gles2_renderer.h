@@ -36,7 +36,7 @@ public:
 
 	void render(const render_primitive_list& primlist) override;
 
-	void on_viewport_change(int width, int height) override;
+	void on_emulatedsize_change(int width, int height) override;
 
 	void set_shader(const char* shader_name) override;
 	static std::vector<std::string> get_shaders_supported();

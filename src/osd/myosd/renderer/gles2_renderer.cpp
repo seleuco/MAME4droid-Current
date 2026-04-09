@@ -109,17 +109,19 @@ gles2_renderer::gles2_renderer(int width, int height)
 	auto sampler_uniform = glGetUniformLocation(m_quad_program, "s_texture");
 	glUniform1i(sampler_uniform, 0); //set sampler2D texture unit to 0
 
-	on_viewport_change(width, height);
+	on_emulatedsize_change(width, height);
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
-void gles2_renderer::on_viewport_change(int width, int height)
+void gles2_renderer::on_emulatedsize_change(int width, int height)
 {
 	m_ortho = gl_utils::make_ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
 	m_width = width; m_height = height;
 
 	m_filter.set_ortho(m_ortho);
+
+	glViewport(0, 0, width, height);
 }
 
 void gles2_renderer::use_quad_program()

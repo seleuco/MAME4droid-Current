@@ -218,7 +218,7 @@ extern "C" void myosd_video_onDrawFrame()
 		{
 			old_width = min_width; old_height = min_height;
 
-			my_renderer->on_viewport_change(min_width, min_height);
+			my_renderer->on_emulatedsize_change(min_width, min_height);
 		}
 
 		my_renderer->render(*primlist);
