@@ -3,7 +3,7 @@
 ![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)
 ![Platform: Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
 
-**MAME4droid (Current)** is a powerful Android port of the **MAME 0.286** emulator (by MAMEDev and contributors), developed by **David Valdeita (Seleuco)**. It supports over 40,000 different ROMs and emulates classic arcade systems along with home computers like ZX Spectrum, Amstrad CPC, and MSX.
+**MAME4droid (Current)** is a powerful Android port of the **MAME 0.287** emulator (by MAMEDev and contributors), developed by **David Valdeita (Seleuco)**. It supports over 40,000 different ROMs and emulates classic arcade systems along with home computers like ZX Spectrum, Amstrad CPC, and MSX.
 
 ---
 
@@ -36,7 +36,7 @@ For the best experience and to save internal storage, it is recommended to store
 4.  **Grant Permission**:
     * The Android file picker will open. Navigate to your external storage, select the folder you created, and tap **"Use this folder"**.
     * Tap **Allow** to give MAME4droid permission to access that directory.
-5.  **Romset Version**: Ensure you are using the **'0.286'** romset for compatibility.
+5.  **Romset Version**: Ensure you are using the **'0.287'** romset for compatibility.
 
 *Note: If you already installed it, you can change the path in **Options > Settings > General > Change ROMs path**.*
 

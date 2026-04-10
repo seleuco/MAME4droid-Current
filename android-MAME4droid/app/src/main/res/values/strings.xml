@@ -5,6 +5,6 @@
     <string name="menu_quit">Exit App</string>
     <string name="app_name">MAME4droid (Current)</string>
     <string name="don_t_bother">Don\'t ask again</string>
-	<string name="mame_version">0.286</string>
+	<string name="mame_version">0.287</string>
 </resources>
 
