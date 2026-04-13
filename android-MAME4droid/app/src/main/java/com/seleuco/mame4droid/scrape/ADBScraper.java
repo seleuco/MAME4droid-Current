@@ -77,9 +77,9 @@ public class ADBScraper implements IScraper {
 
 	// Constants for web service URLs, user agent, and property keys.
 	private static final String USER_AGENT = "MAME4droid/1.0";
-	private static final String ADB_STATUS_ADB_URL = "http://adb.arcadeitalia.net/service_scraper.php?ajax=download_status";
-	private static final String ADB_QUERY_MAME_URL = "http://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame";
-	private static final String ADB_QUERY_FULL_URL = "http://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame_media";
+	private static final String ADB_STATUS_ADB_URL = "https://adb.arcadeitalia.net/service_scraper.php?ajax=download_status";
+	private static final String ADB_QUERY_MAME_URL = "https://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame";
+	private static final String ADB_QUERY_FULL_URL = "https://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame_media";
 
 	// File types
 	private static final String FILE_TYPE_PNG = "png";

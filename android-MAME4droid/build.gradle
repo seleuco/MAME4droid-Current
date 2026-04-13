@@ -1,25 +1,98 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-		classpath 'com.android.tools.build:gradle:8.7.3'
-    }
-}
+apply plugin: 'com.android.application'
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
+android {
+    compileSdk = 36
 
-/*    gradle.projectsEvaluated {
-        tasks.withType(JavaCompile) {
-            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    //ndkVersion = "21.3.6528147"
+
+	ndkVersion = "28.2.13676358"
+
+	buildFeatures {
+		buildConfig = true
+	}
+
+	compileOptions {
+		sourceCompatibility = JavaVersion.VERSION_17
+		targetCompatibility = JavaVersion.VERSION_17
+	}
+
+    defaultConfig {
+        applicationId "com.seleuco.mame4d2024"
+        minSdkVersion 29
+        targetSdkVersion 36
+        versionCode 106
+        versionName '1.34.1'
+
+        ndk {
+            moduleName = "mame4droid-jni"
+            //noinspection ChromeOsAbiSupport
+            abiFilters   "arm64-v8a"
+			//ndkPath "C:\\Android\\android-ndk-r27c"
+			ndkVersion = "28.2.13676358"
         }
-    }*/
+    }
+
+	base {
+		archivesName = "MAME4droid 2026-" + defaultConfig.versionName
+	}
+
+    bundle {
+        language {
+            // This property is set to true by default.
+            enableSplit = false
+        }
+        density {
+            // This property is set to true by default.
+            enableSplit = false
+        }
+        abi {
+            // This property is set to true by default.
+            enableSplit = false
+        }
+    }
+
+    packagingOptions {
+		//doNotStrip "**/*.so" //CUIDADO QUITAR EN RELEASE. Lo he añadido al final con nueva sintaxis
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    buildTypes {
+        release {
+			//minifyEnabled true
+			minifyEnabled false
+			//shrinkResources true
+
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+			signingConfig = signingConfigs.debug
+		}
+		debug {
+			minifyEnabled false
+			debuggable true
+			jniDebuggable true
+			//renderscriptDebuggable true
+		}
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path file('src/main/jni/Android.mk')
+        }
+    }
+
+    namespace = 'com.seleuco.mame4droid'
+
 }
 
+dependencies {
+	//implementation "androidx.annotation:annotation:1.7.0"
+}
 
+androidComponents {
+	onVariants(selector().withBuildType("debug")) {
+		packaging.jniLibs.keepDebugSymbols.add("**/*.so")
+	}
+
+	registerSourceType("../../../../src") // will cause src/main/foobar (and src/debug/foobar etc.) to appear as sources in Android Studi
+}
