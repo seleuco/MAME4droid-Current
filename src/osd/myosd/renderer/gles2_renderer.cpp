@@ -1,8 +1,8 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice)
+// copyright-holders:Filipe Paulino (FlykeSpice) & Seleuco (David Valdeita)
 /***************************************************************************
 
-    gles2_renderer.cpp 
+    gles2_renderer.cpp
 
     GLES2 renderer for MAME4droid
 
@@ -122,6 +122,8 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
 	//Force program reupload to update ortho matrix uniform
 	m_last_program = 0;
 
+    m_force_viewport_update = true;
+
 	m_filter.set_ortho(m_ortho);
 }
 
@@ -177,10 +179,23 @@ void gles2_renderer::set_blendmode(int blendmode)
 	}
 }
 
-
-
 void gles2_renderer::render(const render_primitive_list& primlist)
 {
+    if (m_force_viewport_update)
+    {
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
+
+        // Failsafe: Only store the values if OpenGL returns logical physical dimensions (> 0)
+        if (viewport[2] > 0 && viewport[3] > 0)
+        {
+            m_view_width = viewport[2];
+            m_view_height = viewport[3];
+
+            m_force_viewport_update = false; // Successfully updated, clear the flag
+        }
+    }
+
 	//TODO: Batch many primitives that share the same properties (format, colors..) into a single draw call
 	for (const render_primitive& prim : primlist)
 	{
@@ -256,10 +271,13 @@ void gles2_renderer::render(const render_primitive_list& primlist)
 				const bool usefilter = m_usefilter && PRIMFLAG_GET_SCREENTEX(prim.flags);
 				if (usefilter)
 				{
-					m_filter.draw(prim.get_quad_width(), prim.get_quad_height());
+					//m_filter.draw(prim.get_quad_width(), prim.get_quad_height());
+                    // This ensures that resolution-dependent shaders (like Mattias CRT) scale their
+                    // effects correctly relative to the actual display area rather than the emulated quad.
+                    m_filter.draw(m_view_width, m_view_height);
 					m_last_program = 0; //Restore to previous program
 				}
-				else 
+				else
 				{
 					glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
 				}
@@ -358,7 +376,7 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 		texture.base = texinfo.base;
 		texture.owned = false; //We don't own the data (FIXME: we probably don't need this and can just keep texure.base nullptr and reference texinfo.base directly...)
 	}
-	else 
+	else
 #endif
 	{
 		//We need to copy over
@@ -370,8 +388,12 @@ void gles2_renderer::texture_create(const render_primitive& prim)
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texinfo.width, texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.base);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    //smoothing
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	GLint wrapmode = PRIMFLAG_GET_TEXWRAP(prim.flags) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);

@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice)
+// copyright-holders:Filipe Paulino (FlykeSpice) & Seleuco (David Valdeita)
 /***************************************************************************
 
     gles2_renderer.h
@@ -118,7 +118,11 @@ private:
 	inline static std::map<std::string, std::string> s_filters = {};
 
 	int m_width, m_height;
-	
+
+    int m_view_width = 0;
+    int m_view_height = 0;
+    bool m_force_viewport_update = true;
+
 	std::list<gles2_texture> m_texlist; //Currently allocated textures
 };
 

@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice)
+// copyright-holders:Filipe Paulino (FlykeSpice) & Seleuco (David Valdeita)
 /***************************************************************************
 
     filter_shader.cpp
@@ -50,7 +50,7 @@ void filter_shader::load_filter(const std::string& filter_src)
 
 	auto texture_sampler = glGetUniformLocation(m_program, "Texture");
 	glUniform1i(texture_sampler, 0); // Screen texture will be always located at unit 0
-	
+
 	glUniform2f(m_uniform_TextureSize, m_texwidth, m_texheight);
 	glUniform2f(m_uniform_InputSize,   m_texwidth, m_texheight);
 
@@ -71,7 +71,7 @@ void filter_shader::set_input_size(int width, int height)
 	glUniform2f(m_uniform_TextureSize, width, height);
 	glUniform2f(m_uniform_InputSize,   width, height);
 
-	
+
 	glUseProgram(last_program);
 }
 
