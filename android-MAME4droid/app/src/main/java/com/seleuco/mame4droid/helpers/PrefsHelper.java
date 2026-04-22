@@ -61,8 +61,8 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 	final static public String PREF_GLOBAL_VIDEO_RENDER_MODE = "PREF_GLOBAL_VIDEO_RENDER_MODE";
 
-	final static public String PREF_EMU_RESOLUTION = "PREF_EMU_RESOLUTION_2";
-	final static public String PREF_EMU_RESOLUTION_OSD = "PREF_EMU_RESOLUTION_OSD_2";
+	final static public String PREF_EMU_RESOLUTION = "PREF_EMU_RESOLUTION_3";
+	final static public String PREF_EMU_RESOLUTION_OSD = "PREF_EMU_RESOLUTION_OSD_3";
 	final static public String PREF_EMU_SOUND = "PREF_EMU_SOUND";
 	final static public String PREF_EMU_SHOW_FPS = "PREF_EMU_SHOW_FPS";
 	final static public String PREF_ZOOM_TO_WINDOW = "PREF_ZOOM_TO_WINDOW";

@@ -64,9 +64,9 @@ int  (*setTouchData)(int i, int touchAction, float x, float y)=NULL;
 
 void (*onSurfaceCreated)(void) = NULL;
 void (*onDrawFrame)(void) = NULL;
-void (*onChooseRenderer)(int) = NULL;
+void (*onSetRenderer)(int) = NULL;
 
-void (*getShaders)(int, const char***, int*) = NULL;
+void (*getShaders)(const char***, int*) = NULL;
 bool (*setShader)(const char*) = NULL;
 void (*loadShaders)(const char*) = NULL;
 
@@ -160,14 +160,11 @@ static void load_lib(const char *str)
     setTouchData = dlsym(libdl, "myosd_droid_setTouchData");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_droid_setTouchData %d\n", setTouchData != NULL);
 
-    onSurfaceCreated = dlsym(libdl, "myosd_video_onSurfaceCreated");
-    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onSurfaceCreated %d\n", onSurfaceCreated != NULL);
-
     onDrawFrame = dlsym(libdl, "myosd_video_onDrawFrame");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onDrawFrame %d\n", onDrawFrame != NULL);
 
-    onChooseRenderer = dlsym(libdl, "myosd_video_onChooseRenderer");
-    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onChooseRenderer %d\n", onChooseRenderer != NULL);
+    onSetRenderer = dlsym(libdl, "myosd_video_onSetRenderer");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_onSetRenderer %d\n", onSetRenderer != NULL);
 
     setShader = dlsym(libdl, "myosd_video_setShader");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "myosd_video_setShader %d\n", setShader != NULL);
@@ -715,13 +712,6 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setTouchData
     return 0;
 }
 
-JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
-	(JNIEnv* env, jclass c)
-{
-    if (onSurfaceCreated != NULL)
-	    onSurfaceCreated();
-}
-
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
 	(JNIEnv* env, jclass c)
 {
@@ -729,20 +719,20 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
 	    onDrawFrame();
 }
 
-JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onChooseRenderer
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSetRenderer
         (JNIEnv* env, jclass c, jint renderer)
 {
-    if (onChooseRenderer != NULL)
-        onChooseRenderer(renderer);
+    if (onSetRenderer != NULL)
+        onSetRenderer(renderer);
 }
 
 JNIEXPORT jobjectArray JNICALL Java_com_seleuco_mame4droid_Emulator_getShaders
-        (JNIEnv* env, jclass c, jint renderer)
+        (JNIEnv* env, jclass c)
 {
     const char** shader_list;
     int n;
 
-    getShaders(renderer, &shader_list, &n);
+    getShaders(&shader_list, &n);
 
     jobjectArray array = (*env)->NewObjectArray(env, n, (*env)->FindClass(env, "java/lang/String"), NULL);
     for (int i=0; i<n; i++)

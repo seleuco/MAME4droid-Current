@@ -182,7 +182,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 		    //mPrefShaderScreen.setSummary("Select it to configure advanced postprocessing effects");
 		    //mPrefShaderScreen.setEnabled(true);
 
-			updateShaderEntries(Emulator.RENDERER_GL_NATIVE);
+			updateShaderEntries();
 		  	mPrefShader.setSummary("Current value is '" + mPrefShader.getEntry()+"'");
 
 		  	// Set up a listener whenever a key changes
@@ -464,8 +464,8 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	/**
 	 * Update shader effects entries with current selected renderer supported shaders
 	 */
-	private void updateShaderEntries(int renderer) {
-		String[] origShaders = Emulator.getShaders(renderer);
+	private void updateShaderEntries() {
+		String[] origShaders = Emulator.getShaders();
 
 		String[] shaders = new String[origShaders.length+1];
 		shaders[0] = "none";

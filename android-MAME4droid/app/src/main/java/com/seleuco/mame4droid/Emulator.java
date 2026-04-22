@@ -794,15 +794,14 @@ public class Emulator {
 	public static native int setMouseData(int i, int mouseAction, int button, float cx, float cy);
 	public static native int setTouchData(int i, int touchAction, float cx, float cy);
 
-	public static native void onSurfaceCreated();
 	public static native void onDrawFrame();
 
 	public final static int RENDERER_GL_SW = 1;
 	public final static int RENDERER_GL_NATIVE = 2;
 
-	public static native void onChooseRenderer(int renderer);
+	public static native void onSetRenderer(int renderer);
 
-	public static native String[] getShaders(int renderer);
+	public static native String[] getShaders();
 	public static native boolean setShader(String shader);
 	public static native void loadShaders(String path);
 }

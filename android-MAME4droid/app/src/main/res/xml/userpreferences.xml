@@ -13,14 +13,14 @@
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_resolution_options"
 			android:title='Emulated resolution'
-			android:key="PREF_EMU_RESOLUTION_2"
+			android:key="PREF_EMU_RESOLUTION_3"
 			android:entryValues="@array/pref_resolution_values"
 			android:defaultValue="1" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_osd_resolution_options"
 			android:title='Frontend resolution'
-			android:key="PREF_EMU_RESOLUTION_OSD_2"
+			android:key="PREF_EMU_RESOLUTION_OSD_3"
 			android:entryValues="@array/pref_osd_resolution_values"
 			android:defaultValue="9" />
 

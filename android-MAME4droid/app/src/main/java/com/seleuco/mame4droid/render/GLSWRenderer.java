@@ -81,14 +81,13 @@ public final class GLSWRenderer implements Renderer, IGLRenderer {
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 		//Call JNI method to do initialization stuff
 		Log.d("GLRENDERER10", "onSurfaceCreated called");
-		//if (Emulator.isEmulating())
-		Emulator.onChooseRenderer(Emulator.RENDERER_GL_SW);
+		Emulator.onSetRenderer(Emulator.RENDERER_GL_SW);
 	}
 
 	@Override
 	public void onSurfaceChanged(GL10 gl, int w, int h) {
 		Log.d("GLRENDERER10", "onSurfaceChanged called");
-		//Emulator.onChooseRenderer(Emulator.RENDERER_GLES1);
+		//Emulator.onSetRenderer(Emulator.RENDERER_GL_SW);;
 		GLES10.glViewport(0, 0, w, h);
 	}
 

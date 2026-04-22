@@ -159,58 +159,27 @@
 	</string-array>
 
 	<string-array name="pref_resolution_options">
-		<item>Auto (Original Machine)</item>
-		<item>640x480 (4/3)</item>
-		<item>800x600 (4/3)</item>
-		<item>1024x768 (4/3)</item>
-		<item>1280x720 (16/9)</item>
-        <item>1440x1080 (4/3)</item>
-		<item>1920x1080 (16/9)</item>
-		<item>1/2 x Native (4/3)</item>
-		<item>1/2 x Native (Wide)</item>
-		<item>Native (4/3)</item>
-		<item>Native (All Screen)</item>
+		<item>Auto (Machine Original / Best Performance)</item>
+		<item>640x480 (Balanced Performance)</item>
+		<item>Device Native (Ideal for Artworks &amp; Bezels)</item>
 	</string-array>
+
 	<string-array name="pref_resolution_values">
 		<item>0</item>
 		<item>1</item>
-		<item>2</item>
-		<item>3</item>
-		<item>4</item>
-		<item>5</item>
-		<item>6</item>
-		<item>7</item>
-		<item>8</item>
-		<item>9</item>
 		<item>10</item>
 	</string-array>
 
-
 	<string-array name="pref_osd_resolution_options">
-		<item>400x300 (4/3)</item>
-		<item>500x333 (3/2)</item>
-		<item>640x480 (4/3)</item>
-		<item>800x600 (4/3)</item>
-		<item>1024x768 (4/3)</item>
-		<item>1280x720 (16/9)</item>
-		<item>1440x1080 (4/3)</item>
-		<item>1920x1080 (16/9)</item>
-		<item>1/2 x Native (4/3)</item>
-		<item>1/2 x Native (Wide)</item>
-		<item>Native (4/3)</item>
-		<item>Native (All Screen)</item>
+		<item>400x300 (Retro Pixel Art)</item>
+		<item>640x480 (Standard)</item>
+		<item>Device Native (4:3 Original)</item>
+		<item>Device Native (Fill Screen)</item>
 	</string-array>
+
 	<string-array name="pref_osd_resolution_values">
 		<item>0</item>
-		<item>11</item>
 		<item>1</item>
-		<item>2</item>
-		<item>3</item>
-		<item>4</item>
-		<item>5</item>
-		<item>6</item>
-		<item>7</item>
-		<item>8</item>
 		<item>9</item>
 		<item>10</item>
 	</string-array>

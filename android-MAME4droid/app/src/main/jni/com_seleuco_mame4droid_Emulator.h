@@ -213,14 +213,6 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_setTouchData
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator
- * Method:    onSurfaceCreated
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSurfaceCreated
-  (JNIEnv *, jclass);
-
-/*
- * Class:     com_seleuco_mame4droid_Emulator
  * Method:    onDrawFrame
  * Signature: ()V
  */
@@ -229,10 +221,10 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onDrawFrame
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator
- * Method:    onChooseRenderer
+ * Method:    onSetRenderer
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onChooseRenderer
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onSetRenderer
         (JNIEnv *, jclass, jint);
 
 /*
@@ -241,7 +233,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_onChooseRenderer
  * Signature: (I)[Ljava/lang/String
  */
 JNIEXPORT jobjectArray JNICALL Java_com_seleuco_mame4droid_Emulator_getShaders
-        (JNIEnv *, jclass, jint);
+        (JNIEnv *, jclass);
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator

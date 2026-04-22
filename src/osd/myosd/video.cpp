@@ -173,14 +173,14 @@ void my_osd_interface::update(bool skip_redraw)
 //===============================================================================
 enum
 {
-	GLES1_RENDERER = 1,
-	GLES2_RENDERER
+	SW_RENDERER = 1,
+	NATIVE_RENDERER
 };
 
 static myosd_renderer* my_renderer = nullptr;
-static int current_renderer = GLES1_RENDERER;
+static int current_renderer = SW_RENDERER;
 
-extern "C" void myosd_video_onChooseRenderer(int renderer)
+extern "C" void myosd_video_onSetRenderer(int renderer)
 {
 	std::lock_guard lock(rend_mutex);
 	current_renderer = renderer;
@@ -190,21 +190,14 @@ extern "C" void myosd_video_onChooseRenderer(int renderer)
 
 	switch (current_renderer)
 	{
-		case GLES1_RENDERER:
+		case SW_RENDERER:
 			my_renderer = new gles1_renderer(min_width, min_height);
 		break;
 
-		case GLES2_RENDERER:
+		case NATIVE_RENDERER:
 			my_renderer = new gles2_renderer(min_width, min_height);
 		break;
 	}
-}
-
-extern "C" void myosd_video_onSurfaceCreated()
-{
-	//Called whenever the surface is first created or recreated (Activity restart)
-	//The current GL context is invalidated, so we need to setup it again.
-	myosd_video_onChooseRenderer(current_renderer);
 }
 
 static int old_width, old_height;
@@ -225,21 +218,13 @@ extern "C" void myosd_video_onDrawFrame()
 	}
 }
 
-extern "C" void myosd_video_getShaders(int renderer, const char*** list, int* n)
+extern "C" void myosd_video_getShaders(const char*** list, int* n)
 {
 	static std::vector<const char*> char_list;
 
     static std::vector<std::string> shaders;
-	switch (renderer)
-	{
-		case GLES1_RENDERER:
-			shaders = gles1_renderer::get_shaders_supported();
-		break;
 
-		case GLES2_RENDERER:
-			shaders = gles2_renderer::get_shaders_supported();
-		break;
-	}
+	shaders = gles2_renderer::get_shaders_supported();
 
 	if (shaders.size() > 0)
 	{

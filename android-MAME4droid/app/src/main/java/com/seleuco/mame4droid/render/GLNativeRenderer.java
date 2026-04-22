@@ -112,25 +112,17 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		//Call JNI method to do initialization stuff
 		Log.d("GLRENDERER", "onSurfaceCreated called");
 		Emulator.loadShaders(mm.getMainHelper().getInstallationDIR());
-		Emulator.onChooseRenderer(Emulator.RENDERER_GL_NATIVE);
+		Emulator.onSetRenderer(Emulator.RENDERER_GL_NATIVE);
 		Emulator.setShader(oldEffect.equals("none") ? null : oldEffect);
-		/*
-		if (Emulator.isEmulating()) {
-			Emulator.onChooseRenderer(Emulator.RENDERER_GLES2);
-			Emulator.setShader(oldEffect.equals("none") ? null : oldEffect);
-		}
-		 */
 	}
 
 	@Override
 	public void onSurfaceChanged(GL10 gl, int w, int h) {
 		Log.d("GLRENDERER", "onSurfaceChanged called");
 		GLES20.glViewport(0, 0, w, h);
-		if (Emulator.isEmulating()) {
-			//This is called when you exit from the Preferences screen
-			//updateVideoEngine();
-			updateShaderEffect();
-		}
+		//Emulator.onSetRenderer(Emulator.RENDERER_GL_NATIVE);
+		//This is called when you exit from the Preferences screen
+		updateShaderEffect();
 	}
 
 	@Override
