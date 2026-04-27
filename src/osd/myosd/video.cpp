@@ -29,6 +29,7 @@
 
 #include <mutex>
 #include <vector>
+#include <string>
 
 #define MAX(a,b) ((a)<(b) ? (b) : (a))
 
@@ -39,6 +40,8 @@ int myosd_zoom_to_window;
 static myosd_renderer* my_renderer = nullptr;
 static std::mutex rend_mutex;
 static render_primitive_list *primlist = nullptr;
+
+static std::string current_shader_name = "";
 
 #define ANDROID_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "GLRENDERER", __VA_ARGS__)
 
@@ -222,6 +225,15 @@ void myosd_video_createRenderer(int renderer)
             current_renderer = SW_RENDERER; // Sync the state variable
             break;
     }
+	
+	if (current_renderer == NATIVE_RENDERER && my_renderer != nullptr && !current_shader_name.empty()) {
+        try {
+            my_renderer->set_shader(current_shader_name.c_str());
+        } catch (...) {
+            my_renderer->set_shader(nullptr);
+            current_shader_name = "";
+        }
+    }
 }
 
 extern "C" void myosd_video_setRenderer(int renderer)
@@ -285,6 +297,12 @@ extern "C" void myosd_video_getShaders(const char*** list, int* n)
 extern "C" bool myosd_video_setShader(const char* shader_name)
 {
 	std::lock_guard lock(rend_mutex);
+	
+	if (shader_name != nullptr) {
+        current_shader_name = shader_name;
+    } else {
+        current_shader_name = "";
+    }
 
 	try
 	{
