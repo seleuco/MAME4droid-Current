@@ -75,8 +75,10 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	@Override
 	public void setMAME4droid(MAME4droid mm) {
 		this.mm = mm;
-		prefsHelper = mm.getPrefsHelper();
-		oldEffect = prefsHelper.getShaderEffectSelected();
+		if(mm!=null) {
+			prefsHelper = mm.getPrefsHelper();
+			oldEffect = prefsHelper.getShaderEffectSelected();
+		}
 	}
 
 	/**
@@ -88,6 +90,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	}
 
 	private void updateShaderEffect() {
+		if(prefsHelper == null)
+			return;
 		String effect = prefsHelper.isShadersEnabled() ? prefsHelper.getShaderEffectSelected() : "none";
 
 		if (!oldEffect.equals(effect)) {
@@ -134,7 +138,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 			//gl.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
 			gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 		}
-		else if(!init)
+		else if(!init && mm != null)
 		{
 			Emulator.loadShaders(mm.getMainHelper().getInstallationDIR());
 			Emulator.setShader(oldEffect.equals("none") ? null : oldEffect);

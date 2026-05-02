@@ -37,10 +37,18 @@ int myosd_fps;
 int myosd_zoom_to_window;
 
 //GLES renderer related stuff
-static myosd_renderer* my_renderer = nullptr;
+enum
+{
+    SW_RENDERER = 1,
+    NATIVE_RENDERER
+};
+
 static std::mutex rend_mutex;
 static render_primitive_list *primlist = nullptr;
-
+static int current_renderer = SW_RENDERER;
+static myosd_renderer* my_renderer = nullptr;
+static int render_width = 640, render_height = 480;
+static int old_render_width, old_render_height;
 static bool force_recreate_renderer = false;
 static std::string current_shader_name = "";
 
@@ -59,10 +67,10 @@ void my_osd_interface::video_init()
 
     m_video_none = strcmp(options().value(OPTION_VIDEO), "none") == 0;
 
-    m_min_width = 2;
-    m_min_height = 2;
-    m_vis_width = 2;
-    m_vis_height = 2;
+    m_min_width = 0;
+    m_min_height = 0;
+    m_vis_width = 0;
+    m_vis_height = 0;
 }
 
 //============================================================
@@ -91,14 +99,9 @@ void my_osd_interface::video_exit()
         m_callbacks.video_exit();
 }
 
-
 //============================================================
 //  update
 //============================================================
-
-//FlykeSpice: Need to hoist these variables here so they are used by GL renderer callbacks down below
-static int min_width=640, min_height=480;
-static int safe_min_width = 640, safe_min_height = 480;
 
 void my_osd_interface::update(bool skip_redraw)
 {
@@ -116,6 +119,9 @@ void my_osd_interface::update(bool skip_redraw)
     if (!skip_redraw && !m_video_none) {
 
         int vis_width, vis_height;
+        int min_width, min_height;
+		
+		float pixel_aspect = 1.0f;
 
         //__android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "video min_width:%d min_height:%d",min_width,min_height);
 
@@ -144,7 +150,10 @@ void my_osd_interface::update(bool skip_redraw)
                                                target()->orientation(), vis_width, vis_height);
 
                 target()->set_keepaspect(false);
-
+				
+				float display_aspect = (float)vis_width / (float)vis_height;
+                float texture_aspect = (float)min_width / (float)min_height;
+                pixel_aspect = display_aspect / texture_aspect;
             }
 
         } else {
@@ -170,24 +179,23 @@ void my_osd_interface::update(bool skip_redraw)
                 m_callbacks.video_change(min_width, min_height, vis_width, vis_height);
             }
 
-            target()->set_bounds(min_width, min_height);
-        }
-    }
-
-    if (!skip_redraw)
-    {
-	    std::lock_guard lock(rend_mutex);
-
-	    if (primlist) {
-            primlist->release_lock();
-            primlist = nullptr;
+            target()->set_bounds(min_width, min_height, pixel_aspect);
         }
 
-        safe_min_width = min_width;
-        safe_min_height = min_height;
+        {
+            std::lock_guard lock(rend_mutex);
 
-	    primlist = &target()->get_primitives();
-	    primlist->acquire_lock();
+            if (primlist) {
+                primlist->release_lock();
+                primlist = nullptr;
+            }
+
+            render_width = min_width;
+            render_height = min_height;
+
+            primlist = &target()->get_primitives();
+            primlist->acquire_lock();
+        }
     }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
@@ -196,20 +204,9 @@ void my_osd_interface::update(bool skip_redraw)
 //===============================================================================
 //	JNI callbacks called from GL thread (GLViewSurface.Renderer)
 //===============================================================================
-enum
-{
-	SW_RENDERER = 1,
-	NATIVE_RENDERER
-};
-
-static int current_renderer = SW_RENDERER;
-static int old_width, old_height;
 
 void myosd_video_createRenderer(int renderer)
 {
-    old_width = 1;
-    old_height = 1;
-
     ANDROID_LOG("create renderer %d",renderer);
 
     current_renderer = renderer;
@@ -217,16 +214,16 @@ void myosd_video_createRenderer(int renderer)
     switch (current_renderer)
     {
         case SW_RENDERER:
-            my_renderer = new gles1_renderer(min_width, min_height);
+            my_renderer = new gles1_renderer(render_width, render_height);
             break;
 
         case NATIVE_RENDERER:
-            my_renderer = new gles2_renderer(min_width, min_height);
+            my_renderer = new gles2_renderer(render_width, render_height);
             break;
         default:
             ANDROID_LOG("Error create renderer: Renderer %d not found!", current_renderer);
             // Safety fallback: load the software renderer by default to prevent crashes
-            my_renderer = new gles1_renderer(min_width, min_height);
+            my_renderer = new gles1_renderer(render_width, render_height);
             current_renderer = SW_RENDERER; // Sync the state variable
             break;
     }
@@ -239,6 +236,8 @@ void myosd_video_createRenderer(int renderer)
             current_shader_name = "";
         }
     }
+    old_render_width = render_width;
+    old_render_height = render_height;
 }
 
 extern "C" void myosd_video_newRenderer()
@@ -266,12 +265,12 @@ extern "C" int myosd_video_onDrawFrame(int renderer)
         myosd_video_createRenderer(renderer); // Safe: we are in GLThread
     }
 
-    if (safe_min_width != old_width || safe_min_height != old_height) //avoid dirty reads
+    if (render_width != old_render_width || render_height != old_render_height) //avoid dirty reads
     {
-        old_width = safe_min_width;
-        old_height = safe_min_height;
+        old_render_width = render_width;
+        old_render_height = render_height;
 
-        my_renderer->on_emulatedsize_change(safe_min_width, safe_min_height);
+        my_renderer->on_emulatedsize_change(render_width, render_height);
     }
 
 	my_renderer->render(primlist);
@@ -334,3 +333,4 @@ extern "C" void myosd_video_loadShaders(const char* path)
     // load effect shaders for gles2 renderer
     gles2_renderer::load_shaders(path);
 }
+

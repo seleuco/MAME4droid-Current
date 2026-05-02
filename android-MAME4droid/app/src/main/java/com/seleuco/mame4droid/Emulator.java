@@ -322,7 +322,7 @@ public class Emulator {
 	//Method to update frame
 	static void requestRenderFrame() {
 
-		synchronized (lock1) {
+		//synchronized (lock1) {
 			try {
 				Emulator.inMenu = Emulator.getValue(Emulator.IN_MENU) == 1;
 
@@ -350,42 +350,53 @@ public class Emulator {
 				Log.getStackTraceString(t);
 				t.printStackTrace();
 			}
-		}
+		//}
 	}
 
 	//synchronized
 	static public void changeVideo(final int newWidth, final int newHeight, int newVisWidth, int newVisHeight) {
 
 		Log.d("Thread Video", "changeVideo emu_width:" + emu_width + " emu_height: " + emu_height + " newWidth:" + newWidth + " newHeight: " + newHeight + " newVisWidth:" + newVisWidth + " newVisHeight: " + newVisHeight);
-		synchronized (lock1) {
 
+		final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+		//synchronized (lock1) {
 			mm.getInputHandler().resetInput(true);
-
-			//if(emu_width!=newWidth || emu_height!=newHeight)
-			//{
 			emu_width = newWidth;
 			emu_height = newHeight;
 			emu_visWidth = newVisWidth;
 			emu_visHeight = newVisHeight;
+		    mm.getMainHelper().updateEmuValues();
+		//}
 
-			mm.getMainHelper().updateEmuValues();
+		mm.runOnUiThread(new Runnable() {
+			public void run() {
 
-			mm.runOnUiThread(new Runnable() {
-				public void run() {
-
-					//Toast.makeText(mm, "changeVideo newWidth:"+newWidth+" newHeight:"+newHeight+" newVisWidth:"+newVisWidth+" newVisHeight:"+newVisHeight,Toast.LENGTH_SHORT).show();
-					mm.overridePendingTransition(0, 0);
-
-					mm.getMainHelper().updateMAME4droid();
-					if (mm.getEmuView().getVisibility() != View.VISIBLE)
-						mm.getEmuView().setVisibility(View.VISIBLE);
+				if (mm.getEmuView().getVisibility() != View.VISIBLE) {
+					mm.getEmuView().setVisibility(View.VISIBLE);
 				}
-			});
-			//}
+
+				mm.getMainHelper().updateMAME4droid();
+
+				mm.getEmuView().getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+					@Override
+					public void onGlobalLayout() {
+
+						mm.getEmuView().getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+						latch.countDown();
+					}
+				});
+			}
+		});
+
+		try {
+			latch.await(1000, java.util.concurrent.TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
-
 	}
-
+	
 	static public void initInput() {
 		Log.d("initInput", "initInput isInGame:" + isInGame() + " isInMenu:" + isInMenu());
 		mm.runOnUiThread(new Runnable() {

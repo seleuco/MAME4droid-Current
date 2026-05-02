@@ -816,7 +816,7 @@ static void droid_set_video_mode(int width, int height, int vis_width, int vis_h
                              vis_width, vis_height
                              );
 
-    droid_dump_video();
+    //droid_dump_video();
 }
 
 
