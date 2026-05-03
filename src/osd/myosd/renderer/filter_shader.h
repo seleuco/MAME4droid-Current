@@ -48,6 +48,8 @@ public:
 
 private:
     bool m_linear = false;
+    bool m_ortho_dirty = true;
+    bool m_input_dirty = true;
 
 	//shader program
 	GLuint m_program = 0;

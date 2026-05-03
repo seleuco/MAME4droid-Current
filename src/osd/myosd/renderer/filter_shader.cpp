@@ -60,54 +60,46 @@ void filter_shader::load_filter(const std::string& filter_src, bool linear)
     auto texture_sampler = glGetUniformLocation(m_program, "Texture");
     glUniform1i(texture_sampler, 0); // Screen texture will be always located at unit 0
 
-    glUniform2f(m_uniform_TextureSize, m_texwidth, m_texheight);
-    glUniform2f(m_uniform_InputSize,   m_texwidth, m_texheight);
-
-    glUniformMatrix4fv(m_uniform_MVPMatrix, 1, GL_FALSE, m_ortho.data());
-
     glUseProgram(last_program);
+	
+	m_input_dirty = true;
+    m_ortho_dirty = true;
 }
 
 void filter_shader::set_input_size(int width, int height)
 {
-	m_texwidth = width; m_texheight = height;
-
-	if (!m_program)
-		return;
-
-	GLint last_program;
-	glGetIntegerv(GL_CURRENT_PROGRAM, &last_program);
-	glUseProgram(m_program);
-
-	glUniform2f(m_uniform_TextureSize, width, height);
-	glUniform2f(m_uniform_InputSize,   width, height);
-
-
-	glUseProgram(last_program);
+	if (m_texwidth != width || m_texheight != height) {
+			m_texwidth = width; 
+			m_texheight = height;
+			m_input_dirty = true;
+	}
 }
 
 void filter_shader::set_ortho(std::array<float, 4*4> ortho)
 {
-	m_ortho = ortho;
-
-	if (!m_program)
-		return;
-
-	GLint last_program;
-	glGetIntegerv(GL_CURRENT_PROGRAM, &last_program);
-	glUseProgram(m_program);
-
-	glUniformMatrix4fv(m_uniform_MVPMatrix, 1, GL_FALSE, ortho.data());
-
-	glUseProgram(last_program);
+    m_ortho = ortho;
+    m_ortho_dirty = true;
 }
 
 void filter_shader::draw(int width, int height)
 {
+	if (!m_program) return;
+	
 	GLint last_program;
     glGetIntegerv(GL_CURRENT_PROGRAM, &last_program);
 	
 	glUseProgram(m_program);
+	
+	if (m_ortho_dirty) {
+        glUniformMatrix4fv(m_uniform_MVPMatrix, 1, GL_FALSE, m_ortho.data());
+        m_ortho_dirty = false;
+    }
+
+    if (m_input_dirty) {
+        glUniform2f(m_uniform_TextureSize, m_texwidth, m_texheight);
+        glUniform2f(m_uniform_InputSize,   m_texwidth, m_texheight);
+        m_input_dirty = false;
+    }
 
 	if (m_uniform_FrameCount != -1)
 	{

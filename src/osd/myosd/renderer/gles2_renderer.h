@@ -159,7 +159,6 @@ private:
     bool m_force_viewport_update = true;
     bool m_flush_textures = false;
     int m_last_filter_mode;
-	bool m_ortho_dirty = false;
 
 	std::list<gles2_texture> m_texlist; //Currently allocated textures
 };

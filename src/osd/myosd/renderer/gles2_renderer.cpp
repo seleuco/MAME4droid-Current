@@ -147,8 +147,7 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
 
     m_flush_textures = true;
 
-	m_ortho_dirty = true;
-
+    m_filter.set_ortho(m_ortho);
 }
 
 void gles2_renderer::use_quad_program()
@@ -241,15 +240,6 @@ void gles2_renderer::render()
         glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
         m_textures_to_delete.clear();
     }
-
-	if(m_ortho_dirty)
-	{
-	   //Force program reupload to update ortho matrix uniform
-	   m_last_program = 0;
-	   m_filter.set_ortho(m_ortho);
-       m_filter.set_input_size(m_width, m_height);
-	   m_ortho_dirty = false;
-	}
 
 	glClear(GL_COLOR_BUFFER_BIT);//if not trash if use sliders to change osd position
 
