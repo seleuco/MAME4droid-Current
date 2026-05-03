@@ -104,6 +104,9 @@ void filter_shader::set_ortho(std::array<float, 4*4> ortho)
 
 void filter_shader::draw(int width, int height)
 {
+	GLint last_program;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &last_program);
+	
 	glUseProgram(m_program);
 
 	if (m_uniform_FrameCount != -1)
@@ -116,6 +119,8 @@ void filter_shader::draw(int width, int height)
     // WARNING: Ensure no EBO is bound here, as s_quad_indices is a client-side pointer.
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, gles2_renderer::s_quad_indices);
+	
+	glUseProgram(last_program);
 }
 
 std::vector<std::pair<std::string, filter_data>> filter_shader::load_filters(const std::string &root_path)

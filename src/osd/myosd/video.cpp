@@ -44,7 +44,8 @@ enum
 };
 
 static std::mutex rend_mutex;
-static render_primitive_list *primlist = nullptr;
+//static render_primitive_list *primlist = nullptr;
+static int rendering = false;
 static int current_renderer = SW_RENDERER;
 static myosd_renderer* my_renderer = nullptr;
 static int render_width = 640, render_height = 480;
@@ -61,6 +62,15 @@ static std::string current_shader_name = "";
 void my_osd_interface::video_init()
 {
 	ANDROID_LOG("my_osd_interface::video_init");
+	
+	{
+       std::lock_guard lock(rend_mutex);
+
+	   if(my_renderer){
+		   my_renderer->init_renderer();
+	   }
+		   
+    }
 
     // create our *single* render target, we dont do multiple windows or monitors
     m_target = machine().render().target_alloc();
@@ -83,12 +93,14 @@ void my_osd_interface::video_exit()
 
 	{
         std::lock_guard lock(rend_mutex);
-        if (primlist) {
-            primlist->release_lock();
-            primlist = nullptr;
-        }
 
-        force_recreate_renderer = true;
+       // force_recreate_renderer = true;
+	   if(my_renderer){
+		   my_renderer->end_renderer();
+	   }
+	   
+	   rendering = false;
+		   
     }
 
     // free the render target
@@ -120,7 +132,7 @@ void my_osd_interface::update(bool skip_redraw)
 
         int vis_width, vis_height;
         int min_width, min_height;
-		
+
 		float pixel_aspect = 1.0f;
 
         //__android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "video min_width:%d min_height:%d",min_width,min_height);
@@ -150,7 +162,7 @@ void my_osd_interface::update(bool skip_redraw)
                                                target()->orientation(), vis_width, vis_height);
 
                 target()->set_keepaspect(false);
-				
+
 				float display_aspect = (float)vis_width / (float)vis_height;
                 float texture_aspect = (float)min_width / (float)min_height;
                 pixel_aspect = display_aspect / texture_aspect;
@@ -182,20 +194,29 @@ void my_osd_interface::update(bool skip_redraw)
             target()->set_bounds(min_width, min_height, pixel_aspect);
         }
 
-        {
-            std::lock_guard lock(rend_mutex);
+            render_primitive_list *local_primlist = &target()->get_primitives();
 
-            if (primlist) {
-                primlist->release_lock();
-                primlist = nullptr;
+            local_primlist->acquire_lock();
+            {
+                std::lock_guard lock(rend_mutex);
+                render_width = min_width;
+                render_height = min_height;
+
+                if (my_renderer)
+				{
+					if (render_width != old_render_width || render_height != old_render_height)
+					{
+						old_render_width = render_width;
+						old_render_height = render_height;
+
+						my_renderer->on_emulatedsize_change(render_width, render_height);
+					}
+
+                    my_renderer->sync_state(local_primlist);
+                }
+				rendering = true;
             }
-
-            render_width = min_width;
-            render_height = min_height;
-
-            primlist = &target()->get_primitives();
-            primlist->acquire_lock();
-        }
+            local_primlist->release_lock();
     }
 
     m_callbacks.video_draw(skip_redraw || m_video_none, in_game, in_menu, running);
@@ -257,23 +278,15 @@ extern "C" int myosd_video_onDrawFrame(int renderer)
         }
         force_recreate_renderer = false;
     }
+	
+	if(!rendering)
+		return -1;
 
-    if(primlist == nullptr)
-        return -1;
-
-    if(my_renderer == nullptr) { //not till primlist
+    if(my_renderer == nullptr) {
         myosd_video_createRenderer(renderer); // Safe: we are in GLThread
     }
 
-    if (render_width != old_render_width || render_height != old_render_height) //avoid dirty reads
-    {
-        old_render_width = render_width;
-        old_render_height = render_height;
-
-        my_renderer->on_emulatedsize_change(render_width, render_height);
-    }
-
-	my_renderer->render(primlist);
+	my_renderer->render();
 
     return 0;
 }

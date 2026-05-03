@@ -26,7 +26,8 @@ class gles1_renderer : public myosd_renderer
         public:
         gles1_renderer(int width, int height);
 
-        void render(const render_primitive_list* primlist) override;
+        void sync_state(const render_primitive_list* primlist) override;
+        void render() override;
         void on_emulatedsize_change(int width, int height) override;
 
         //Shaders not supported by software renderer..
@@ -44,6 +45,8 @@ class gles1_renderer : public myosd_renderer
         GLfloat m_texcoords[8];
 
         int m_last_filter_mode = -1;
+		GLint m_max_tex_size;
+		bool create_texture = false;
 
         int m_width, m_height;
         int m_tex_width, m_tex_height;
