@@ -246,6 +246,7 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
                 lp.needs_texture_upload = true;                
                 lp.texture->needs_gl_update = false; 
             }
+			lp.upload_ptr = lp.texture->base;
         }	
 
         m_render_prims = std::move(temp_prims);
@@ -352,7 +353,7 @@ void gles2_renderer::render()
                         glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
 
 						if (prim.needs_texture_upload) { 
-                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->texinfo.width, prim.texture->texinfo.height, GL_RGBA, GL_UNSIGNED_BYTE, prim.texture->base);
+                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->texinfo.width, prim.texture->texinfo.height, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
                         }
                     }
 				}

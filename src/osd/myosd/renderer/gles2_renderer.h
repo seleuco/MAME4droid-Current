@@ -96,6 +96,7 @@ public:
         uint32_t flags;
 		bool needs_texture_upload = false;
         std::shared_ptr<gles2_texture> texture;
+		void* upload_ptr = nullptr;
     };
 
 	//GL vertex attributes
