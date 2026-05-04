@@ -26,6 +26,8 @@
 #include <cstdio>
 #include <list>
 #include <string>
+#include <mutex>
+#include <memory>
 
 typedef uintptr_t HashT;
 
@@ -67,6 +69,7 @@ public:
         bool needs_gl_update = false;
 
 		void* base = nullptr; //GL_ARGB format
+		void* base_back = nullptr;
 		bool owned = false; //Do we own the raw data pointer, or is it a direct reference to textinfo.base?
 
         gles2_texture() = default;
@@ -75,8 +78,10 @@ public:
 		{
 			//glDeleteTextures(1, &texture_id);
 
-			if (owned)
+			if (owned){				
 				std::free(base);
+				std::free(base_back);
+			}
 		}
 
         gles2_texture(const gles2_texture&) = delete;
@@ -89,7 +94,8 @@ public:
         render_color color;
         render_quad_texuv texcoords;
         uint32_t flags;
-        gles2_texture* texture;
+		bool needs_texture_upload = false;
+        std::shared_ptr<gles2_texture> texture;
     };
 
 	//GL vertex attributes
@@ -107,17 +113,27 @@ public:
             glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
             m_textures_to_delete.clear();
         }
+		
+		if (!m_render_textures_to_delete.empty()) {
+            glDeleteTextures(m_render_textures_to_delete.size(), m_render_textures_to_delete.data());
+            m_render_textures_to_delete.clear();
+        }		
 
         for (auto& tex : m_texlist) {
-            if (tex.texture_id > 0) {
-                glDeleteTextures(1, &tex.texture_id);
+            if (tex->texture_id > 0) {
+                glDeleteTextures(1, &tex->texture_id);
             }
         }
         m_texlist.clear();
     }
 
 private:
+	std::mutex m_render_mutex;
 
+    std::vector<local_primitive> m_render_prims; 
+    std::vector<GLuint> m_render_textures_to_delete;
+    std::vector<GLuint> m_textures_to_delete;
+	
 	GLuint m_last_program = 0;
 	void use_quad_program();
 	void use_line_program();
@@ -125,12 +141,9 @@ private:
 	int m_last_blendmode = -1;
 	void set_blendmode(int blendmode);
 
-	std::vector<local_primitive> m_local_prims;
-    std::vector<GLuint> m_textures_to_delete;
-
-    void update_texture_cache(const render_primitive& prim, gles2_texture** out_tex);
-	gles2_texture* texture_find(const render_primitive& prim, osd_ticks_t now);
-	gles2_texture* texture_create(const render_primitive& prim);
+	void update_texture_cache(const render_primitive& prim, std::shared_ptr<gles2_texture>& out_tex);
+	std::shared_ptr<gles2_texture> texture_find(const render_primitive& prim, osd_ticks_t now);
+	std::shared_ptr<gles2_texture> texture_create(const render_primitive& prim);
 
 	//Shader program to render a quad primitive
 	//each one deals with a specific texture format
@@ -159,8 +172,8 @@ private:
     bool m_force_viewport_update = true;
     bool m_flush_textures = false;
     int m_last_filter_mode;
-
-	std::list<gles2_texture> m_texlist; //Currently allocated textures
+	
+	std::list<std::shared_ptr<gles2_texture>> m_texlist; //Currently allocated textures
 };
 
 #endif //GLES2_RENDERER_H

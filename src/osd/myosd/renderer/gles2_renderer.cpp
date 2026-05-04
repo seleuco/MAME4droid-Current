@@ -27,7 +27,8 @@ using gles2_texture = gles2_renderer::gles2_texture;
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
-static void texture_copy_data(gles2_texture* texture, const render_texinfo& texinfo, u32 texformat);
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat);
+static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim);
 
 void gles2_renderer::set_shader(const char* shader_name)
 {
@@ -138,6 +139,8 @@ void gles2_renderer::end_renderer()
 
 void gles2_renderer::on_emulatedsize_change(int width, int height)
 {
+    std::lock_guard<std::mutex> lock(m_render_mutex);	
+	
 	m_ortho = gl_utils::make_ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
 	m_width = width; m_height = height;
 
@@ -206,14 +209,14 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
     if (m_flush_textures || m_last_filter_mode != myosd_get(MYOSD_BITMAP_FILTERING))
     {
         m_last_filter_mode = myosd_get(MYOSD_BITMAP_FILTERING);
-        for (auto& tex : m_texlist) {
-            if (tex.texture_id != 0) m_textures_to_delete.push_back(tex.texture_id);
-        }
+		for (auto& tex : m_texlist) {
+            if (tex->texture_id != 0) m_textures_to_delete.push_back(tex->texture_id);
+        }		
         m_texlist.clear();
         m_flush_textures = false;
     }
-
-    m_local_prims.clear();
+	
+	std::vector<local_primitive> temp_prims;
 
     // Deep copy
     for (const render_primitive& prim : *primlist)
@@ -228,17 +231,43 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 
         if (prim.type == render_primitive::QUAD && prim.texture.base != nullptr)
         {
-            update_texture_cache(prim, &lp.texture);
+            update_texture_cache(prim, lp.texture);
         }
-        m_local_prims.push_back(lp);
+		temp_prims.push_back(lp);				
     }
+	
+	{
+		std::lock_guard<std::mutex> lock(m_render_mutex);
+        
+		for (auto& lp : temp_prims) {
+            if (lp.texture && lp.texture->needs_gl_update) {
+
+                std::swap(lp.texture->base, lp.texture->base_back);                
+                lp.needs_texture_upload = true;                
+                lp.texture->needs_gl_update = false; 
+            }
+        }	
+
+        m_render_prims = std::move(temp_prims);
+        
+        m_render_textures_to_delete.insert(m_render_textures_to_delete.end(), 
+                                           m_textures_to_delete.begin(), 
+                                           m_textures_to_delete.end());
+        m_textures_to_delete.clear();
+    }	
+	
 }
 
 void gles2_renderer::render()
 {
-	if (!m_textures_to_delete.empty()) {
-        glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
-        m_textures_to_delete.clear();
+	std::vector<local_primitive> draw_prims;
+    std::vector<GLuint> delete_texs;
+
+    {
+        std::lock_guard<std::mutex> lock(m_render_mutex);
+        draw_prims = m_render_prims; // Copia ligera (solo copia punteros y valores)
+        delete_texs = std::move(m_render_textures_to_delete);
+        m_render_textures_to_delete.clear();
     }
 
 	glClear(GL_COLOR_BUFFER_BIT);//if not trash if use sliders to change osd position
@@ -256,6 +285,8 @@ void gles2_renderer::render()
         {
             m_view_width = viewport[2];
             m_view_height = viewport[3];
+			
+			ANDROID_LOG("viewport %d %d",m_view_width, m_view_height);
 
             m_force_viewport_update = false; // Successfully updated, clear the flag
         }
@@ -263,7 +294,7 @@ void gles2_renderer::render()
 
 	//TODO: Batch many primitives that share the same properties (format, colors..) into a single draw call
 
-	for (const local_primitive& prim : m_local_prims)
+	for (const local_primitive& prim : draw_prims)
 	{
 		switch (prim.type)
 		{
@@ -320,9 +351,8 @@ void gles2_renderer::render()
                         glActiveTexture(GL_TEXTURE0);
                         glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
 
-                        if (prim.texture->needs_gl_update) {
+						if (prim.needs_texture_upload) { 
                             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->texinfo.width, prim.texture->texinfo.height, GL_RGBA, GL_UNSIGNED_BYTE, prim.texture->base);
-                            prim.texture->needs_gl_update = false;
                         }
                     }
 				}
@@ -389,13 +419,17 @@ void gles2_renderer::render()
 			break;
 		}
 	}
+	
+	if (!delete_texs.empty()) {
+        glDeleteTextures(delete_texs.size(), delete_texs.data());
+    }
 }
 
-static void texture_copy_data(gles2_texture* texture, const render_texinfo& texinfo, u32 texformat)
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat)
 {
 	for (int y=0; y<texinfo.height; y++)
 	{
-		uint32_t *dst = (u32*)texture->base + (texinfo.width * y);
+		uint32_t *dst = (u32*)dest + (texinfo.width * y);
 
 		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y)
 
@@ -419,52 +453,80 @@ static void texture_copy_data(gles2_texture* texture, const render_texinfo& texi
 	}
 }
 
-void gles2_renderer::update_texture_cache(const render_primitive& prim, gles2_texture** out_tex)
+void gles2_renderer::update_texture_cache(const render_primitive& prim, std::shared_ptr<gles2_texture>& out_tex)
 {
-	gles2_texture* texture = texture_find(prim, osd_ticks());
+	std::shared_ptr<gles2_texture> texture = texture_find(prim, osd_ticks());
 
 	if (texture == nullptr) {
-		*out_tex = texture_create(prim);
+		out_tex = texture_create(prim);
     }
 	else
 	{
 		if (texture->texinfo.seqid != prim.texture.seqid)
 		{
 			texture->texinfo.seqid = prim.texture.seqid;
-			texture_copy_data(texture, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
+			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
             texture->needs_gl_update = true;
 		}
-        *out_tex = texture;
+        out_tex = texture;
 	}
 }
 
-gles2_texture* gles2_renderer::texture_create(const render_primitive& prim)
+std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(const render_primitive& prim)
 {
 	const render_texinfo& texinfo = prim.texture;
-	gles2_texture& texture = m_texlist.emplace_front();
+	
+    std::shared_ptr<gles2_texture> texture = std::make_shared<gles2_texture>();
+	m_texlist.push_front(texture);
 
-	texture.hash = texture_compute_hash(texinfo, prim.flags);
+	texture->hash = texture_compute_hash(texinfo, prim.flags);
 
 	if (PRIMFLAG_GET_SCREENTEX(prim.flags))
 	{
 		m_filter.set_input_size(texinfo.width, texinfo.height);
 	}
 
-	texture.texinfo = texinfo;
-	texture.prim_flags = prim.flags;
+	texture->texinfo = texinfo;
+	texture->prim_flags = prim.flags;
 
 	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
 
-	texture.base = std::malloc((texinfo.width*4)*texinfo.height); //FIXME: Use an allocated memory pool rather than allocating every frame...
-	texture.owned = true;
+	texture->base = std::malloc((texinfo.width*4)*texinfo.height);
+	texture->base_back = std::malloc((texinfo.width*4)*texinfo.height);
+	texture->owned = true;
 
-	texture_copy_data(&texture, texinfo, texformat);
+	texture_copy_data(texture->base, texinfo, texformat);
 
-    texture.needs_gl_init = true;
+    texture->needs_gl_init = true;
+	texture->last_access = osd_ticks();
 
-	texture.last_access = osd_ticks();
+	return texture;
+}
 
-	return &texture;
+std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_find(const render_primitive& prim, osd_ticks_t now)
+{
+	for (auto it = m_texlist.begin(); it != m_texlist.end(); )
+	{
+		if (compare_texture_primitive(**it, prim))
+		{
+			(*it)->last_access = now;
+			return *it;
+		}
+		else
+		{
+			if ((now - (*it)->last_access) > osd_ticks_per_second() )
+			{
+				if ((*it)->texture_id > 0) {
+				    m_textures_to_delete.push_back((*it)->texture_id);
+                }				
+				it = m_texlist.erase(it);
+			}
+			else
+				++it;
+		}
+	}
+
+	return nullptr;
 }
 
 //=========================================================
@@ -488,32 +550,3 @@ static bool compare_texture_primitive(const gles2_texture& texture, const render
 		&& ((texture.prim_flags ^ prim.flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) == 0;
 }
 
-gles2_texture* gles2_renderer::texture_find(const render_primitive& prim, osd_ticks_t now)
-{
-	//Check if we have the texture cached by computing its hash with ours
-	//const HashT hash = texture_compute_hash(prim.texture, prim.flags);
-
-	for (auto texture = m_texlist.begin(); texture != m_texlist.end(); )
-	{
-		if (compare_texture_primitive(*texture, prim))
-		{
-			texture->last_access = now;
-			return &*texture;
-		}
-		else
-		{
-			//TODO: Better offloading this to a background thread that occasionally does cleanup of unused textures?
-			if ((now - texture->last_access) > osd_ticks_per_second() )
-			{
-				if (texture->texture_id > 0) {
-				    m_textures_to_delete.push_back(texture->texture_id);
-                }				
-				texture = m_texlist.erase(texture);
-			}
-			else
-				++texture;
-		}
-	}
-
-	return nullptr;
-}

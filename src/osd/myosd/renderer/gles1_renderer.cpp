@@ -29,7 +29,7 @@ static int get_pot_size(int size) {
 }
 
 gles1_renderer::gles1_renderer(int width, int height)
-        : m_screenbuff(nullptr)
+        : m_screenbuff(nullptr), m_screenbuff_back(nullptr)
 {
     // Deshabilitar 3D y opciones que no usamos
     glDisable(GL_DEPTH_TEST);
@@ -69,7 +69,12 @@ void gles1_renderer::sync_state(const render_primitive_list* primlist)
 {
     if (!m_screenbuff || !primlist) return;
 	
-    software_renderer<uint32_t, 0, 0, 0, 0, 8, 16>::draw_primitives(*primlist, m_screenbuff, m_width, m_height, m_pitch);
+    software_renderer<uint32_t, 0, 0, 0, 0, 8, 16>::draw_primitives(*primlist, m_screenbuff_back, m_width, m_height, m_pitch);
+	
+	{
+        std::lock_guard<std::mutex> lock(m_render_mutex);
+        std::memcpy(m_screenbuff, m_screenbuff_back, m_pitch * m_height * 4);
+    }
 }
 
 void gles1_renderer::render()
@@ -79,26 +84,33 @@ void gles1_renderer::render()
     glClear(GL_COLOR_BUFFER_BIT);//fix trash if sliders
 
     if (!m_screenbuff) return;
-	
-	if(create_texture){
-		glBindTexture(GL_TEXTURE_2D, m_texture_id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_tex_width, m_tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-		create_texture = false;
-	}
 
-    glBindTexture(GL_TEXTURE_2D, m_texture_id);
+    GLfloat local_texcoords[8];//safe reads
+    {
+        std::lock_guard<std::mutex> lock(m_render_mutex);
+        
+        if(create_texture){
+            glBindTexture(GL_TEXTURE_2D, m_texture_id);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_tex_width, m_tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            create_texture = false;
+        }
 
-    int current_filter = myosd_get(MYOSD_BITMAP_FILTERING);
-    if (m_last_filter_mode != current_filter) {
-        m_last_filter_mode = current_filter;
-        GLfloat filter_mode = current_filter ? GL_LINEAR : GL_NEAREST;
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode);
+        glBindTexture(GL_TEXTURE_2D, m_texture_id);
+
+        int current_filter = myosd_get(MYOSD_BITMAP_FILTERING);
+        if (m_last_filter_mode != current_filter) {
+            m_last_filter_mode = current_filter;
+            GLfloat filter_mode = current_filter ? GL_LINEAR : GL_NEAREST;
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode);
+        }
+
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGBA, GL_UNSIGNED_BYTE, m_screenbuff);
+        
+        std::memcpy(local_texcoords, m_texcoords, sizeof(m_texcoords));       
     }
-
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGBA, GL_UNSIGNED_BYTE, m_screenbuff);
-
-    static const GLfloat verts[] = {
+    
+    const GLfloat verts[] = {
             -1.0f,  1.0f,
             -1.0f, -1.0f,
             1.0f,  1.0f,
@@ -109,7 +121,7 @@ void gles1_renderer::render()
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     glVertexPointer(2, GL_FLOAT, 0, verts);
-    glTexCoordPointer(2, GL_FLOAT, 0, m_texcoords); // Usamos la variable precalculada
+    glTexCoordPointer(2, GL_FLOAT, 0, local_texcoords); // Usamos nuestra copia local
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -120,7 +132,9 @@ void gles1_renderer::render()
 
 void gles1_renderer::on_emulatedsize_change(int width, int height)
 {
-    if (width <= 0) width = 640;
+    std::lock_guard<std::mutex> lock(m_render_mutex);    
+	
+	if (width <= 0) width = 640;
     if (height <= 0) height = 480;
 
     int pot_width = get_pot_size(width);
@@ -139,9 +153,12 @@ void gles1_renderer::on_emulatedsize_change(int width, int height)
     m_tex_width = pot_width;
     m_tex_height = pot_height;
 
-    void* new_buff = std::realloc(m_screenbuff, m_pitch * m_height * 4);
-    if (new_buff) {
-        m_screenbuff = new_buff;
+	void* new_buff_front = std::realloc(m_screenbuff, m_pitch * m_height * 4);
+    void* new_buff_back = std::realloc(m_screenbuff_back, m_pitch * m_height * 4);
+    
+    if (new_buff_front && new_buff_back) {
+        m_screenbuff = new_buff_front;
+        m_screenbuff_back = new_buff_back;
     } else {
         throw std::runtime_error("GLES1 Software: Out of memory during screen buffer realloc");
     }

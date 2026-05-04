@@ -99,8 +99,7 @@ void my_osd_interface::video_exit()
 		   my_renderer->end_renderer();
 	   }
 	   
-	   rendering = false;
-		   
+	   rendering = false;		   
     }
 
     // free the render target
@@ -153,6 +152,9 @@ void my_osd_interface::update(bool skip_redraw)
             } else {
 
                 target()->compute_minimum_size( min_width, min_height);
+				
+				if (min_width <= 0) min_width = 640;
+                if (min_height <= 0) min_height = 480;				
                 if(min_width>640)min_width=640;
                 if(min_height>480)min_height=480;
 
@@ -162,6 +164,9 @@ void my_osd_interface::update(bool skip_redraw)
                                                target()->orientation(), vis_width, vis_height);
 
                 target()->set_keepaspect(false);
+				
+				if (vis_height <= 0) vis_height = min_height;
+                if (vis_width <= 0) vis_width = min_width;				
 
 				float display_aspect = (float)vis_width / (float)vis_height;
                 float texture_aspect = (float)min_width / (float)min_height;
@@ -269,27 +274,36 @@ extern "C" void myosd_video_newRenderer()
 
 extern "C" int myosd_video_onDrawFrame(int renderer)
 {
-	std::lock_guard lock(rend_mutex);
+	myosd_renderer* current_renderer = nullptr;
 
-    if (force_recreate_renderer) {
-        if (my_renderer) {
-            delete my_renderer; // Safe: We are in GLThread
-            my_renderer = nullptr;
+    {
+        std::lock_guard lock(rend_mutex);
+
+        if (force_recreate_renderer) {
+            if (my_renderer) {
+                delete my_renderer;
+                my_renderer = nullptr;
+            }
+            force_recreate_renderer = false;
         }
-        force_recreate_renderer = false;
+        
+        if(!rendering)
+            return -1;
+
+        if(my_renderer == nullptr) {
+            myosd_video_createRenderer(renderer); 
+        }
+
+        current_renderer = my_renderer;
+    } 
+
+    //now render async
+    if (current_renderer) {
+        current_renderer->render();
     }
 	
-	if(!rendering)
-		return -1;
-
-    if(my_renderer == nullptr) {
-        myosd_video_createRenderer(renderer); // Safe: we are in GLThread
-    }
-
-	my_renderer->render();
-
-    return 0;
-}
+	return 0;
+}	
 
 extern "C" void myosd_video_getShaders(const char*** list, int* n)
 {

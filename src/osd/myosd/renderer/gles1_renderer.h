@@ -20,6 +20,7 @@
 #include <GLES/glext.h>
 
 #include <cstdlib>
+#include <mutex>
 
 class gles1_renderer : public myosd_renderer
 {
@@ -37,9 +38,11 @@ class gles1_renderer : public myosd_renderer
         ~gles1_renderer() override
         {
             std::free(m_screenbuff);
+			std::free(m_screenbuff_back);
             glDeleteTextures(1, &m_texture_id);
         }
         private:
+		std::mutex m_render_mutex;
 
         GLuint m_texture_id;
         GLfloat m_texcoords[8];
@@ -52,7 +55,9 @@ class gles1_renderer : public myosd_renderer
         int m_tex_width, m_tex_height;
         int m_pitch;
 
-        void* m_screenbuff;
+        void* m_screenbuff;		
+		void* m_screenbuff_back;	
+ 
         };
 
 #endif //GLES1_RENDERER_H
