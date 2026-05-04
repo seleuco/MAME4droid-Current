@@ -240,13 +240,16 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 		std::lock_guard<std::mutex> lock(m_render_mutex);
         
 		for (auto& lp : temp_prims) {
-            if (lp.texture && lp.texture->needs_gl_update) {
-
-                std::swap(lp.texture->base, lp.texture->base_back);                
-                lp.needs_texture_upload = true;                
-                lp.texture->needs_gl_update = false; 
-            }
-			lp.upload_ptr = lp.texture->base;
+			if (lp.texture) {
+			
+				if (lp.texture->needs_gl_update) {
+					std::swap(lp.texture->base, lp.texture->base_back);                
+					lp.needs_texture_upload = true;                
+					lp.texture->needs_gl_update = false; 
+				}
+			
+				lp.upload_ptr = lp.texture->base; 
+			}
         }	
 
         m_render_prims = std::move(temp_prims);
@@ -266,7 +269,7 @@ void gles2_renderer::render()
 
     {
         std::lock_guard<std::mutex> lock(m_render_mutex);
-        draw_prims = m_render_prims; // Copia ligera (solo copia punteros y valores)
+        draw_prims = m_render_prims; 
         delete_texs = std::move(m_render_textures_to_delete);
         m_render_textures_to_delete.clear();
     }
@@ -331,7 +334,7 @@ void gles2_renderer::render()
                         glActiveTexture(GL_TEXTURE0);
                         glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
 
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->texinfo.width, prim.texture->texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.texture->base);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->texinfo.width, prim.texture->texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
 
                         GLint filter_mode = myosd_get(MYOSD_BITMAP_FILTERING) ? GL_LINEAR : GL_NEAREST;
                         if (PRIMFLAG_GET_SCREENTEX(prim.flags) && m_usefilter) {
