@@ -74,7 +74,7 @@ static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
-static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat);
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat, bool has_border, int upload_width);
 static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim);
 
 void gles2_renderer::set_shader(const char* shader_name)
@@ -423,7 +423,7 @@ void gles2_renderer::render()
                         glActiveTexture(GL_TEXTURE0);
                         glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
 
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->texinfo.width, prim.texture->texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
+						glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->upload_width, prim.texture->upload_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
 
                         GLint filter_mode = myosd_get(MYOSD_BITMAP_FILTERING) ? GL_LINEAR : GL_NEAREST;
                         if (PRIMFLAG_GET_SCREENTEX(prim.flags) && m_usefilter) {
@@ -445,7 +445,7 @@ void gles2_renderer::render()
                         glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
 
 						if (prim.needs_texture_upload) { 
-                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->texinfo.width, prim.texture->texinfo.height, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
+                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->upload_width, prim.texture->upload_height, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
                         }
                     }
 				}
@@ -473,17 +473,30 @@ void gles2_renderer::render()
 				if (has_texture)
 				{
 					const render_quad_texuv& texuv = prim.texcoords;
-					m_quad_uv[0] = texuv.tl.u;
-					m_quad_uv[1] = texuv.tl.v;
 
-					m_quad_uv[2] = texuv.bl.u;
-					m_quad_uv[3] = texuv.bl.v;
+					float u_scale = 1.0f;
+					float u_offset = 0.0f;
+					float v_scale = 1.0f;
+					float v_offset = 0.0f;
 
-					m_quad_uv[4] = texuv.br.u;
-					m_quad_uv[5] = texuv.br.v;
+					if (prim.texture->has_border) {
+						u_scale = (float)prim.texture->texinfo.width / (float)prim.texture->upload_width;
+						u_offset = 1.0f / (float)prim.texture->upload_width;
+						v_scale = (float)prim.texture->texinfo.height / (float)prim.texture->upload_height;
+						v_offset = 1.0f / (float)prim.texture->upload_height;
+					}
 
-					m_quad_uv[6] = texuv.tr.u;
-					m_quad_uv[7] = texuv.tr.v;
+					m_quad_uv[0] = texuv.tl.u * u_scale + u_offset;
+					m_quad_uv[1] = texuv.tl.v * v_scale + v_offset;
+
+					m_quad_uv[2] = texuv.bl.u * u_scale + u_offset;
+					m_quad_uv[3] = texuv.bl.v * v_scale + v_offset;
+
+					m_quad_uv[4] = texuv.br.u * u_scale + u_offset;
+					m_quad_uv[5] = texuv.br.v * v_scale + v_offset;
+
+					m_quad_uv[6] = texuv.tr.u * u_scale + u_offset;
+					m_quad_uv[7] = texuv.tr.v * v_scale + v_offset;
 				}
 
 				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
@@ -518,11 +531,14 @@ void gles2_renderer::render()
     }
 }
 
-static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat)
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat, bool has_border, int upload_width)
 {
+	int offset_x = has_border ? 1 : 0;
+	int offset_y = has_border ? 1 : 0;
+
 	for (int y=0; y<texinfo.height; y++)
 	{
-		uint32_t *dst = (u32*)dest + (texinfo.width * y);
+		uint32_t *dst = (u32*)dest + ((y + offset_y) * upload_width) + offset_x;
 
 		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y)
 
@@ -538,7 +554,6 @@ static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 tex
 				copy_util::copyline_palette16(dst, src(u16), texinfo.width, texinfo.palette);
 				break;
 			case TEXFORMAT_YUY16:
-				//TODO: If the YUV16 texture isn't paletted, we can just do the texel conversion on fragment shader...
 				copy_util::copyline_yuy16_to_argb(dst, src(u16), texinfo.width, texinfo.palette, 1);
 				break;
 		}
@@ -559,9 +574,9 @@ void gles2_renderer::update_texture_cache(const render_primitive& prim, std::sha
 		{
 			texture->texinfo.seqid = prim.texture.seqid;
 			if (texture->base_back == nullptr) {
-				texture->base_back = std::malloc((texture->texinfo.width * 4) * texture->texinfo.height);
+				texture->base_back = std::calloc(texture->upload_width * texture->upload_height, 4);
 			}
-			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
+			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags), texture->has_border, texture->upload_width);
             texture->needs_gl_update = true;
 		}
         out_tex = texture;
@@ -571,26 +586,27 @@ void gles2_renderer::update_texture_cache(const render_primitive& prim, std::sha
 std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(const render_primitive& prim)
 {
 	const render_texinfo& texinfo = prim.texture;
-	
     std::shared_ptr<gles2_texture> texture = std::make_shared<gles2_texture>();
 	m_texlist.push_front(texture);
 
 	texture->hash = texture_compute_hash(texinfo, prim.flags);
 
 	if (PRIMFLAG_GET_SCREENTEX(prim.flags))
-	{
 		m_filter.set_input_size(texinfo.width, texinfo.height);
-	}
 
 	texture->texinfo = texinfo;
 	texture->prim_flags = prim.flags;
 
+	texture->has_border = !(prim.flags & PRIMFLAG_TEXWRAP_MASK) && !PRIMFLAG_GET_SCREENTEX(prim.flags);
+	texture->upload_width = texinfo.width + (texture->has_border ? 2 : 0);
+	texture->upload_height = texinfo.height + (texture->has_border ? 2 : 0);
+
 	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
 
-	texture->base = std::malloc((texinfo.width*4)*texinfo.height);
+	texture->base = std::calloc(texture->upload_width * texture->upload_height, 4);
 	texture->owned = true;
 
-	texture_copy_data(texture->base, texinfo, texformat);
+	texture_copy_data(texture->base, texinfo, texformat, texture->has_border, texture->upload_width);
 
     texture->needs_gl_init = true;
 	texture->last_access = osd_ticks();

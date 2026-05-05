@@ -64,6 +64,10 @@ public:
 		render_texinfo texinfo; //Copy of the render_primitive texture info
 		u32 prim_flags;  //Copy of the render_primitive flags
 		osd_ticks_t last_access;
+		
+		bool has_border = false;
+		int upload_width = 0;
+		int upload_height = 0;
 
 		bool needs_gl_init = false;
         bool needs_gl_update = false;
