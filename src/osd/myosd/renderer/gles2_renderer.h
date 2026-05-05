@@ -94,6 +94,7 @@ public:
         render_color color;
         render_quad_texuv texcoords;
         uint32_t flags;
+		float width;
 		bool needs_texture_upload = false;
         std::shared_ptr<gles2_texture> texture;
 		void* upload_ptr = nullptr;

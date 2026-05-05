@@ -20,10 +20,57 @@
 #include <string>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 #define ANDROID_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "gles2_renderer", __VA_ARGS__)
 
+struct line_aa_step {
+	float xoffs, yoffs;
+	float weight;
+};
+
+static const line_aa_step line_aa_1step[] = {
+	{  0.00f,  0.00f,  1.00f },
+	{ 0 }
+};
+
+static const line_aa_step line_aa_4step[] = {
+	{ -0.25f,  0.00f,  0.25f },
+	{  0.25f,  0.00f,  0.25f },
+	{  0.00f, -0.25f,  0.25f },
+	{  0.00f,  0.25f,  0.25f },
+	{ 0 }
+};
+
 using gles2_texture = gles2_renderer::gles2_texture;
+
+static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_bounds& bounds, float width, float extension)
+{
+    render_bounds b0, b1;
+    float dx = bounds.x1 - bounds.x0;
+    float dy = bounds.y1 - bounds.y0;
+    float length = std::sqrt(dx * dx + dy * dy);
+
+    if (length > 0.0001f)
+    {
+        float half_width = width * 0.5f;
+        float nx = -dy / length * half_width;
+        float ny =  dx / length * half_width;
+
+        b0.x0 = bounds.x0 + nx;  b0.y0 = bounds.y0 + ny;
+        b0.x1 = bounds.x0 - nx;  b0.y1 = bounds.y0 - ny;
+
+        b1.x0 = bounds.x1 + nx;  b1.y0 = bounds.y1 + ny;
+        b1.x1 = bounds.x1 - nx;  b1.y1 = bounds.y1 - ny;
+    }
+    else
+    {
+        b0.x0 = b0.x1 = bounds.x0; b0.y0 = b0.y1 = bounds.y0;
+        b1.x0 = b1.x1 = bounds.x1; b1.y0 = b1.y1 = bounds.y1;
+    }
+    return std::make_pair(b0, b1);
+}
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
@@ -227,6 +274,7 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
         lp.color = prim.color;
         lp.texcoords = prim.texcoords;
         lp.flags = prim.flags;
+		lp.width = prim.width;
         lp.texture = nullptr;
 
         if (prim.type == render_primitive::QUAD && prim.texture.base != nullptr)
@@ -258,11 +306,10 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
                                            m_textures_to_delete.begin(), 
                                            m_textures_to_delete.end());
         m_textures_to_delete.clear();
-		
+/*		
 		std::string traza = "";
 		int estaticas = 0, dinamicas = 0;
 
-/*
 		for (const auto& tex : m_texlist) {
 			bool es_dinamica = (tex->base_back != nullptr);
 			es_dinamica ? dinamicas++ : estaticas++;
@@ -321,20 +368,46 @@ void gles2_renderer::render()
 			case render_primitive::LINE:
 			{
 				use_line_program();
-
-				const render_bounds& bounds = prim.bounds;
-				//Eeh not a quad, but we reuse the attrib on the line shader
-				m_quad_verts[0] = bounds.x0;
-				m_quad_verts[1] = bounds.y0;
-
-				m_quad_verts[2] = bounds.x1;
-				m_quad_verts[3] = bounds.y1;
-
 				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
 
-				glUniform4f(m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
+				float effwidth = std::max(prim.width, 0.5f);
+				
+				bool is_point = ((prim.bounds.x1 - prim.bounds.x0) == 0.0f) && ((prim.bounds.y1 - prim.bounds.y0) == 0.0f);
 
-				glDrawArrays(GL_LINES, 0, 2);
+				if (is_point)
+				{
+					float half_w = effwidth * 0.5f;
+					m_quad_verts[0] = prim.bounds.x0 - half_w; m_quad_verts[1] = prim.bounds.y0 - half_w; // Top-Left
+					m_quad_verts[2] = prim.bounds.x0 - half_w; m_quad_verts[3] = prim.bounds.y0 + half_w; // Bottom-Left
+					m_quad_verts[4] = prim.bounds.x0 + half_w; m_quad_verts[5] = prim.bounds.y0 + half_w; // Bottom-Right
+					m_quad_verts[6] = prim.bounds.x0 + half_w; m_quad_verts[7] = prim.bounds.y0 - half_w; // Top-Right
+
+					glUniform4f(m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
+					glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
+				}
+				else
+				{
+					auto [b0, b1] = render_line_to_quad(prim.bounds, effwidth, 0.0f);
+
+					const line_aa_step* step = PRIMFLAG_GET_ANTIALIAS(prim.flags) ? line_aa_4step : line_aa_1step;
+					
+					for (; step->weight != 0.0f; step++)
+					{
+						float r = std::min(prim.color.r * step->weight, 1.0f);
+						float g = std::min(prim.color.g * step->weight, 1.0f);
+						float b = std::min(prim.color.b * step->weight, 1.0f);
+						float a = std::min(prim.color.a * 255.0f, 1.0f);
+
+						glUniform4f(m_uniform_color_line, r, g, b, a);
+
+						m_quad_verts[0] = b0.x0 + step->xoffs; m_quad_verts[1] = b0.y0 + step->yoffs; 
+						m_quad_verts[2] = b0.x1 + step->xoffs; m_quad_verts[3] = b0.y1 + step->yoffs; 
+						m_quad_verts[4] = b1.x1 + step->xoffs; m_quad_verts[5] = b1.y1 + step->yoffs; 
+						m_quad_verts[6] = b1.x0 + step->xoffs; m_quad_verts[7] = b1.y0 + step->yoffs; 
+
+						glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
+					}
+				}
 			}
 			break;
 
