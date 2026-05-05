@@ -258,6 +258,22 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
                                            m_textures_to_delete.begin(), 
                                            m_textures_to_delete.end());
         m_textures_to_delete.clear();
+		
+		std::string traza = "";
+		int estaticas = 0, dinamicas = 0;
+
+/*
+		for (const auto& tex : m_texlist) {
+			bool es_dinamica = (tex->base_back != nullptr);
+			es_dinamica ? dinamicas++ : estaticas++;
+			char buf[64];
+			snprintf(buf, sizeof(buf), "[ID:%u %dx%d %s]", 
+					 tex->texture_id, tex->texinfo.width, tex->texinfo.height, 
+					 es_dinamica ? "DIN" : "EST");
+			traza += buf;
+		}
+		ANDROID_LOG("CACHE TOTAL -> Elementos: %zu (Estaticas: %d | Dinamicas: %d) Info: %s", m_texlist.size(), estaticas, dinamicas, traza.c_str());
+*/		
     }	
 	
 }
@@ -469,6 +485,9 @@ void gles2_renderer::update_texture_cache(const render_primitive& prim, std::sha
 		if (texture->texinfo.seqid != prim.texture.seqid)
 		{
 			texture->texinfo.seqid = prim.texture.seqid;
+			if (texture->base_back == nullptr) {
+				texture->base_back = std::malloc((texture->texinfo.width * 4) * texture->texinfo.height);
+			}
 			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
             texture->needs_gl_update = true;
 		}
@@ -496,7 +515,6 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(co
 	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
 
 	texture->base = std::malloc((texinfo.width*4)*texinfo.height);
-	texture->base_back = std::malloc((texinfo.width*4)*texinfo.height);
 	texture->owned = true;
 
 	texture_copy_data(texture->base, texinfo, texformat);
