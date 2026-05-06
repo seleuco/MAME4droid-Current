@@ -134,9 +134,7 @@ gles2_renderer::gles2_renderer(int width, int height)
 	glDisable(GL_POLYGON_OFFSET_FILL);
 
 	glDisable(GL_BLEND);
-
 	/* Init quad shader program*/
-
 	GLuint quad_vertex_shader = gl_utils::load_shader(quad_vertex_shader_src, GL_VERTEX_SHADER);
 	GLuint quad_frag_shader   = gl_utils::load_shader(quad_frag_shader_src,   GL_FRAGMENT_SHADER);
 	m_quad_program = gl_utils::create_program(quad_vertex_shader, quad_frag_shader, {{ATTRIB_POSITION, "a_position"}, {ATTRIB_TEXUV, "a_texuv"}, {ATTRIB_COLOR, "a_color"}});
@@ -159,7 +157,23 @@ gles2_renderer::gles2_renderer(int width, int height)
 	uint32_t white_pixel = 0xFFFFFFFF; // RGBA white
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white_pixel);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &m_glow_texture);
+	glBindTexture(GL_TEXTURE_2D, m_glow_texture);
+	uint32_t glow_pixels[64];
+	for (int i = 0; i < 64; i++) {
+		float dist = std::fabs((i - 31.5f) / 31.5f);
+		float intensity = 1.0f - (dist * dist); 
+		if (intensity < 0.0f) intensity = 0.0f;
+		uint8_t a = (uint8_t)(intensity * 255.0f);
+		glow_pixels[i] = (a << 24) | 0x00FFFFFF; 
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, glow_pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);	
 	
 	m_batch_vertices.reserve(4096); 
 	m_batch_indices.reserve(6144);
@@ -186,11 +200,32 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
     m_force_viewport_update = true;
 
     m_flush_textures = true;
-
     m_filter.set_ortho(m_ortho);
+	
+	m_fbo_dirty = true;
 }
 
-//copied from osd/modules/drawogl.cpp
+void gles2_renderer::create_fbo(int width, int height) {
+    delete_fbo();
+    glGenTextures(1, &m_fbo_texture);
+    glBindTexture(GL_TEXTURE_2D, m_fbo_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenFramebuffers(1, &m_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_fbo_texture, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void gles2_renderer::delete_fbo() {
+    if (m_fbo) glDeleteFramebuffers(1, &m_fbo);
+    if (m_fbo_texture) glDeleteTextures(1, &m_fbo_texture);
+    m_fbo = 0; m_fbo_texture = 0;
+}
+
+
 void gles2_renderer::set_blendmode(int blendmode)
 {
 	// try to minimize texture state changes
@@ -222,13 +257,13 @@ void gles2_renderer::set_blendmode(int blendmode)
 void gles2_renderer::sync_state(const render_primitive_list* primlist)
 {
     if (m_flush_textures || m_last_filter_mode != myosd_get(MYOSD_BITMAP_FILTERING))
-    {
+	{
         m_last_filter_mode = myosd_get(MYOSD_BITMAP_FILTERING);
 		for (auto& tex : m_texlist) {
             if (tex->texture_id != 0) m_textures_to_delete.push_back(tex->texture_id);
         }		
         m_texlist.clear();
-        m_flush_textures = false;
+		m_flush_textures = false;
     }
 	
 	//clean old textures
@@ -241,7 +276,7 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 				m_textures_to_delete.push_back((*it)->texture_id);
 			}				
 			it = m_texlist.erase(it);
-		}
+	}	
 		else
 		{
 			++it;
@@ -251,16 +286,16 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 	std::vector<local_primitive> temp_prims;
 
     // Deep copy
-    for (const render_primitive& prim : *primlist)
-    {
+    for (const render_primitive& prim : *primlist) 
+	{
         local_primitive lp;
         lp.type = prim.type;
-        lp.bounds = prim.bounds;
-        lp.color = prim.color;
+		lp.bounds = prim.bounds;
+		lp.color = prim.color;
         lp.texcoords = prim.texcoords;
-        lp.flags = prim.flags;
+		lp.flags = prim.flags;
 		lp.width = prim.width;
-        lp.texture = nullptr;
+		lp.texture = nullptr;
 
         if (prim.type == render_primitive::QUAD && prim.texture.base != nullptr)
         {
@@ -277,10 +312,10 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 			
 				if (lp.texture->needs_gl_update) {
 					std::swap(lp.texture->base, lp.texture->base_back);                
-					lp.needs_texture_upload = true;                
+					lp.needs_texture_upload = true;
 					lp.texture->needs_gl_update = false; 
 				}
-			
+
 				lp.upload_ptr = lp.texture->base; 
 			}
         }	
@@ -303,11 +338,11 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 					 tex->texture_id, tex->texinfo.width, tex->texinfo.height, 
 					 es_dinamica ? "DIN" : "EST");
 			traza += buf;
-		}
+    }	
 		ANDROID_LOG("CACHE TOTAL -> Elementos: %zu (Estaticas: %d | Dinamicas: %d) Info: %s", m_texlist.size(), estaticas, dinamicas, traza.c_str());
 */
-    }	
-	
+	}
+
 }
 
 void gles2_renderer::push_quad(const float* verts, const float* uv, const render_color& color) 
@@ -368,8 +403,33 @@ void gles2_renderer::render()
         delete_texs = std::move(m_render_textures_to_delete);
         m_render_textures_to_delete.clear();
     }
+	
+	if (m_usefilter && m_fbo_dirty) {
+        create_fbo(m_width, m_height);
+        m_fbo_dirty = false;
+    }
+	
+    render_bounds v_bounds = { 99999.0f, 99999.0f, -99999.0f, -99999.0f };
+    bool has_vectors = false;
+    for (const local_primitive& prim : draw_prims) {
+        if (PRIMFLAG_GET_VECTOR(prim.flags)) {
+            float min_x = std::min(prim.bounds.x0, prim.bounds.x1); float max_x = std::max(prim.bounds.x0, prim.bounds.x1);
+            float min_y = std::min(prim.bounds.y0, prim.bounds.y1); float max_y = std::max(prim.bounds.y0, prim.bounds.y1);
+            v_bounds.x0 = std::min(v_bounds.x0, min_x); v_bounds.y0 = std::min(v_bounds.y0, min_y);
+            v_bounds.x1 = std::max(v_bounds.x1, max_x); v_bounds.y1 = std::max(v_bounds.y1, max_y);
+            has_vectors = true;
+        }
+    }
 
-	glClear(GL_COLOR_BUFFER_BIT);
+    if (has_vectors) {
+        v_bounds.x0 = std::max(0.0f, v_bounds.x0 - 15.0f); v_bounds.y0 = std::max(0.0f, v_bounds.y0 - 15.0f);
+        v_bounds.x1 = std::min((float)m_width, v_bounds.x1 + 15.0f); v_bounds.y1 = std::min((float)m_height, v_bounds.y1 + 15.0f);
+    }
+
+    GLint viewport[4]; glGetIntegerv(GL_VIEWPORT, viewport);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     if (m_force_viewport_update)
     {
@@ -422,24 +482,67 @@ void gles2_renderer::render()
 	glUseProgram(m_quad_program);
 	glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
 
-	m_current_texture = 0;
-	m_last_blendmode = -1; 
+	m_current_texture = 0; 
+    m_last_blendmode = -1; 
+	
+    bool enable_bloom = true;
+	bool fbo_active = false;
+
+    auto draw_vector_fbo = [&]() {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        float u0 = v_bounds.x0 / m_width; float u1 = v_bounds.x1 / m_width;
+        float v0 = 1.0f - (v_bounds.y0 / m_height); float v1 = 1.0f - (v_bounds.y1 / m_height);
+
+        float fbo_verts[8] = { v_bounds.x0, v_bounds.y0, v_bounds.x0, v_bounds.y1, v_bounds.x1, v_bounds.y1, v_bounds.x1, v_bounds.y0 };
+        float fbo_uv[8] = { u0, v0, u0, v1, u1, v1, u1, v0 };
+
+        float view_w = v_bounds.x1 - v_bounds.x0; float view_h = v_bounds.y1 - v_bounds.y0;
+        if (view_h <= 0.1f) view_h = 1.0f;
+        
+        //int tex_h = 480;
+        //int tex_w = (int)(640.0f * (view_w / view_h));
+
+		int tex_h = 480; 
+        int tex_w = (int)(tex_h * (view_w / view_h));		
+
+        m_filter.draw_quad(m_fbo_texture, fbo_verts, fbo_uv, tex_w, tex_h, m_view_width, m_view_height);
+        
+        glUseProgram(m_quad_program);
+        m_current_texture = 0; m_last_blendmode = -1;
+    };
+
 
 	for (const local_primitive& prim : draw_prims)
 	{
-		GLuint needed_tex = (prim.texture != nullptr) ? prim.texture->texture_id : m_white_texture;
+        bool is_screen = PRIMFLAG_GET_SCREENTEX(prim.flags);
+		bool is_vector = PRIMFLAG_GET_VECTOR(prim.flags);
+        
+        if (m_usefilter && is_vector) {
+            if (!fbo_active) {
+                flush_batch(); 
+                glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+                glViewport(0, 0, m_width, m_height);
+                glClearColor(0, 0, 0, 0); 
+                glClear(GL_COLOR_BUFFER_BIT);
+                fbo_active = true;
+            }
+        } else if (fbo_active && !is_vector) {
+            flush_batch(); 
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(viewport[0], viewport[1], viewport[2], viewport[3]); // RESTAURAR VIEWPORT
+            fbo_active = false;
+            draw_vector_fbo(); 
+        }
+
+		GLuint needed_tex = (prim.texture != nullptr) ? prim.texture->texture_id : (is_vector ? m_glow_texture : m_white_texture);
 		int needed_blend = PRIMFLAG_GET_BLENDMODE(prim.flags);
-		bool usefilter = m_usefilter && PRIMFLAG_GET_SCREENTEX(prim.flags);
 
-		if (m_current_texture != needed_tex || m_last_blendmode != needed_blend || usefilter)
-		{
+		if (m_current_texture != needed_tex || m_last_blendmode != needed_blend) {
 			flush_batch();
-
-			m_current_texture = needed_tex;
-			set_blendmode(needed_blend);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, m_current_texture);
+			m_current_texture = needed_tex; set_blendmode(needed_blend);
+			glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_current_texture);
 		}
 
 		switch (prim.type)
@@ -456,14 +559,28 @@ void gles2_renderer::render()
 					m_quad_verts[4] = prim.bounds.x0 + half_w; m_quad_verts[5] = prim.bounds.y0 + half_w; 
 					m_quad_verts[6] = prim.bounds.x0 + half_w; m_quad_verts[7] = prim.bounds.y0 - half_w; 
 					
-					push_quad(m_quad_verts, nullptr, prim.color);
+					float core_uv[8] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
+					render_color c_core = { std::min(prim.color.a * 255.0f, 1.0f), prim.color.r, prim.color.g, prim.color.b };
+					push_quad(m_quad_verts, is_vector ? core_uv : nullptr, c_core);
+					
+					if (is_vector && enable_bloom) {
+						float bloom_w = effwidth * 2.0f;
+						m_quad_verts[0] = prim.bounds.x0 - bloom_w; m_quad_verts[1] = prim.bounds.y0 - bloom_w; 
+						m_quad_verts[2] = prim.bounds.x0 - bloom_w; m_quad_verts[3] = prim.bounds.y0 + bloom_w; 
+						m_quad_verts[4] = prim.bounds.x0 + bloom_w; m_quad_verts[5] = prim.bounds.y0 + bloom_w; 
+						m_quad_verts[6] = prim.bounds.x0 + bloom_w; m_quad_verts[7] = prim.bounds.y0 - bloom_w; 
+						
+						float bloom_uv[8] = { 0.5f, 0.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 0.0f };
+						render_color c_bloom = { std::min(prim.color.a * 255.0f, 1.0f) * 0.25f, prim.color.r, prim.color.g, prim.color.b };
+						push_quad(m_quad_verts, bloom_uv, c_bloom);
+					}
 				} else {
 					auto [b0, b1] = render_line_to_quad(prim.bounds, effwidth, 0.0f);
 					const line_aa_step* step = PRIMFLAG_GET_ANTIALIAS(prim.flags) ? line_aa_4step : line_aa_1step;
 					
 					for (; step->weight != 0.0f; step++) {
 						render_color c;
-						c.a = std::min(prim.color.a * 255.0f, 1.0f);
+						c.a = std::min(prim.color.a * 255.0f, 1.0f); 
 						c.r = std::min(prim.color.r * step->weight, 1.0f);
 						c.g = std::min(prim.color.g * step->weight, 1.0f);
 						c.b = std::min(prim.color.b * step->weight, 1.0f);
@@ -473,7 +590,22 @@ void gles2_renderer::render()
 						m_quad_verts[4] = b1.x1 + step->xoffs; m_quad_verts[5] = b1.y1 + step->yoffs; 
 						m_quad_verts[6] = b1.x0 + step->xoffs; m_quad_verts[7] = b1.y0 + step->yoffs; 
 
-						push_quad(m_quad_verts, nullptr, c);
+						float core_uv[8] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
+						push_quad(m_quad_verts, is_vector ? core_uv : nullptr, c);
+					}
+
+					if (is_vector && enable_bloom) {
+						float bloom_width = effwidth * 4.0f;
+						auto [bb0, bb1] = render_line_to_quad(prim.bounds, bloom_width, 0.0f);
+
+						m_quad_verts[0] = bb0.x0; m_quad_verts[1] = bb0.y0; 
+						m_quad_verts[2] = bb0.x1; m_quad_verts[3] = bb0.y1; 
+						m_quad_verts[4] = bb1.x1; m_quad_verts[5] = bb1.y1; 
+						m_quad_verts[6] = bb1.x0; m_quad_verts[7] = bb1.y0; 
+
+						float bloom_uv[8] = { 0.5f, 0.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 0.0f };
+						render_color c_bloom = { std::min(prim.color.a * 255.0f, 1.0f) * 0.40f, prim.color.r, prim.color.g, prim.color.b };
+						push_quad(m_quad_verts, bloom_uv, c_bloom);
 					}
 				}
 			} break;
@@ -492,30 +624,34 @@ void gles2_renderer::render()
 					m_quad_uv[4] = texuv.br.u; m_quad_uv[5] = texuv.br.v;
 					m_quad_uv[6] = texuv.tr.u; m_quad_uv[7] = texuv.tr.v;
 
-					push_quad(m_quad_verts, m_quad_uv, prim.color);
+                    if (m_usefilter && is_screen) {
+                        flush_batch();
+                        set_blendmode(needed_blend);
+                        m_filter.draw_quad(m_current_texture, m_quad_verts, m_quad_uv, prim.texture->texinfo.width, prim.texture->texinfo.height, m_view_width, m_view_height);
+                        glUseProgram(m_quad_program);
+                        m_current_texture = 0; m_last_blendmode = -1;
+                    } else {
+					    push_quad(m_quad_verts, m_quad_uv, prim.color);
+                    }
 				} else {
 					push_quad(m_quad_verts, nullptr, prim.color);
 				}
-
-				if (usefilter) {
-					flush_batch();
-					m_filter.draw(m_view_width, m_view_height);
-					
-					glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
-					m_current_texture = 0; 
-				}
 			} break;
 
-			case render_primitive::INVALID:
-			break;
+			case render_primitive::INVALID: break;
 		}
 	}
 
 	flush_batch();
-
-	if (!delete_texs.empty()) {
-        glDeleteTextures(delete_texs.size(), delete_texs.data());
+	
+	if (m_usefilter && fbo_active) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+        draw_vector_fbo();
     }
+
+	if (!delete_texs.empty()) 
+		glDeleteTextures(delete_texs.size(), delete_texs.data());
 }
 
 static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat)
@@ -565,10 +701,6 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(co
 	m_texlist.push_front(texture);
 
 	texture->hash = texture_compute_hash(texinfo, prim.flags);
-
-	if (PRIMFLAG_GET_SCREENTEX(prim.flags))
-		m_filter.set_input_size(texinfo.width, texinfo.height);
-
 	texture->texinfo = texinfo;
 	texture->prim_flags = prim.flags;
 

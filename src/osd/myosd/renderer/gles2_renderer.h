@@ -66,7 +66,7 @@ public:
 		osd_ticks_t last_access;
 		
 		bool needs_gl_init = false;
-        bool needs_gl_update = false;
+		bool needs_gl_update = false;
 
 		void* base = nullptr; //GL_ARGB format
 		void* base_back = nullptr;
@@ -90,13 +90,13 @@ public:
 
 	struct local_primitive {
         int type;
-        render_bounds bounds;
-        render_color color;
-        render_quad_texuv texcoords;
+		render_bounds bounds;
+		render_color color;
+		render_quad_texuv texcoords;
         uint32_t flags;
 		float width;
 		bool needs_texture_upload = false;
-        std::shared_ptr<gles2_texture> texture;
+		std::shared_ptr<gles2_texture> texture;
 		void* upload_ptr = nullptr;
     };
 	
@@ -107,9 +107,9 @@ public:
 	};	
 
 	//GL vertex attributes
-	static constexpr GLuint ATTRIB_POSITION = 0;
-	static constexpr GLuint ATTRIB_TEXUV    = 1;
-	static constexpr GLuint ATTRIB_COLOR    = 2;
+	static constexpr GLuint ATTRIB_POSITION = 0; 
+	static constexpr GLuint ATTRIB_TEXUV = 1; 
+	static constexpr GLuint ATTRIB_COLOR = 2;
 
 	static constexpr u8 s_quad_indices[] = { 0, 1, 2, 0, 2, 3 }; //Indices to draw a quad with glDrawElements
 
@@ -118,6 +118,8 @@ public:
         glDeleteProgram(m_quad_program);
 		
 		if (m_white_texture) glDeleteTextures(1, &m_white_texture);
+		if (m_glow_texture) glDeleteTextures(1, &m_glow_texture);
+		delete_fbo();
 
         if (!m_textures_to_delete.empty()) {
             glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
@@ -157,6 +159,13 @@ private:
 	GLint m_uniform_ortho_quad;
 
 	GLuint m_white_texture = 0;
+	GLuint m_glow_texture = 0;	
+	
+	bool m_fbo_dirty = false;	
+	GLuint m_fbo = 0;
+	GLuint m_fbo_texture = 0;
+	void create_fbo(int width, int height);
+	void delete_fbo();
 	
 	std::vector<vertex_data> m_batch_vertices;
 	std::vector<GLushort> m_batch_indices;

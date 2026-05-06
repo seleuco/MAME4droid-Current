@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice) & David Valdeita (Seleuco)
+// copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
     filter_shader.h
@@ -34,10 +34,9 @@ public:
     void load_filter(const std::string &filter_src, bool linear);
     bool is_linear() const { return m_linear; }
 
-	void set_input_size(int width, int height);
 	void set_ortho(std::array<float, 4*4> ortho);
-
-	void draw(int width, int height);
+	
+	void draw_quad(GLuint texture_id, const float* verts, const float* uv, int tex_w, int tex_h, int view_w, int view_h);
 
     static std::vector<std::pair<std::string, filter_data>> load_filters(const std::string &root_path);
 
@@ -49,21 +48,16 @@ public:
 private:
     bool m_linear = false;
     bool m_ortho_dirty = true;
-    bool m_input_dirty = true;
 
 	//shader program
 	GLuint m_program = 0;
-
 	GLint m_uniform_MVPMatrix;
-
 	GLint m_uniform_InputSize;
 	GLint m_uniform_OutputSize;
 	GLint m_uniform_TextureSize;
-
 	GLint m_uniform_FrameCount;
 	unsigned m_framecount;
 
-	int m_texwidth = 0, m_texheight = 0;
 	std::array<float, 4*4> m_ortho;
 };
 
