@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice)& David Valdeita (Seleuco)
+// copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
     gles2_renderer.h
@@ -65,10 +65,6 @@ public:
 		u32 prim_flags;  //Copy of the render_primitive flags
 		osd_ticks_t last_access;
 		
-		bool has_border = false;
-		int upload_width = 0;
-		int upload_height = 0;
-
 		bool needs_gl_init = false;
         bool needs_gl_update = false;
 
@@ -103,17 +99,25 @@ public:
         std::shared_ptr<gles2_texture> texture;
 		void* upload_ptr = nullptr;
     };
+	
+	struct vertex_data {
+		float x, y;
+		float u, v;
+		float r, g, b, a;
+	};	
 
 	//GL vertex attributes
 	static constexpr GLuint ATTRIB_POSITION = 0;
 	static constexpr GLuint ATTRIB_TEXUV    = 1;
+	static constexpr GLuint ATTRIB_COLOR    = 2;
 
 	static constexpr u8 s_quad_indices[] = { 0, 1, 2, 0, 2, 3 }; //Indices to draw a quad with glDrawElements
 
     ~gles2_renderer() override
     {
         glDeleteProgram(m_quad_program);
-        glDeleteProgram(m_line_program);
+		
+		if (m_white_texture) glDeleteTextures(1, &m_white_texture);
 
         if (!m_textures_to_delete.empty()) {
             glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
@@ -140,10 +144,6 @@ private:
     std::vector<GLuint> m_render_textures_to_delete;
     std::vector<GLuint> m_textures_to_delete;
 	
-	GLuint m_last_program = 0;
-	void use_quad_program();
-	void use_line_program();
-
 	int m_last_blendmode = -1;
 	void set_blendmode(int blendmode);
 
@@ -154,12 +154,17 @@ private:
 	//Shader program to render a quad primitive
 	//each one deals with a specific texture format
 	GLuint m_quad_program;
-	GLint m_uniform_color_quad; //Primitive color for modulation
 	GLint m_uniform_ortho_quad;
 
-	GLuint m_line_program;
-	GLint m_uniform_color_line; //Line solid color
-	GLint m_uniform_ortho_line;
+	GLuint m_white_texture = 0;
+	
+	std::vector<vertex_data> m_batch_vertices;
+	std::vector<GLushort> m_batch_indices;
+
+	void flush_batch();
+	void push_quad(const float* verts, const float* uv, const render_color& color);
+
+	GLuint m_current_texture = 0;
 
 	std::array<float, 4*4> m_ortho; //Ortho projection matrix
 

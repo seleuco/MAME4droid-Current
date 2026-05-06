@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice)
+// copyright-holders:Filipe Paulino (FlykeSpice) & David Valdeita (Seleuco)
 /***************************************************************************
 
     filter_shader.h

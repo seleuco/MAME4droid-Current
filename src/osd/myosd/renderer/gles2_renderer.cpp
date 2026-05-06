@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Filipe Paulino (FlykeSpice) & David Valdeita (Seleuco)
+// copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
     gles2_renderer.cpp
@@ -74,7 +74,7 @@ static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_
 
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
-static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat, bool has_border, int upload_width);
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat);
 static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim);
 
 void gles2_renderer::set_shader(const char* shader_name)
@@ -90,7 +90,6 @@ void gles2_renderer::set_shader(const char* shader_name)
             if (it != s_filters.end())
             {
                 m_filter.load_filter(it->second.source, it->second.linear);
-                m_last_program = 0;
                 m_lastfilter = shader_name;
             }
             else
@@ -103,10 +102,6 @@ void gles2_renderer::set_shader(const char* shader_name)
     }
     else
     {
-        if(m_lastfilter.empty())
-        {
-            m_last_program = 0;
-        }
         m_lastfilter = "";
         m_usefilter = false;
     }
@@ -140,43 +135,38 @@ gles2_renderer::gles2_renderer(int width, int height)
 
 	glDisable(GL_BLEND);
 
-	/* Init shader programs */
+	/* Init quad shader program*/
 
 	GLuint quad_vertex_shader = gl_utils::load_shader(quad_vertex_shader_src, GL_VERTEX_SHADER);
 	GLuint quad_frag_shader   = gl_utils::load_shader(quad_frag_shader_src,   GL_FRAGMENT_SHADER);
-	m_quad_program = gl_utils::create_program(quad_vertex_shader, quad_frag_shader, {{ATTRIB_POSITION, "a_position"}, {ATTRIB_TEXUV, "a_texuv"}});
-
-	GLuint line_vertex_shader = gl_utils::load_shader(line_vertex_shader_src, GL_VERTEX_SHADER);
-	GLuint line_frag_shader   = gl_utils::load_shader(line_frag_shader_src, GL_FRAGMENT_SHADER);
-	m_line_program = gl_utils::create_program(line_vertex_shader, line_frag_shader, {{ATTRIB_POSITION, "a_position"}});
+	m_quad_program = gl_utils::create_program(quad_vertex_shader, quad_frag_shader, {{ATTRIB_POSITION, "a_position"}, {ATTRIB_TEXUV, "a_texuv"}, {ATTRIB_COLOR, "a_color"}});
 
 	//Flag the shader objects for deletion, so they don't leak when the user is switching renderers
 	glDeleteShader(quad_vertex_shader);
 	glDeleteShader(quad_frag_shader);
-	glDeleteShader(line_vertex_shader);
-	glDeleteShader(line_frag_shader);
-
-	glVertexAttribPointer(ATTRIB_POSITION, 2, GL_FLOAT, GL_TRUE, 0, m_quad_verts);
-	glVertexAttribPointer(ATTRIB_TEXUV,    2, GL_FLOAT, GL_TRUE, 0, m_quad_uv);
-
-	glEnableVertexAttribArray(ATTRIB_POSITION);
-	glEnableVertexAttribArray(ATTRIB_TEXUV);
 
 	//We're not gonna be compiling shaders anymore, release up the shader compiler resources
 	glReleaseShaderCompiler();
 
-	m_uniform_color_line = glGetUniformLocation(m_line_program, "u_color");
-	m_uniform_color_quad = glGetUniformLocation(m_quad_program, "u_color");
-
-	m_uniform_ortho_line = glGetUniformLocation(m_line_program, "u_ortho");
 	m_uniform_ortho_quad = glGetUniformLocation(m_quad_program, "u_ortho");
 
 	auto sampler_uniform = glGetUniformLocation(m_quad_program, "s_texture");
 	glUniform1i(sampler_uniform, 0); //set sampler2D texture unit to 0
+	
+	glGenTextures(1, &m_white_texture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_white_texture);
+	uint32_t white_pixel = 0xFFFFFFFF; // RGBA white
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white_pixel);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);	
+	
+	m_batch_vertices.reserve(4096); 
+	m_batch_indices.reserve(6144);
+	
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	on_emulatedsize_change(width, height);
-
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 void gles2_renderer::end_renderer()
@@ -198,28 +188,6 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
     m_flush_textures = true;
 
     m_filter.set_ortho(m_ortho);
-}
-
-void gles2_renderer::use_quad_program()
-{
-	//Use quad shader program object and enable the quad vertex attrib
-	if (m_last_program != m_quad_program)
-	{
-		glUseProgram(m_quad_program);
-		glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
-		m_last_program = m_quad_program;
-	}
-}
-
-void gles2_renderer::use_line_program()
-{
-	//Use line shader
-	if (m_last_program != m_line_program)
-	{
-		glUseProgram(m_line_program);
-		glUniformMatrix4fv(m_uniform_ortho_line, 1, GL_FALSE, m_ortho.data());
-		m_last_program = m_line_program;
-	}
 }
 
 //copied from osd/modules/drawogl.cpp
@@ -262,6 +230,23 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
         m_texlist.clear();
         m_flush_textures = false;
     }
+	
+	//clean old textures
+	osd_ticks_t now = osd_ticks();
+	for (auto it = m_texlist.begin(); it != m_texlist.end(); )
+	{
+		if ((now - (*it)->last_access) > osd_ticks_per_second())
+		{
+			if ((*it)->texture_id > 0) {
+				m_textures_to_delete.push_back((*it)->texture_id);
+			}				
+			it = m_texlist.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}	
 	
 	std::vector<local_primitive> temp_prims;
 
@@ -320,9 +305,56 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 			traza += buf;
 		}
 		ANDROID_LOG("CACHE TOTAL -> Elementos: %zu (Estaticas: %d | Dinamicas: %d) Info: %s", m_texlist.size(), estaticas, dinamicas, traza.c_str());
-*/		
+*/
     }	
 	
+}
+
+void gles2_renderer::push_quad(const float* verts, const float* uv, const render_color& color) 
+{
+	if (m_batch_vertices.size() >= 65000) {
+        flush_batch();
+    }
+	
+    GLushort base = m_batch_vertices.size();
+    
+    static const float default_uv[8] = {0.0f};
+    const float* actual_uv = uv ? uv : default_uv;
+    
+    m_batch_vertices.push_back({verts[0], verts[1], actual_uv[0], actual_uv[1], color.r, color.g, color.b, color.a});
+    m_batch_vertices.push_back({verts[2], verts[3], actual_uv[2], actual_uv[3], color.r, color.g, color.b, color.a});
+    m_batch_vertices.push_back({verts[4], verts[5], actual_uv[4], actual_uv[5], color.r, color.g, color.b, color.a});
+    m_batch_vertices.push_back({verts[6], verts[7], actual_uv[6], actual_uv[7], color.r, color.g, color.b, color.a});
+
+    m_batch_indices.push_back(base + 0); m_batch_indices.push_back(base + 1); m_batch_indices.push_back(base + 2);
+    m_batch_indices.push_back(base + 0); m_batch_indices.push_back(base + 2); m_batch_indices.push_back(base + 3);
+}
+
+void gles2_renderer::flush_batch() 
+{
+    if (m_batch_indices.empty()) return;
+	
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    int stride = sizeof(vertex_data);
+    const void* pointer_pos = (const void*)offsetof(vertex_data, x);
+    const void* pointer_uv  = (const void*)offsetof(vertex_data, u);
+    const void* pointer_col = (const void*)offsetof(vertex_data, r);
+
+    glVertexAttribPointer(ATTRIB_POSITION, 2, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_pos);
+    glEnableVertexAttribArray(ATTRIB_POSITION);
+
+    glVertexAttribPointer(ATTRIB_TEXUV, 2, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_uv);
+    glEnableVertexAttribArray(ATTRIB_TEXUV);
+
+    glVertexAttribPointer(ATTRIB_COLOR, 4, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_col);
+    glEnableVertexAttribArray(ATTRIB_COLOR);
+
+    glDrawElements(GL_TRIANGLES, m_batch_indices.size(), GL_UNSIGNED_SHORT, m_batch_indices.data());
+
+    m_batch_vertices.clear();
+    m_batch_indices.clear();
 }
 
 void gles2_renderer::render()
@@ -337,225 +369,168 @@ void gles2_renderer::render()
         m_render_textures_to_delete.clear();
     }
 
-	glClear(GL_COLOR_BUFFER_BIT);//if not trash if use sliders to change osd position
+	glClear(GL_COLOR_BUFFER_BIT);
 
     if (m_force_viewport_update)
     {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	    //glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
 
 		GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
 
-        // Failsafe: Only store the values if OpenGL returns logical physical dimensions (> 0)
         if (viewport[2] > 0 && viewport[3] > 0)
         {
             m_view_width = viewport[2];
             m_view_height = viewport[3];
-			
-			ANDROID_LOG("viewport %d %d",m_view_width, m_view_height);
-
-            m_force_viewport_update = false; // Successfully updated, clear the flag
+            m_force_viewport_update = false;
         }
     }
 
-	//TODO: Batch many primitives that share the same properties (format, colors..) into a single draw call
+	for (local_primitive& prim : draw_prims)
+	{
+		if (prim.texture && (prim.texture->needs_gl_init || prim.needs_texture_upload))
+		{
+			if (prim.texture->needs_gl_init) {
+				glGenTextures(1, &prim.texture->texture_id);
+				glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
+
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->texinfo.width, prim.texture->texinfo.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
+				
+				GLint filter_mode = myosd_get(MYOSD_BITMAP_FILTERING) ? GL_LINEAR : GL_NEAREST;
+				if (PRIMFLAG_GET_SCREENTEX(prim.flags) && m_usefilter) {
+					filter_mode = m_filter.is_linear() ? GL_LINEAR : GL_NEAREST;
+				}
+				
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode);
+				
+				GLint wrapmode = PRIMFLAG_GET_TEXWRAP(prim.flags) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode);
+				
+				prim.texture->needs_gl_init = false;
+			}
+			else if (prim.needs_texture_upload) {
+				glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
+				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->texinfo.width, prim.texture->texinfo.height, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
+			}
+			
+			prim.needs_texture_upload = false; 
+		}
+	}
+
+	glUseProgram(m_quad_program);
+	glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
+
+	m_current_texture = 0;
+	m_last_blendmode = -1; 
 
 	for (const local_primitive& prim : draw_prims)
 	{
+		GLuint needed_tex = (prim.texture != nullptr) ? prim.texture->texture_id : m_white_texture;
+		int needed_blend = PRIMFLAG_GET_BLENDMODE(prim.flags);
+		bool usefilter = m_usefilter && PRIMFLAG_GET_SCREENTEX(prim.flags);
+
+		if (m_current_texture != needed_tex || m_last_blendmode != needed_blend || usefilter)
+		{
+			flush_batch();
+
+			m_current_texture = needed_tex;
+			set_blendmode(needed_blend);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, m_current_texture);
+		}
+
 		switch (prim.type)
 		{
 			case render_primitive::LINE:
 			{
-				use_line_program();
-				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
-
-				float effwidth = std::max(prim.width, 0.5f);
-				
+				float effwidth = std::max(prim.width, 1.0f);
 				bool is_point = ((prim.bounds.x1 - prim.bounds.x0) == 0.0f) && ((prim.bounds.y1 - prim.bounds.y0) == 0.0f);
 
-				if (is_point)
-				{
+				if (is_point) {
 					float half_w = effwidth * 0.5f;
-					m_quad_verts[0] = prim.bounds.x0 - half_w; m_quad_verts[1] = prim.bounds.y0 - half_w; // Top-Left
-					m_quad_verts[2] = prim.bounds.x0 - half_w; m_quad_verts[3] = prim.bounds.y0 + half_w; // Bottom-Left
-					m_quad_verts[4] = prim.bounds.x0 + half_w; m_quad_verts[5] = prim.bounds.y0 + half_w; // Bottom-Right
-					m_quad_verts[6] = prim.bounds.x0 + half_w; m_quad_verts[7] = prim.bounds.y0 - half_w; // Top-Right
-
-					glUniform4f(m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
-					glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
-				}
-				else
-				{
+					m_quad_verts[0] = prim.bounds.x0 - half_w; m_quad_verts[1] = prim.bounds.y0 - half_w; 
+					m_quad_verts[2] = prim.bounds.x0 - half_w; m_quad_verts[3] = prim.bounds.y0 + half_w; 
+					m_quad_verts[4] = prim.bounds.x0 + half_w; m_quad_verts[5] = prim.bounds.y0 + half_w; 
+					m_quad_verts[6] = prim.bounds.x0 + half_w; m_quad_verts[7] = prim.bounds.y0 - half_w; 
+					
+					push_quad(m_quad_verts, nullptr, prim.color);
+				} else {
 					auto [b0, b1] = render_line_to_quad(prim.bounds, effwidth, 0.0f);
-
 					const line_aa_step* step = PRIMFLAG_GET_ANTIALIAS(prim.flags) ? line_aa_4step : line_aa_1step;
 					
-					for (; step->weight != 0.0f; step++)
-					{
-						float r = std::min(prim.color.r * step->weight, 1.0f);
-						float g = std::min(prim.color.g * step->weight, 1.0f);
-						float b = std::min(prim.color.b * step->weight, 1.0f);
-						float a = std::min(prim.color.a * 255.0f, 1.0f);
-
-						glUniform4f(m_uniform_color_line, r, g, b, a);
+					for (; step->weight != 0.0f; step++) {
+						render_color c;
+						c.a = std::min(prim.color.a * 255.0f, 1.0f);
+						c.r = std::min(prim.color.r * step->weight, 1.0f);
+						c.g = std::min(prim.color.g * step->weight, 1.0f);
+						c.b = std::min(prim.color.b * step->weight, 1.0f);
 
 						m_quad_verts[0] = b0.x0 + step->xoffs; m_quad_verts[1] = b0.y0 + step->yoffs; 
 						m_quad_verts[2] = b0.x1 + step->xoffs; m_quad_verts[3] = b0.y1 + step->yoffs; 
 						m_quad_verts[4] = b1.x1 + step->xoffs; m_quad_verts[5] = b1.y1 + step->yoffs; 
 						m_quad_verts[6] = b1.x0 + step->xoffs; m_quad_verts[7] = b1.y0 + step->yoffs; 
 
-						glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
+						push_quad(m_quad_verts, nullptr, c);
 					}
 				}
-			}
-			break;
+			} break;
 
 			case render_primitive::QUAD:
 			{
-				bool has_texture = prim.texture != nullptr;
-				if (has_texture)
-				{
-					use_quad_program();
+				m_quad_verts[0] = prim.bounds.x0; m_quad_verts[1] = prim.bounds.y0; 
+				m_quad_verts[2] = prim.bounds.x0; m_quad_verts[3] = prim.bounds.y1; 
+				m_quad_verts[4] = prim.bounds.x1; m_quad_verts[5] = prim.bounds.y1; 
+				m_quad_verts[6] = prim.bounds.x1; m_quad_verts[7] = prim.bounds.y0; 
 
-					if (prim.texture->needs_gl_init) {
-                        glGenTextures(1, &prim.texture->texture_id);
-                        glActiveTexture(GL_TEXTURE0);
-                        glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
-
-						glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, prim.texture->upload_width, prim.texture->upload_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
-
-                        GLint filter_mode = myosd_get(MYOSD_BITMAP_FILTERING) ? GL_LINEAR : GL_NEAREST;
-                        if (PRIMFLAG_GET_SCREENTEX(prim.flags) && m_usefilter) {
-                            filter_mode = m_filter.is_linear() ? GL_LINEAR : GL_NEAREST;
-                        }
-
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode);
-
-                        GLint wrapmode = PRIMFLAG_GET_TEXWRAP(prim.flags) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode);
-
-                        prim.texture->needs_gl_init = false;
-                    }
-                    else
-                    {
-                        glActiveTexture(GL_TEXTURE0);
-                        glBindTexture(GL_TEXTURE_2D, prim.texture->texture_id);
-
-						if (prim.needs_texture_upload) { 
-                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, prim.texture->upload_width, prim.texture->upload_height, GL_RGBA, GL_UNSIGNED_BYTE, prim.upload_ptr);
-                        }
-                    }
-				}
-				else
-				{
-					//For drawing just the solid colors
-					use_line_program();
-				}
-
-				glUniform4f(has_texture ? m_uniform_color_quad : m_uniform_color_line, prim.color.r, prim.color.g, prim.color.b, prim.color.a);
-
-				const render_bounds& bounds = prim.bounds;
-				m_quad_verts[0] = bounds.x0;
-				m_quad_verts[1] = bounds.y0;
-
-				m_quad_verts[2] = bounds.x0;
-				m_quad_verts[3] = bounds.y1;
-
-				m_quad_verts[4] = bounds.x1;
-				m_quad_verts[5] = bounds.y1;
-
-				m_quad_verts[6] = bounds.x1;
-				m_quad_verts[7] = bounds.y0;
-
-				if (has_texture)
-				{
+				if (prim.texture) {
 					const render_quad_texuv& texuv = prim.texcoords;
+					m_quad_uv[0] = texuv.tl.u; m_quad_uv[1] = texuv.tl.v;
+					m_quad_uv[2] = texuv.bl.u; m_quad_uv[3] = texuv.bl.v;
+					m_quad_uv[4] = texuv.br.u; m_quad_uv[5] = texuv.br.v;
+					m_quad_uv[6] = texuv.tr.u; m_quad_uv[7] = texuv.tr.v;
 
-					float u_scale = 1.0f;
-					float u_offset = 0.0f;
-					float v_scale = 1.0f;
-					float v_offset = 0.0f;
-
-					if (prim.texture->has_border) {
-						u_scale = (float)prim.texture->texinfo.width / (float)prim.texture->upload_width;
-						u_offset = 1.0f / (float)prim.texture->upload_width;
-						v_scale = (float)prim.texture->texinfo.height / (float)prim.texture->upload_height;
-						v_offset = 1.0f / (float)prim.texture->upload_height;
-					}
-
-					m_quad_uv[0] = texuv.tl.u * u_scale + u_offset;
-					m_quad_uv[1] = texuv.tl.v * v_scale + v_offset;
-
-					m_quad_uv[2] = texuv.bl.u * u_scale + u_offset;
-					m_quad_uv[3] = texuv.bl.v * v_scale + v_offset;
-
-					m_quad_uv[4] = texuv.br.u * u_scale + u_offset;
-					m_quad_uv[5] = texuv.br.v * v_scale + v_offset;
-
-					m_quad_uv[6] = texuv.tr.u * u_scale + u_offset;
-					m_quad_uv[7] = texuv.tr.v * v_scale + v_offset;
+					push_quad(m_quad_verts, m_quad_uv, prim.color);
+				} else {
+					push_quad(m_quad_verts, nullptr, prim.color);
 				}
 
-				set_blendmode(PRIMFLAG_GET_BLENDMODE(prim.flags));
-
-				const bool usefilter = m_usefilter && PRIMFLAG_GET_SCREENTEX(prim.flags);
-				if (usefilter)
-				{
-					//m_filter.draw(prim.get_quad_width(), prim.get_quad_height());
-                    // This ensures that resolution-dependent shaders (like Mattias CRT) scale their
-                    // effects correctly relative to the actual display area rather than the emulated quad.
-                    m_filter.draw(m_view_width, m_view_height);
-					m_last_program = 0; //Restore to previous program
+				if (usefilter) {
+					flush_batch();
+					m_filter.draw(m_view_width, m_view_height);
+					
+					glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
+					m_current_texture = 0; 
 				}
-				else
-				{
-                    // WARNING: Ensure no EBO is bound here, as s_quad_indices is a client-side pointer.
-                    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-					glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, s_quad_indices);
-				}
-
-			}
-			break;
+			} break;
 
 			case render_primitive::INVALID:
-			//FlykeSpice: throw? or do nothing
 			break;
 		}
 	}
-	
+
+	flush_batch();
+
 	if (!delete_texs.empty()) {
         glDeleteTextures(delete_texs.size(), delete_texs.data());
     }
 }
 
-static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat, bool has_border, int upload_width)
+static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat)
 {
-	int offset_x = has_border ? 1 : 0;
-	int offset_y = has_border ? 1 : 0;
-
 	for (int y=0; y<texinfo.height; y++)
 	{
-		uint32_t *dst = (u32*)dest + ((y + offset_y) * upload_width) + offset_x;
-
+		uint32_t *dst = (u32*)dest + (texinfo.width * y);
 		#define src(T) (T*)texinfo.base + (texinfo.rowpixels * y)
 
 		switch (texformat)
 		{
-			case TEXFORMAT_RGB32:
-				copy_util::copyline_rgb32(dst, src(u32), texinfo.width, texinfo.palette);
-				break;
-			case TEXFORMAT_ARGB32:
-				copy_util::copyline_argb32(dst, src(u32), texinfo.width, texinfo.palette);
-				break;
-			case TEXFORMAT_PALETTE16:
-				copy_util::copyline_palette16(dst, src(u16), texinfo.width, texinfo.palette);
-				break;
-			case TEXFORMAT_YUY16:
-				copy_util::copyline_yuy16_to_argb(dst, src(u16), texinfo.width, texinfo.palette, 1);
-				break;
+			case TEXFORMAT_RGB32: copy_util::copyline_rgb32(dst, src(u32), texinfo.width, texinfo.palette); break;
+			case TEXFORMAT_ARGB32: copy_util::copyline_argb32(dst, src(u32), texinfo.width, texinfo.palette); break;
+			case TEXFORMAT_PALETTE16: copy_util::copyline_palette16(dst, src(u16), texinfo.width, texinfo.palette); break;
+			case TEXFORMAT_YUY16: copy_util::copyline_yuy16_to_argb(dst, src(u16), texinfo.width, texinfo.palette, 1); break;
 		}
 		#undef src
 	}
@@ -574,9 +549,9 @@ void gles2_renderer::update_texture_cache(const render_primitive& prim, std::sha
 		{
 			texture->texinfo.seqid = prim.texture.seqid;
 			if (texture->base_back == nullptr) {
-				texture->base_back = std::calloc(texture->upload_width * texture->upload_height, 4);
+				texture->base_back = std::malloc((texture->texinfo.width * 4) * texture->texinfo.height);
 			}
-			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags), texture->has_border, texture->upload_width);
+			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
             texture->needs_gl_update = true;
 		}
         out_tex = texture;
@@ -597,16 +572,10 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(co
 	texture->texinfo = texinfo;
 	texture->prim_flags = prim.flags;
 
-	texture->has_border = !(prim.flags & PRIMFLAG_TEXWRAP_MASK) && !PRIMFLAG_GET_SCREENTEX(prim.flags);
-	texture->upload_width = texinfo.width + (texture->has_border ? 2 : 0);
-	texture->upload_height = texinfo.height + (texture->has_border ? 2 : 0);
-
-	const auto texformat = PRIMFLAG_GET_TEXFORMAT(prim.flags);
-
-	texture->base = std::calloc(texture->upload_width * texture->upload_height, 4);
+	texture->base = std::malloc((texinfo.width * 4) * texinfo.height);
 	texture->owned = true;
 
-	texture_copy_data(texture->base, texinfo, texformat, texture->has_border, texture->upload_width);
+	texture_copy_data(texture->base, texinfo, PRIMFLAG_GET_TEXFORMAT(prim.flags));
 
     texture->needs_gl_init = true;
 	texture->last_access = osd_ticks();
@@ -616,27 +585,14 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(co
 
 std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_find(const render_primitive& prim, osd_ticks_t now)
 {
-	for (auto it = m_texlist.begin(); it != m_texlist.end(); )
+	for (auto& tex : m_texlist)
 	{
-		if (compare_texture_primitive(**it, prim))
+		if (compare_texture_primitive(*tex, prim))
 		{
-			(*it)->last_access = now;
-			return *it;
-		}
-		else
-		{
-			if ((now - (*it)->last_access) > osd_ticks_per_second() )
-			{
-				if ((*it)->texture_id > 0) {
-				    m_textures_to_delete.push_back((*it)->texture_id);
-                }				
-				it = m_texlist.erase(it);
-			}
-			else
-				++it;
+			tex->last_access = now;
+			return tex;
 		}
 	}
-
 	return nullptr;
 }
 
