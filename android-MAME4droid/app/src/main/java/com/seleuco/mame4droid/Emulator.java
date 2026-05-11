@@ -163,6 +163,12 @@ public class Emulator {
 	final static public int FINGER_DOWN = 2;
 	final static public int FINGER_UP = 3;
 
+	//ANALOG DATA TYPES
+	final static public int LEFT_STICK_DATA = 1;
+	final static public int RIGHT_STICK_DATA = 2;
+	final static public int TRIGGER_DATA = 3;
+	final static public int LIGHTGUN_DATA = 4;
+
 	private static MAME4droid mm = null;
 
 	private static boolean isEmulating = false;
@@ -797,7 +803,7 @@ public class Emulator {
 	protected static native void init(String libPath, String resPath, int nativeWidth, int nativeHeight);
 	protected static native void runT();
 	synchronized public static native void setDigitalData(int i, long data);
-	synchronized public static native void setAnalogData(int i, float v1, float v2);
+	synchronized public static native void setAnalogData(int t, int i, float v1, float v2);
 	public static native int getValue(int key, int i);
 	public static native String getValueStr(int key, int i);
 	public static native void setValue(int key, int i, int value);

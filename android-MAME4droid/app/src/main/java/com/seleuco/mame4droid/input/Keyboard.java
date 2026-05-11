@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,10 +47,8 @@ package com.seleuco.mame4droid.input;
 import static android.content.res.Configuration.KEYBOARD_QWERTY;
 
 import android.graphics.Color;
+import android.view.InputDevice;
 import android.view.KeyEvent;
-import android.view.MotionEvent;
-import android.view.View;
-import android.widget.Toast;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
@@ -58,67 +56,84 @@ import com.seleuco.mame4droid.widgets.WarnWidget;
 
 public class Keyboard implements IController {
 
+	// State trackers for the software keyboard debounce hack
 	protected long last_soft_key_time = -1;
 	protected long last_soft_key_code = -1;
 
 	protected boolean isKeyboardEnabled = false;
 
-	public boolean isKeyboardEnabled() {return isKeyboardEnabled;}
+	public boolean isKeyboardEnabled() { return isKeyboardEnabled; }
 
 	protected MAME4droid mm = null;
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+	}
 
 	public boolean isKeyboardConnected() {
+		// Checks if a physical hardware keyboard is currently attached to the Android device
 		return mm.getResources().getConfiguration().keyboard == KEYBOARD_QWERTY && mm.getPrefsHelper().isKeyboardEnabled();
 	}
 
-    public boolean handleKeyboard(int keyCode, KeyEvent event){
+	public boolean handleKeyboard(int keyCode, KeyEvent event){
+		InputDevice device = event.getDevice();
 
-		//Log.d("TECLA", "device=" + event.getDeviceId()+ " " + event.getDevice().isVirtual() + " "+keyCode + " " + event.getAction() + " " + event.getDisplayLabel() + " " + event.getUnicodeChar() + " " + event.getNumber());
+		// Failsafe: Null devices are treated as virtual/injected inputs (e.g. on-screen keyboards)
+		boolean isVirtual = (device == null) || device.isVirtual();
 
-		if(event.getDevice().isVirtual() && !mm.getPrefsHelper().isVirtualKeyboardEnabled())
+		if(isVirtual && !mm.getPrefsHelper().isVirtualKeyboardEnabled())
 			return false;
 
-		if(event.getDevice().isVirtual()) {//SOFT KEYBOARD, HACK TO AVOID CONTINUOUS DOWN/UP on VKEYBOARDS
-			//Log.d("TECLA", "TIME=" + event.getEventTime());
-			//final int wait_time = 25;
+		// --- VIRTUAL KEYBOARD DEBOUNCE LOGIC ---
+		// Native MAME engine might drop keypresses if the UP event arrives too fast
+		// (under ~45ms or ~3 frames). We enforce a minimum hold time for virtual keys.
+		if(isVirtual) {
 			final int wait_time = 45;
-			if(event.getAction() == KeyEvent.ACTION_DOWN && last_soft_key_time==-1)
-			{
+
+			if(event.getAction() == KeyEvent.ACTION_DOWN && last_soft_key_time == -1) {
 				last_soft_key_time = event.getEventTime();
 				last_soft_key_code = event.getKeyCode();
-				//Log.d("TECLA", "DOWN time=" + event.getEventTime());
 			}
-			else if(last_soft_key_code == event.getKeyCode()) {//Esperamos wait time entre pulsaciones. Solo vale para una tecla.
-				if(event.getEventTime() - last_soft_key_time < wait_time) {
-					try {
-						Thread.sleep((last_soft_key_time + wait_time) - event.getEventTime());
-					} catch (InterruptedException e) {
-					}
+			else if(last_soft_key_code == event.getKeyCode() && event.getAction() == KeyEvent.ACTION_UP) {
+
+				long timeElapsed = event.getEventTime() - last_soft_key_time;
+
+				if(timeElapsed < wait_time) {
+					final int finalKeyCode = event.getKeyCode();
+					final char finalUnicode = (char) event.getUnicodeChar();
+
+					// Never use Thread.sleep() here, it freezes the UI thread and tanks FPS.
+					// Instead, use a Handler to dispatch the KEY_UP event asynchronously in the future.
+					new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							Emulator.setKeyData(finalKeyCode, Emulator.KEY_UP, finalUnicode);
+						}
+					}, wait_time - timeElapsed);
+
+					last_soft_key_time = -1;
+					return true; // Consume the original event since we scheduled its future release
 				}
+
 				last_soft_key_time = -1;
-				//Log.d("TECLA", "UP time=" + event.getEventTime());
 			}
 		}
 
-		boolean handle_keyboard = event.getDevice().isVirtual() || this.isKeyboardConnected();
-
+		boolean handle_keyboard = isVirtual || this.isKeyboardConnected();
 		int res = 0;
 
+		// Route raw key data directly to the native MAME core
 		if(handle_keyboard) {
-			res = Emulator.setKeyData(event.getKeyCode(), event.getAction() == KeyEvent.ACTION_DOWN ? Emulator.KEY_DOWN : Emulator.KEY_UP,
+			res = Emulator.setKeyData(event.getKeyCode(),
+				event.getAction() == KeyEvent.ACTION_DOWN ? Emulator.KEY_DOWN : Emulator.KEY_UP,
 				(char) event.getUnicodeChar());
 		}
 
 		boolean handled = res == 1;
 
-		if(handled)
-		{
-			if(!event.getDevice().isVirtual() && !isKeyboardEnabled)
-			{
+		if(handled) {
+			// Trigger OSD feedback only on the first valid physical keyboard press
+			if(!isVirtual && !isKeyboardEnabled) {
 				isKeyboardEnabled = true;
 				CharSequence text = "Keyboard is enabled!";
 				new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
@@ -128,11 +143,6 @@ public class Keyboard implements IController {
 			}
 		}
 
-			/*
-			if(event.getKeyCode()==KeyEvent.KEYCODE_TAB)//avoid system tab.
-				return true;
-			*/
 		return handled;
 	}
-
 }

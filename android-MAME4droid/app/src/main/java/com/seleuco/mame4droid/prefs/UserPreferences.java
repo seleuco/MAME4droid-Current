@@ -377,6 +377,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 		    					}
 		    					editor.putString(PrefsHelper.PREF_DEFINED_KEYS, definedKeysStr.toString());
 		    					editor.commit();
+								GameController.clearPersistentsIDs();
 		    					//finish();
 
 		    	           }

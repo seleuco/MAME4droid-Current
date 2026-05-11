@@ -54,7 +54,7 @@ int  (*getMyValue)(int key, int i)=NULL;
 void  (*setMyValueStr)(int key, int i,const char *value)=NULL;
 char *(*getMyValueStr)(int key,int i)=NULL;
 
-void  (*setAnalogData)(int i, float v1,float v2)=NULL;
+void  (*setAnalogData)(int t, int i, float v1,float v2)=NULL;
 
 void (*setSAFCallbacks)(void *func1,void *func2,void *func3,void *func4) = NULL;
 
@@ -596,10 +596,10 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setDigitalData
 }
 
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setAnalogData
-  (JNIEnv *env, jclass c, jint i, jfloat v1, jfloat v2)
+  (JNIEnv *env, jclass c, jint t, jint i, jfloat v1, jfloat v2)
 {
     if(setAnalogData!=NULL)
-       setAnalogData(i,v1,v2);
+       setAnalogData(t,i,v1,v2);
     else
       __android_log_print(ANDROID_LOG_WARN, "mame4droid-jni", "error no setAnalogData!");
 }

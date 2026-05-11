@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ public class ControlCustomizer {
 
 	private static boolean enabled = false;
 
-	// Constant for the movement snap-to-grid threshold
+	// Constant for the movement snap-to-grid threshold to keep layouts clean
 	private static final int SNAP_TO_GRID = 5;
 
 	// Coordinates of the initial touch position
@@ -74,38 +74,33 @@ public class ControlCustomizer {
 	private int initialXOffset = 0;
 	private int initialYOffset = 0;
 
+	// Tracks the active pointer ID to prevent multi-touch warping during drags
+	private int activePointerId = -1;
+
 	private InputValue valueMoved = null;
 
 	protected MAME4droid mm = null;
 
-	// New Rect for the save button
-	private Rect saveButtonRect;
+	// Cached UI objects to prevent Garbage Collection churn during the 60fps draw loop
+	private Rect saveButtonRect = new Rect();
+	private Paint pButton;
+	private Paint pText;
+	private Paint pRect;
+	private boolean paintsInitialized = false;
+
 	// Button dimensions
 	private static final int BUTTON_WIDTH = 200;
 	private static final int BUTTON_HEIGHT = 80;
-	// Padding for the text within the button
 	private static final int TEXT_PADDING = 10;
 
-	/**
-	 * Activates or deactivates the control customization mode.
-	 * @param enabled The state of the mode.
-	 */
 	public static void setEnabled(boolean enabled) {
 		ControlCustomizer.enabled = enabled;
 	}
 
-	/**
-	 * Returns whether the customization mode is active.
-	 * @return true if active, false otherwise.
-	 */
 	public static boolean isEnabled() {
 		return enabled;
 	}
 
-	/**
-	 * Assigns the main MAME4droid instance.
-	 * @param value The MAME4droid instance.
-	 */
 	public void setMAME4droid(MAME4droid value) {
 		mm = value;
 	}
@@ -126,12 +121,13 @@ public class ControlCustomizer {
 	}
 
 	/**
-	 * Saves the current position of the controls to preferences.
+	 * Commits and saves the current temporary position offsets to persistent storage.
 	 */
 	public void saveDefinedControlLayout() {
 		StringBuilder definedStr = new StringBuilder();
 		ArrayList<InputValue> values = mm.getInputHandler().getTouchController().getAllInputData();
 		boolean first = true;
+
 		for (InputValue iv : values) {
 			// Commit temporary offset changes to permanent offsets
 			iv.commitChanges();
@@ -139,10 +135,14 @@ public class ControlCustomizer {
 				if (!first) {
 					definedStr.append(",");
 				}
-				definedStr.append(iv.getType()).append(",").append(iv.getValue()).append(",").append(iv.getXoff()).append(",").append(iv.getYoff());
+				definedStr.append(iv.getType()).append(",")
+					.append(iv.getValue()).append(",")
+					.append(iv.getXoff()).append(",")
+					.append(iv.getYoff());
 				first = false;
 			}
 		}
+
 		if (mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_LANDSCAPE) {
 			mm.getPrefsHelper().setDefinedControlLayoutLand(definedStr.toString());
 		} else {
@@ -151,10 +151,10 @@ public class ControlCustomizer {
 	}
 
 	/**
-	 * Reads and applies the saved control position configuration.
+	 * Restores layout offsets from SharedPreferences and applies them to the UI components.
 	 */
 	public void readDefinedControlLayout() {
-		// Do not apply if in non-full portrait mode
+		// Do not apply custom offsets if in non-full portrait mode to prevent clipping
 		if (mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT && !Emulator.isPortraitFull()) {
 			return;
 		}
@@ -166,10 +166,9 @@ public class ControlCustomizer {
 
 		if (definedStr != null && !definedStr.isEmpty()) {
 			String[] tokens = definedStr.split(",");
-			if (tokens.length % 4 != 0) {
-				// Handle error in string format
-				return;
-			}
+
+			// Failsafe: Ensure data stream is intact (Type, Value, X, Y chunks)
+			if (tokens.length % 4 != 0) return;
 
 			for (int i = 0; i < tokens.length; i += 4) {
 				try {
@@ -188,7 +187,6 @@ public class ControlCustomizer {
 						}
 					}
 				} catch (NumberFormatException e) {
-					// Log the error for debugging if the format is incorrect
 					e.printStackTrace();
 				}
 			}
@@ -197,14 +195,14 @@ public class ControlCustomizer {
 	}
 
 	/**
-	 * Updates the position of related rectangles for the moved control.
+	 * Synchronizes related bounding boxes (e.g., visual image bounds vs logical touch bounds)
+	 * for the actively dragged control.
 	 */
 	protected void updateRelatedRects() {
 		if (valueMoved == null) return;
 
 		ArrayList<InputValue> values = mm.getInputHandler().getTouchController().getAllInputData();
 
-		// Control type that has an associated image
 		if (valueMoved.getType() == TouchController.TYPE_BUTTON_RECT) {
 			for (InputValue iv : values) {
 				if (iv.getType() == TouchController.TYPE_BUTTON_IMG && iv.getValue() == valueMoved.getValue()) {
@@ -213,9 +211,10 @@ public class ControlCustomizer {
 				}
 			}
 		} else if (valueMoved.getType() == TouchController.TYPE_STICK_IMG || valueMoved.getType() == TouchController.TYPE_ANALOG_RECT) {
-			// Control types that have an associated stick
 			for (InputValue iv : values) {
-				if (iv.getType() == TouchController.TYPE_STICK_RECT || iv.getType() == TouchController.TYPE_STICK_IMG || iv.getType() == TouchController.TYPE_ANALOG_RECT) {
+				if (iv.getType() == TouchController.TYPE_STICK_RECT ||
+					iv.getType() == TouchController.TYPE_STICK_IMG ||
+					iv.getType() == TouchController.TYPE_ANALOG_RECT) {
 					iv.setOffsetTMP(valueMoved.getXoff_tmp(), valueMoved.getYoff_tmp());
 				}
 				if (iv.getType() == TouchController.TYPE_ANALOG_RECT) {
@@ -226,31 +225,33 @@ public class ControlCustomizer {
 	}
 
 	/**
-	 * Handles screen motion events to drag controls.
-	 * @param event The motion event.
+	 * Translates user touch input into layout coordinate offsets.
 	 */
 	public void handleMotion(MotionEvent event) {
 		int action = event.getActionMasked();
-		int x = (int) event.getX();
-		int y = (int) event.getY();
+		int pointerIndex = event.getActionIndex();
 
 		switch (action) {
 			case MotionEvent.ACTION_DOWN:
+				activePointerId = event.getPointerId(0);
+				int x = (int) event.getX(0);
+				int y = (int) event.getY(0);
+
 				// Check if the save button was touched
 				if (saveButtonRect != null && saveButtonRect.contains(x, y)) {
-					// Logic to save the layout
 					mm.showDialog(DialogHelper.DIALOG_FINISH_CUSTOM_LAYOUT);
-
 					mm.getInputView().invalidate();
 					return;
 				}
 
-				// If not, look for a control to move
+				// Find the targeted control for dragging
 				ArrayList<InputValue> values = mm.getInputHandler().getTouchController().getAllInputData();
 				for (InputValue iv : values) {
-					// Check the type of control that can be moved
-					if ((iv.getType() == TouchController.TYPE_BUTTON_RECT || iv.getType() == TouchController.TYPE_STICK_IMG || iv.getType() == TouchController.TYPE_ANALOG_RECT)
+					if ((iv.getType() == TouchController.TYPE_BUTTON_RECT ||
+						iv.getType() == TouchController.TYPE_STICK_IMG ||
+						iv.getType() == TouchController.TYPE_ANALOG_RECT)
 						&& iv.getRect().contains(x, y)) {
+
 						valueMoved = iv;
 						initialTouchX = x;
 						initialTouchY = y;
@@ -263,99 +264,116 @@ public class ControlCustomizer {
 
 			case MotionEvent.ACTION_MOVE:
 				if (valueMoved != null) {
-					int deltaX = x - initialTouchX;
-					int deltaY = y - initialTouchY;
+					// Enforce pointer lock: ignore secondary fingers sliding around
+					int pIndex = event.findPointerIndex(activePointerId);
+					if (pIndex != -1) {
+						int currX = (int) event.getX(pIndex);
+						int currY = (int) event.getY(pIndex);
 
-					// Snap-to-grid adjustment
-					int newXOffset = initialXOffset + (deltaX / SNAP_TO_GRID) * SNAP_TO_GRID;
-					int newYOffset = initialYOffset + (deltaY / SNAP_TO_GRID) * SNAP_TO_GRID;
+						int deltaX = currX - initialTouchX;
+						int deltaY = currY - initialTouchY;
 
-					valueMoved.setOffsetTMP(newXOffset, newYOffset);
-					updateRelatedRects();
+						// Apply snap-to-grid adjustment
+						int newXOffset = initialXOffset + (deltaX / SNAP_TO_GRID) * SNAP_TO_GRID;
+						int newYOffset = initialYOffset + (deltaY / SNAP_TO_GRID) * SNAP_TO_GRID;
 
-					// Only invalidate if coordinates have changed
-					if (deltaX != 0 || deltaY != 0) {
-						mm.getInputView().updateImages();
-						mm.getInputView().invalidate();
+						valueMoved.setOffsetTMP(newXOffset, newYOffset);
+						updateRelatedRects();
+
+						if (deltaX != 0 || deltaY != 0) {
+							mm.getInputView().updateImages();
+							mm.getInputView().invalidate();
+						}
 					}
 				}
 				break;
 
 			case MotionEvent.ACTION_UP:
+			case MotionEvent.ACTION_POINTER_UP:
+				if (event.getPointerId(pointerIndex) == activePointerId) {
+					valueMoved = null;
+					activePointerId = -1;
+					mm.getInputView().invalidate();
+				}
+				break;
+
 			case MotionEvent.ACTION_CANCEL:
 				valueMoved = null;
+				activePointerId = -1;
 				mm.getInputView().invalidate();
 				break;
 		}
 	}
 
 	/**
-	 * Draws the control rectangles for customization mode and the save button.
-	 * @param canvas The canvas to draw on.
+	 * Lazy-load Paint objects to ensure strict memory constraints on the UI thread.
 	 */
-	public void draw(Canvas canvas) {
-		if (canvas == null) return;
+	private void initPaints() {
+		if (paintsInitialized) return;
 
-		// Draw the save button
-		Paint pButton = new Paint();
-		// Bright yellow color
+		pButton = new Paint();
 		pButton.setColor(Color.YELLOW);
 		pButton.setStyle(Style.FILL);
 		pButton.setAlpha(200);
 
-		int centerX = canvas.getWidth() / 2;
-		//int topY = 20; // Fixed position at the top
-		int centerY = canvas.getHeight() / 2;
-
-		//saveButtonRect = new Rect(centerX - BUTTON_WIDTH / 2, topY, centerX + BUTTON_WIDTH / 2, topY + BUTTON_HEIGHT);
-		saveButtonRect = new Rect(centerX - BUTTON_WIDTH / 2, centerY - BUTTON_HEIGHT / 2, centerX + BUTTON_WIDTH / 2, centerY + BUTTON_HEIGHT / 2);
-		canvas.drawRect(saveButtonRect, pButton);
-
-		// Draw the button text
-		Paint pText = new Paint();
-		pText.setColor(Color.BLACK); // Black text for contrast with yellow
+		pText = new Paint();
+		pText.setColor(Color.BLACK);
 		pText.setTextSize(30);
 		pText.setTypeface(Typeface.DEFAULT_BOLD);
 		pText.setTextAlign(Paint.Align.CENTER);
 
-		// Calculate and adjust text size to fit with padding
+		pRect = new Paint();
+		pRect.setARGB(30, 255, 255, 255);
+		pRect.setStyle(Style.FILL);
+
+		paintsInitialized = true;
+	}
+
+	public void draw(Canvas canvas) {
+		if (canvas == null) return;
+
+		// Ensure rendering tools are primed
+		initPaints();
+
+		int centerX = canvas.getWidth() / 2;
+		int centerY = canvas.getHeight() / 2;
+
+		// Define Save Button bounding box dynamically based on canvas dimensions, avoiding 'new' keyword
+		saveButtonRect.set(centerX - BUTTON_WIDTH / 2, centerY - BUTTON_HEIGHT / 2, centerX + BUTTON_WIDTH / 2, centerY + BUTTON_HEIGHT / 2);
+		canvas.drawRect(saveButtonRect, pButton);
+
+		// Dynamic text scaling to fit within the predefined button padding
 		String text = "SAVE LAYOUT";
 		float textWidth = pText.measureText(text);
 
-		// Check if the text fits with the desired padding
 		if (textWidth + (2 * TEXT_PADDING) > saveButtonRect.width()) {
-			// Text is too large, adjust the size
 			float scale = (float) (saveButtonRect.width() - (2 * TEXT_PADDING)) / textWidth;
 			pText.setTextSize(pText.getTextSize() * scale);
 		}
 
-		// Draw the text centered in the button
-		Rect textBounds = new Rect();
-		pText.getTextBounds(text, 0, text.length(), textBounds);
 		float textY = saveButtonRect.centerY() - ((pText.descent() + pText.ascent()) / 2);
-
 		canvas.drawText(text, saveButtonRect.centerX(), textY, pText);
 
-		// Draw the existing control rectangles
+		// Render the semi-transparent hitboxes over the interactive controls
 		ArrayList<InputValue> ids = mm.getInputHandler().getTouchController().getAllInputData();
-		Paint p2 = new Paint();
-		p2.setARGB(30, 255, 255, 255);
-		p2.setStyle(Style.FILL);
 
 		for (InputValue v : ids) {
 			Rect r = v.getRect();
 			if (r != null) {
 				boolean draw = false;
-				if (v.getType() == TouchController.TYPE_BUTTON_RECT) {
+				int type = v.getType();
+				int controllerType = mm.getPrefsHelper().getControllerType();
+
+				if (type == TouchController.TYPE_BUTTON_RECT) {
 					draw = true;
-				} else if (mm.getPrefsHelper().getControllerType() == PrefsHelper.PREF_DIGITAL_DPAD && v.getType() == TouchController.TYPE_STICK_RECT) {
+				} else if (controllerType == PrefsHelper.PREF_DIGITAL_DPAD && type == TouchController.TYPE_STICK_RECT) {
 					draw = true;
-				} else if (mm.getPrefsHelper().getControllerType() != PrefsHelper.PREF_DIGITAL_DPAD && v.getType() == TouchController.TYPE_ANALOG_RECT) {
+				} else if (controllerType != PrefsHelper.PREF_DIGITAL_DPAD && type == TouchController.TYPE_ANALOG_RECT) {
 					draw = true;
 				}
 
 				if (draw) {
-					canvas.drawRect(r, p2);
+					canvas.drawRect(r, pRect);
 				}
 			}
 		}

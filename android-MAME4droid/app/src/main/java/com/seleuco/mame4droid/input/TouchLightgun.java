@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,9 +61,9 @@ public class TouchLightgun implements IController {
 
 	protected MAME4droid mm = null;
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+	}
 
 	public int getLightgun_pid(){
 		return lightgun_pid;
@@ -73,109 +73,125 @@ public class TouchLightgun implements IController {
 		lightgun_pid = -1;
 	}
 
-	public void handleTouchLightgun(View v, MotionEvent event,int [] digital_data) {
-		int pid = 0;
+	public void handleTouchLightgun(View v, MotionEvent event, int[] digital_data) {
 		int action = event.getAction();
 		int actionEvent = action & MotionEvent.ACTION_MASK;
 
 		int pointerIndex = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-		pid = event.getPointerId(pointerIndex);
+		int pid = event.getPointerId(pointerIndex);
 
 		if (actionEvent == MotionEvent.ACTION_UP ||
 			actionEvent == MotionEvent.ACTION_POINTER_UP ||
 			actionEvent == MotionEvent.ACTION_CANCEL) {
+
 			if (pid == lightgun_pid) {
+				// Primary trigger released
 				millis_pressed = 0;
 				press_on = false;
 				lightgun_pid = -1;
-				//Emulator.setAnalogData(4, 0, 0);
 				digital_data[0] &= ~A_VALUE;
 				digital_data[0] &= ~B_VALUE;
 			} else {
-				if(!press_on)
-				   digital_data[0] &= ~B_VALUE;
-				else
-				   digital_data[0] &= ~A_VALUE;
+				// Secondary touch released
+				if (!press_on) {
+					digital_data[0] &= ~B_VALUE;
+				} else {
+					digital_data[0] &= ~A_VALUE;
+				}
 			}
 
 			Emulator.setDigitalData(0, digital_data[0]);
-		} else {
-			for (int i = 0; i < event.getPointerCount(); i++) {
 
+		} else { // DOWN or MOVE events
+
+			// Allocate location array ONCE outside the loop to prevent Garbage Collector churn
+			// and avoid dropping frames during rapid continuous touch events.
+			final int[] location = new int[2];
+
+			for (int i = 0; i < event.getPointerCount(); i++) {
 				int pointerId = event.getPointerId(i);
 
-				final int[] location = {0, 0};
+				if (pointerId == mm.getInputHandler().getTouchStick().getMotionPid()) {
+					continue;
+				}
+
 				v.getLocationOnScreen(location);
 				int x = (int) event.getX(i) + location[0];
 				int y = (int) event.getY(i) + location[1];
 
-				//System.out.println("x:"+event.getX(i)+" y:"+event.getY(i)+" nx:"+x+" ny:"+y+" l0:"+location[0]+" l1:"+location[1]);
+				if (mm.getEmuView() != null) {
+					mm.getEmuView().getLocationOnScreen(location);
+					x -= location[0];
+					y -= location[1];
 
-				mm.getEmuView().getLocationOnScreen(location);
-				x -= location[0];
-				y -= location[1];
+					float viewWidth = mm.getEmuView().getWidth();
+					float viewHeight = mm.getEmuView().getHeight();
 
-				//Log.d("LIGHTGUN"," x:"+ x+" "+" y:"+y);
+					// Prevent division by zero if layout isn't fully initialized
+					if (viewWidth > 0 && viewHeight > 0) {
 
-				float x1 = mm.getEmuView().getWidth();
-				float y1 = 	mm.getEmuView().getHeight();
+						// Map absolute screen coordinates to MAME's analog range [-1.0, 1.0]
+						float xf = (float) (x - (viewWidth / 2)) / (viewWidth / 2);
+						float yf = (float) (y - (viewHeight / 2)) / (viewHeight / 2);
 
-				float xf = (float) (x - x1 / 2) / (float) (x1 / 2);
-				float yf = (float) (y - y1 / 2) / (float) (y1 / 2);
+						// Clamp core values to prevent sending invalid out-of-bounds data to the emulator
+						xf = Math.max(-1.0f, Math.min(1.0f, xf));
+						yf = Math.max(-1.0f, Math.min(1.0f, yf));
 
-				//System.out.println("nx2:"+x+" ny2:"+y+" l0:"+location[0]+" l1:"+location[1]+" xf:"+xf+" yf:"+yf);
-
-				if (lightgun_pid == -1)
-					lightgun_pid = pointerId;
-
-				if (lightgun_pid == pointerId) {
-
-					if(!press_on)
-					{
-						if (mm.getPrefsHelper().isBottomReload()) {
-							if (yf > 0.90)
-								yf = 1.1f;
+						// Anchor the primary touch to the Lightgun reticle
+						if (lightgun_pid == -1) {
+							lightgun_pid = pointerId;
 						}
 
-						if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
-							Log.d("LIGHTGUN","POS F1 x:"+ xf+" "+" y:"+-yf);
-							Emulator.setAnalogData(8, xf, -yf);
-						}
+						if (lightgun_pid == pointerId) {
 
-						if ((digital_data[0] & B_VALUE) == 0)
-							digital_data[0] |= A_VALUE;
+							// PRIMARY TOUCH LOGIC (Aiming & Trigger)
+							if (!press_on) {
 
-						if(mm.getPrefsHelper().isLightgunLongPress()) {
-							int wait = 125;
-							if(mm.getMainHelper().getDeviceDetected()== MainHelper.DEVICE_METAQUEST)
-								wait = 300;
-							if (millis_pressed == 0) {
-								millis_pressed = System.currentTimeMillis();
-							} else if (System.currentTimeMillis() - millis_pressed > wait && !press_on) {
-								press_on = true;
-								digital_data[0] |= B_VALUE;
+								// Hack: Allow yf to exceed bounds specifically for "shoot off-screen to reload" mechanics
+								if (mm.getPrefsHelper().isBottomReload() && yf >= 0.85f) {
+									yf = 1.1f;
+								}
+
+								if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
+									// Invert Y axis for native MAME orientation
+									Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, xf, -yf);
+								}
+
+								// Fire main trigger
+								if ((digital_data[0] & B_VALUE) == 0) {
+									digital_data[0] |= A_VALUE;
+								}
+
+								// Long-press detection to swap to alternate fire (e.g. Machine Gun / Grenade)
+								if (mm.getPrefsHelper().isLightgunLongPress()) {
+									int wait = (mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_METAQUEST) ? 300 : 125;
+
+									if (millis_pressed == 0) {
+										millis_pressed = System.currentTimeMillis();
+									} else if (System.currentTimeMillis() - millis_pressed > wait && !press_on) {
+										press_on = true;
+										digital_data[0] |= B_VALUE;
+										digital_data[0] &= ~A_VALUE;
+									}
+								}
+							}
+						} else {
+							// SECONDARY TOUCH LOGIC (Multi-finger support)
+							if (!press_on) {
 								digital_data[0] &= ~A_VALUE;
+								digital_data[0] |= B_VALUE; // Engage secondary button (Reload/Cover)
+							} else {
+								if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
+									Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, xf, -yf);
+								}
+								digital_data[0] |= A_VALUE;
 							}
 						}
-					}
-				} else {
-					if(!press_on) {
-						digital_data[0] &= ~A_VALUE;
-						digital_data[0] |= B_VALUE;
-					}
-					else
-					{
-						if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
-							//Log.d("LIGHTGUN","POS F2 x:"+ xf+" "+" y:"+-yf);
-							Emulator.setAnalogData(8, xf, -yf);
-						}
-
-						digital_data[0] |= A_VALUE;
 					}
 				}
 			}
 			Emulator.setDigitalData(0, digital_data[0]);
 		}
 	}
-
 }

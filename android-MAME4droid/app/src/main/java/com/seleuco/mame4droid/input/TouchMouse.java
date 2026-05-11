@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,159 +44,136 @@
 
 package com.seleuco.mame4droid.input;
 
-import android.util.Log;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
-import com.seleuco.mame4droid.helpers.DialogHelper;
 
 public class TouchMouse implements IController {
+
 	protected int mouse_pid = -1;
 	protected float mouse_prev_x =  0;
 	protected float mouse_prev_y =  0;
 	protected float mouse_init_x =  0;
 	protected float mouse_init_y =  0;
 	protected long mouse_millis =  0;
-	//protected int mouse_btn_pressed = 0;
 
 	protected boolean mouse_btn1_pressed = false;
 	protected boolean mouse_btn2_pressed = false;
 	protected boolean mouse_btn1_cancelled = false;
 	protected boolean mouse_btn1_pending = false;
-	protected long mouse_btn1_ellapsed = 0;
-	protected long mouse_btn2_ellapsed = 0;
 
 	protected MAME4droid mm = null;
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
+	// Single async handler to manage input delays.
+	private final Handler mHandler = new Handler(Looper.getMainLooper());
 
-    public int getMousePid() {
-        return mouse_pid;
-    }
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+	}
+
+	public int getMousePid() {
+		return mouse_pid;
+	}
 
 	public void handleTouchMouse(View v, MotionEvent event) {
-		int pid = 0;
 		int action = event.getAction();
 		int actionEvent = action & MotionEvent.ACTION_MASK;
 
 		int pointerIndex = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-		pid = event.getPointerId(pointerIndex);
-
-		//dumpEvent(event);
+		int pid = event.getPointerId(pointerIndex);
 
 		if (actionEvent == MotionEvent.ACTION_UP ||
 			actionEvent == MotionEvent.ACTION_POINTER_UP ||
 			actionEvent == MotionEvent.ACTION_CANCEL) {
 
-			//Log.d("touch", "event ---> mouse_pid:"+mouse_pid+ " pid: "+pid);
-
 			if (pid == mouse_pid) {
-
 				mouse_pid = -1;
 
 				float cx = mouse_prev_x - mouse_init_x;
 				float cy = mouse_prev_y - mouse_init_y;
 
-				if (System.currentTimeMillis() - mouse_millis < 250 && Math.abs(cx) <= 4 && Math.abs(cy) <= 4) {
+				// DPI SCALING: 4dp is the standard threshold to absorb natural finger jitter
+				// during a quick tap without accidentally triggering a mouse move event.
+				float density = (mm != null) ? mm.getResources().getDisplayMetrics().density : 1.0f;
+				float tapTolerance = 4.0f * density;
+
+				// Fast left-click (Tap) detection
+				if (System.currentTimeMillis() - mouse_millis < 250 && Math.abs(cx) <= tapTolerance && Math.abs(cy) <= tapTolerance) {
 					Emulator.setMouseData(0, Emulator.MOUSE_BTN_DOWN, 1, -1, -1);
-					//Log.d("MOUSE", "event main BTN DOWN 1");
-					Thread t = new Thread(new Runnable() {
+
+					// Release the click asynchronously after 60ms to ensure the native engine registers it
+					mHandler.postDelayed(new Runnable() {
+						@Override
 						public void run() {
-							try {
-								Thread.sleep(60);
-							} catch (InterruptedException e) {
-							}
 							Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 1, -1, -1);
-							//Log.d("MOUSE", "event main BTN UP 1");
 						}
-					});
-					t.start();
+					}, 60);
 				}
 
 				mouse_prev_x = 0;
 				mouse_prev_y = 0;
 			}
 
-			//if (actionEvent == MotionEvent.ACTION_POINTER_UP ||
-			//actionEvent == MotionEvent.ACTION_CANCEL) {
-
-			//Log.d("touch", "event ---> mouse_btn1_pending:"+mouse_btn1_pending+ " mouse_btn1_pressed:"+mouse_btn1_pressed);
-
-			if ((mouse_btn1_pending || mouse_btn1_pressed) && event.getPointerCount()<=2) {
-				Thread t = new Thread(new Runnable() {
+			// Multi-finger click release handling (2 fingers = Left Click, 3 fingers = Right Click)
+			if ((mouse_btn1_pending || mouse_btn1_pressed) && event.getPointerCount() <= 2) {
+				// Delay the UP event slightly to ensure the emulator engine catches the DOWN event first
+				mHandler.postDelayed(new Runnable() {
+					@Override
 					public void run() {
-						while (mouse_btn1_pending)
-							try {
-								Thread.sleep(10);
-							} catch (InterruptedException e) {
-							}
 						if (mouse_btn1_pressed) {
 							Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 1, -1, -1);
 							mouse_btn1_pressed = false;
-							//Log.d("MOUSE", "event BTN UP 1 ms: " + (System.currentTimeMillis() - mouse_btn1_ellapsed) + " + 25");
 						}
 					}
-				});
-				t.start();
-
+				}, 30);
 			}
+
 			if (mouse_btn2_pressed) {
 				Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 2, -1, -1);
 				mouse_btn2_pressed = false;
-				//Log.d("MOUSE", "event BTN UP 2 ms:" + (System.currentTimeMillis() - mouse_btn2_ellapsed));
 			}
 
-			//}
-
-		} else { //MOVE/DOWN/POINTERDOWN
+		} else { // MOVE / DOWN / POINTER_DOWN
 
 			if (mouse_pid != -1 && actionEvent == MotionEvent.ACTION_POINTER_DOWN) {
-
-				//Emulator.setMouseData(0,Emulator.MOUSE_BTN_DOWN,1,-1,-1);
 				int numpointers = event.getPointerCount();
-
 				long elapsed = System.currentTimeMillis() - mouse_millis;
 
 				if (numpointers == 2 && !mouse_btn1_pending && !mouse_btn1_pressed && elapsed > 150) {
 					mouse_btn1_cancelled = false;
 					mouse_btn1_pending = true;
-					Thread t = new Thread(new Runnable() {
+
+					// 25ms grace period to check if a 3rd finger lands (Right click override)
+					mHandler.postDelayed(new Runnable() {
+						@Override
 						public void run() {
-							try {
-								Thread.sleep(25);
-							} catch (InterruptedException e) {
-							}
-							mouse_btn1_ellapsed = System.currentTimeMillis();
 							mouse_btn1_pressed = !mouse_btn1_cancelled;
 							if (mouse_btn1_pressed) {
 								Emulator.setMouseData(0, Emulator.MOUSE_BTN_DOWN, 1, -1, -1);
-								//Log.d("MOUSE", "event BTN DOWN 1");
 							}
 							mouse_btn1_pending = false;
 						}
-					});
-					t.start();
-				} else if (numpointers == 3 && !mouse_btn2_pressed /*&& elapsed > 150*/) {
+					}, 25);
+
+				} else if (numpointers == 3 && !mouse_btn2_pressed) {
+					// 3-finger right click detected. Cancel the pending left click and fire right click.
 					mouse_btn1_cancelled = true;
 					mouse_btn2_pressed = true;
-					mouse_btn2_ellapsed = System.currentTimeMillis();
 					Emulator.setMouseData(0, Emulator.MOUSE_BTN_DOWN, 2, -1, -1);
-					//Log.d("MOUSE", "event BTN DOWN 2");
 				}
 			}
 
 			for (int i = 0; i < event.getPointerCount(); i++) {
-
 				int pointerId = event.getPointerId(i);
-
 				float x = event.getX(i);
 				float y = event.getY(i);
 
 				if (mouse_pid == -1) {
+					// Anchor the first finger as the primary mouse pointer
 					mouse_pid = pointerId;
 					mouse_init_x = x;
 					mouse_init_y = y;
@@ -204,21 +181,16 @@ public class TouchMouse implements IController {
 					mouse_prev_y = y;
 					mouse_millis = System.currentTimeMillis();
 				} else if (mouse_pid == pointerId) {
-
+					// Calculate relative mouse delta
 					float cx = x - mouse_prev_x;
 					mouse_prev_x = x;
-					cx = cx;
 
 					float cy = y - mouse_prev_y;
 					mouse_prev_y = y;
-					cy = cy;
 
 					Emulator.setMouseData(0, Emulator.MOUSE_MOVE, 0, cx, cy);
 				}
-
 			}
-
 		}
 	}
-
 }

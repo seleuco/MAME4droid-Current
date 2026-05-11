@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,13 +44,17 @@
 
 package com.seleuco.mame4droid.input;
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
-import android.widget.Toast;
+import android.content.Context;
+import android.hardware.input.InputManager;
+
+import java.util.HashMap;
+import android.util.Log;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
@@ -59,100 +63,53 @@ import com.seleuco.mame4droid.helpers.MainHelper;
 import com.seleuco.mame4droid.helpers.PrefsHelper;
 import com.seleuco.mame4droid.widgets.WarnWidget;
 
+import org.json.JSONObject;
+
 import java.util.Arrays;
 
 public class GameController implements IController {
 
+	private static final String TAG = "GameController";
+	private static final int FIRST_PERSISTENT_ID = 1000;
+
+	// Global profile fallback (when true, all controllers share ID 9999)
 	protected static Boolean fakeID = false;
 
+	// Memory state for dynamic assignment and persistence
+	protected static HashMap<Integer, String> genericControllers = new HashMap<>();
+	protected static HashMap<String, Integer> persistentIDs = new HashMap<>();
+	protected static int nextPersistentID = FIRST_PERSISTENT_ID;
+
+	// Standard MAME arcade inputs
 	protected static final int[] emulatorInputValues = {
-		UP_VALUE,
-		DOWN_VALUE,
-		LEFT_VALUE,
-		RIGHT_VALUE,
-		A_VALUE,
-		B_VALUE,
-		C_VALUE,
-		D_VALUE,
-		E_VALUE,
-		F_VALUE,
-		G_VALUE,
-		H_VALUE,
-		COIN_VALUE,
-		START_VALUE,
-		EXIT_VALUE,
-		OPTION_VALUE
-		///
+		UP_VALUE, DOWN_VALUE, LEFT_VALUE, RIGHT_VALUE,
+		A_VALUE, B_VALUE, C_VALUE, D_VALUE,
+		E_VALUE, F_VALUE, G_VALUE, H_VALUE,
+		COIN_VALUE, START_VALUE, EXIT_VALUE, OPTION_VALUE
 	};
 
+	// Factory default profile. We use Device ID 0 to keep it isolated from user customizations.
 	public static int[] defaultKeyMapping = {
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_DPAD_UP),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_DPAD_DOWN),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_DPAD_LEFT),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_DPAD_RIGHT),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_B),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_A),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_X),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_Y),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_L1),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_R1),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_L2),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_R2),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_THUMBR),
-		makeKeyCodeWithDeviceID(1,KeyEvent.KEYCODE_BUTTON_THUMBL),
-		KeyEvent.KEYCODE_BACK,
-		KeyEvent.KEYCODE_MENU,
-		//////
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		//////
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		//////
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
-		-1,
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_UP),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_DOWN),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_LEFT),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_RIGHT),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_B),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_A),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_X),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_Y),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L1),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_R1),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L2),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_R2),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_THUMBR),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_THUMBL),
+		makeKeyCodeWithDeviceID(0, KeyEvent.KEYCODE_BACK),
+		makeKeyCodeWithDeviceID(0, KeyEvent.KEYCODE_MENU),
+		// Empty padding for remaining slots...
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	};
 
 	public static int[] keyMapping = new int[emulatorInputValues.length * 4];
@@ -163,117 +120,367 @@ public class GameController implements IController {
 
 	protected int[] oldinput = new int[MAX_DEVICES], newinput = new int[MAX_DEVICES];
 
+	// Maps Android's volatile hardware ID to a player slot (0 to 3)
 	public static int[] deviceIDs = new int[MAX_DEVICES];
-	//public  static int id = 0;
 
-	boolean joystickMotion = false;
+	static boolean joystickMotion = false;
 
 	protected int[][] deviceMappings = new int[MAX_KEYS][MAX_DEVICES];
-
 	protected static SparseIntArray banDev = new SparseIntArray(50);
+	static protected MAME4droid mm = null;
 
-	final public float rad2degree(float r) {
-		return ((r * 180.0f) / MY_PI);
-	}
 
-	protected MAME4droid mm = null;
+	// =========================================================================
+	// LIFECYCLE & INITIALIZATION
+	// =========================================================================
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-		if(mm==null)return;
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+		if(mm==null) return;
 
+		loadPeristentsIDs();
 		fakeID = mm.getPrefsHelper().isFakeID();
 
-		int[] ids = InputDevice.getDeviceIds();
-		for (int j : ids) {
-			InputDevice id = InputDevice.getDevice(j);
-			if (id != null) {
-				System.out.println("name: " + id.getName());
-				System.out.println(id.toString());
-			}
-		}
+		InputManager inputManager = (InputManager) mm.getSystemService(Context.INPUT_SERVICE);
+		if (inputManager != null) {
+			// Attach to MainLooper to ensure UI messages are safely dispatched on the main thread
+			inputManager.registerInputDeviceListener(new InputManager.InputDeviceListener() {
+				@Override
+				public void onInputDeviceAdded(int deviceId) {}
 
+				@Override
+				public void onInputDeviceRemoved(int deviceId) {
+					banDev.delete(deviceId);
+					genericControllers.remove(deviceId);
+
+					for (int i = 0; i < MAX_DEVICES; i++) {
+						if (deviceIDs[i] == deviceId) {
+							deviceIDs[i] = -1; // Free up the player slot
+							joystickMotion = false;
+
+							Emulator.setDigitalData(i, 0);
+							Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, i, 0.0f, 0.0f);
+							Emulator.setAnalogData(Emulator.RIGHT_STICK_DATA, i, 0.0f, 0.0f);
+							Emulator.setAnalogData(Emulator.TRIGGER_DATA, i, 0.0f, 0.0f);
+
+							final int playerNum = i + 1;
+
+							mm.runOnUiThread(new Runnable() {
+								@Override
+								public void run() {
+									String msg = "Disconnected controller (P" + playerNum + ")";
+									new WarnWidget.WarnWidgetHelper(mm, msg, 3, Color.YELLOW, true);
+									mm.getMainHelper().updateMAME4droid();
+								}
+							});
+							return;
+						}
+					}
+				}
+				@Override
+				public void onInputDeviceChanged(int deviceId) {}
+			}, new android.os.Handler(android.os.Looper.getMainLooper()));
+		}
 		resetAutodetected();
-    }
+	}
 
 	public static void resetAutodetected() {
-		//id = 0;
 		Arrays.fill(deviceIDs, -1);
 		banDev.clear();
+		genericControllers.clear();
+		joystickMotion = false;
 	}
 
-	public static int getGamePadId(InputDevice id) {
-		int iDeviceId = 0;
-		int iControllerNumber = 0;
+	public boolean isEnabled() {
+		int numDevs = 0;
+		for (int i = 0; i < MAX_DEVICES; i++) {
+			if (deviceIDs[i] != -1) {
+				numDevs++;
+			}
+		}
+		return numDevs != 0 || joystickMotion;
+	}
+
+
+	// =========================================================================
+	// HARDWARE IDENTITY & PERSISTENCE
+	// =========================================================================
+
+	/**
+	 * Generates or retrieves a persistent, deterministic Virtual ID for a controller.
+	 * It uses the hardware descriptor hash to ensure the ID survives reboots and disconnects.
+	 */
+	public static int getPersistentDeviceId(InputDevice idev) {
+		if (idev == null) return 0;
+
+		// Master Global Profile ID. Prevents collisions with defaults (0) when fakeID is enabled.
+		if (fakeID) return 9999;
 
 		try {
-			if (!fakeID)
-				iDeviceId = id.getId();
-			else
-				iDeviceId = 0;
-		} catch (Exception ignored) {
-		}
+			String descriptor = idev.getDescriptor();
+			//Log.d(TAG, "Analyzing device: " + idev.getName() + " (Android ID: " + idev.getId() + ")");
+			//Log.d(TAG, "Hardware Descriptor: [" + descriptor + "]");
 
-		if (!fakeID) {
-			iControllerNumber = id.getControllerNumber();
-			if (iControllerNumber > 0)
-				iDeviceId = iControllerNumber;
-		}
-		return iDeviceId;
+			// Sanity check: ensure descriptor isn't garbage
+			if (descriptor != null && descriptor.length() > 4 && !descriptor.equalsIgnoreCase("unknown")) {
+
+				if (persistentIDs.containsKey(descriptor)) {
+					int existingId = persistentIDs.get(descriptor);
+					//Log.d(TAG, "-> KNOWN CONTROLLER! Returning Persisted ID: " + existingId);
+					return existingId;
+				} else {
+					// First time seeing this gamepad. Assign a new sequential virtual ID.
+					int newId = nextPersistentID++;
+					Log.d(TAG, "-> NEW CONTROLLER DETECTED! Generating and saving new persisted ID: " + newId);
+					persistentIDs.put(descriptor, newId);
+					savePersistentsIDs();
+					return newId;
+				}
+			} else {
+				Log.d(TAG, "-> WARNING: Trash or empty descriptor. Aborting persistence.");
+			}
+		} catch (Exception ignored) {}
+
+		// Fallback for badly implemented gamepads without descriptors
+		int iControllerNumber = idev.getControllerNumber();
+		Log.d(TAG, "-> Using volatile Android fallback. iControllerNumber: " + iControllerNumber);
+		if (iControllerNumber > 0) return iControllerNumber;
+
+		return idev.getId();
 	}
 
+	/**
+	 * Public getter used primarily by the mapping UI (KeySelect) to bind keys to the correct Virtual ID.
+	 */
+	public static int getControllerId(InputDevice idev) {
+		if (idev == null) return 0;
+		int value = getPersistentDeviceId(idev);
+		Log.d(TAG, "Controller id is " + value);
+		return value;
+	}
+
+	public static void loadPeristentsIDs() {
+		if(mm == null) return;
+		try {
+			SharedPreferences prefs = mm.getSharedPreferences("mame4droid_prefs", Context.MODE_PRIVATE);
+			String jsonStr = prefs.getString("persistents_ids", "{}");
+			JSONObject json = new JSONObject(jsonStr);
+			persistentIDs.clear();
+
+			Log.d(TAG, "=== LOADING PERSISTED CONTROLLERS ===");
+
+			java.util.Iterator<String> keys = json.keys();
+			while (keys.hasNext()) {
+				String k = keys.next();
+				if (k.equals("nextPersistentID")) {
+					nextPersistentID = json.getInt(k);
+				} else {
+					persistentIDs.put(k, json.getInt(k));
+				}
+				Log.d(TAG, "Loaded -> Descriptor: [" + k + "] = Virtual ID: " + json.getInt(k));
+			}
+			Log.d(TAG, "Next available ID will be: " + nextPersistentID);
+			Log.d(TAG, "=======================================");
+		} catch (Exception ignored) {
+			Log.e(TAG, "Error while loading persisted controllers.");
+		}
+	}
+
+	public static void savePersistentsIDs() {
+		if (mm == null) return;
+		try {
+			JSONObject json = new JSONObject();
+			Log.d(TAG, "=== SAVING PERSISTED CONTROLLERS ===");
+			for (java.util.Map.Entry<String, Integer> entry : persistentIDs.entrySet()) {
+				json.put(entry.getKey(), entry.getValue());
+				Log.d(TAG, "Saving -> Descriptor: [" + entry.getKey() + "] = Virtual ID: " + entry.getValue());
+			}
+			json.put("nextPersistentID", nextPersistentID);
+
+			SharedPreferences prefs = mm.getSharedPreferences("mame4droid_prefs", Context.MODE_PRIVATE);
+			prefs.edit().putString("persistents_ids", json.toString()).apply();
+			Log.d(TAG, "Save completed in SharedPreferences.");
+			Log.d(TAG, "====================================");
+		} catch (Exception ignored) {
+			Log.e(TAG, "Error while saving persisted controllers.");
+		}
+	}
+
+	public static void clearPersistentsIDs() {
+		if (mm == null) return;
+		try {
+			Log.d(TAG, "=== CLEARING PERSISTED CONTROLLERS ===");
+
+			// Wipe RAM state
+			persistentIDs.clear();
+			nextPersistentID = FIRST_PERSISTENT_ID;
+
+			Log.d(TAG, "RAM cleared: persistentIDs empty, nextPersistentID reset to " + FIRST_PERSISTENT_ID + ".");
+
+			// Wipe Storage
+			SharedPreferences prefs = mm.getSharedPreferences("mame4droid_prefs", Context.MODE_PRIVATE);
+			prefs.edit().remove("persistents_ids").apply();
+
+			Log.d(TAG, "Storage cleared: 'persistents_ids' removed from SharedPreferences.");
+			Log.d(TAG, "======================================");
+
+		} catch (Exception ignored) {
+			Log.e(TAG, "Error while clearing persisted controllers.");
+		}
+	}
+
+	// =========================================================================
+	// BITWISE PACKING (Virtual ID + KeyCode)
+	// =========================================================================
+
+	// Packs the device ID (upper 16 bits) and the physical key code (lower 16 bits) into a single integer.
 	public static int makeKeyCodeWithDeviceID(InputDevice id, int iKeyCode) {
-		int padid = 0;
+		int value = 0;
 		try {
-			padid = getGamePadId(id);
-		} catch (Exception ignored) {
-		}
-
-		return makeKeyCodeWithDeviceID(padid, iKeyCode);
+			value = getControllerId(id);
+		} catch (Exception ignored) {}
+		return makeKeyCodeWithDeviceID(value, iKeyCode);
 	}
 
 	public static int makeKeyCodeWithDeviceID(int iDeviceId, int iKeyCode) {
-		int iRet = 0;
-
-		//iRet = ((iDeviceId * 1000) + iKeyCode);//type 1
-
-		//type 2
-		iRet = iDeviceId;
+		int iRet = iDeviceId;
 		iRet = iRet << 16;
 		iRet |= iKeyCode;
-		//type 2 end
-
 		return iRet;
 	}
 
 	public static void getInfoFromKeyCodeWithDeviceID(int iKeyCode, int[] iArrRet) {
-		int iDeviceIdRet = 0;
-		int iKeyCodeRet = 0;
-
-		//type 1
-		/*iDeviceIdRet = iKeyCode / 1000;
-		iKeyCodeRet = iKeyCode % 1000;
-		*/
-		//type 1 end
-
-		//type 2
-		iDeviceIdRet = iKeyCode >> 16;
-		iKeyCodeRet = iKeyCode & 0xFFFF;
-		//type 2 end
-
-		iArrRet[0] = iDeviceIdRet;
-		iArrRet[1] = iKeyCodeRet;
+		iArrRet[0] = iKeyCode >> 16;
+		iArrRet[1] = iKeyCode & 0xFFFF;
 	}
 
 	public static int getDeviceIdFromKeyCodeWithDeviceID(int iKeyCode) {
-		//return  iKeyCode / 1000; //type 1
-		return iKeyCode >> 16; //type 2
+		return iKeyCode >> 16;
 	}
 
 	public static int getKeyCodeFromKeyCodeWithDeviceID(int iKeyCode) {
-		//return  iKeyCode % 1000;  //type 1
-		return iKeyCode & 0xFFFF; //type 2
+		return iKeyCode & 0xFFFF;
 	}
+
+
+	// =========================================================================
+	// DYNAMIC CONTROLLER REGISTRATION (The "Seating" Logic)
+	// =========================================================================
+
+	protected int checkAndRegisterDevice(InputDevice device) {
+		// Ignore virtual keyboards and injected software events (null or ID -1)
+		// to prevent them from stealing physical hardware slots.
+		if (device == null || device.getId() == -1) return -1;
+
+		int currentId = device.getId();
+
+		//  Always check first if the user has defined a custom profile
+		int virtualId = getPersistentDeviceId(device);
+		boolean hasCustomProfile = false;
+		for (int mappedVal : keyMapping) {
+			if (mappedVal != -1) {
+				int devId = getDeviceIdFromKeyCodeWithDeviceID(mappedVal);
+				int kCode = getKeyCodeFromKeyCodeWithDeviceID(mappedVal);
+				if (devId == virtualId && kCode != 0xFFFF && kCode != 0) {
+					hasCustomProfile = true;
+					break;
+				}
+			}
+		}
+
+		// If a custom profile exists, force the dynamic bridge routing
+		if (hasCustomProfile) {
+			// Reclaim the controller from autodetect if necessary
+			if (!genericControllers.containsKey(currentId)) {
+				registerGenericController(device, true);
+			}
+			return -1; // -1 forces execution into the dynamic bridge path
+		}
+
+		// Already registered as a pure Dynamic/Generic controller?
+		if (genericControllers.containsKey(currentId)) return -1;
+
+		// Already registered via Autodetect?
+		for (int i = 0; i < MAX_DEVICES; i++) {
+			if (deviceIDs[i] == currentId) return i;
+		}
+
+		// --- FIRST TIME SIGNAL FROM THIS DEVICE ---
+
+		// Attempt Autodetect ONLY if globally enabled
+		boolean attemptLegacy = mm.getPrefsHelper().isContollerAutodetect();
+		int dev = -1;
+
+		if (attemptLegacy) {
+			dev = detectDevice(device);
+		}
+
+		// If not, register dynamically (Also filters out raw volume button presses)
+		if (dev == -1) {
+			int sources = device.getSources();
+			boolean isGamepad = (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+			boolean isJoystick = (sources & InputDevice.SOURCE_CLASS_JOYSTICK) == InputDevice.SOURCE_CLASS_JOYSTICK;
+
+			// Only claim a player slot if it's officially categorized as gaming hardware
+			if (isGamepad || isJoystick) {
+				registerGenericController(device, false);
+			}
+		}
+
+		return dev;
+	}
+
+	/**
+	 * Assigns a generic controller to the first available player slot (0 to 3)
+	 * and checks if the user has created a custom mapping profile for it.
+	 */
+	protected void registerGenericController(InputDevice device, boolean hasCustomProfile) {
+		if (device == null) return;
+		int currentId = device.getId();
+
+		if (!genericControllers.containsKey(currentId)) {
+			int activeSlot = -1;
+			for (int i = 0; i < MAX_DEVICES; i++) {
+				if (deviceIDs[i] == currentId) { activeSlot = i; break; }
+			}
+			if (activeSlot == -1) {
+				for (int i = 0; i < MAX_DEVICES; i++) {
+					if (deviceIDs[i] == -1) { deviceIDs[i] = currentId; activeSlot = i; break; }
+				}
+			}
+
+			String slotName = (activeSlot != -1) ? "P" + (activeSlot + 1) : "Unassigned (Max 4)";
+			String text;
+
+			if (hasCustomProfile) {
+				text = "Detected controller as " + slotName + "\n (Custom Mapping)";
+				new WarnWidget.WarnWidgetHelper(mm, text, 3, Color.GREEN, true);
+			} else {
+				text = "Detected controller as " + slotName + "\n(Defaults applied) Please map the buttons in Settings";
+				new WarnWidget.WarnWidgetHelper(mm, text, 3, Color.YELLOW, true);
+			}
+
+			genericControllers.put(currentId, slotName);
+			mm.getMainHelper().updateMAME4droid();
+		}
+	}
+
+	protected int getDevice(InputDevice device, boolean detect) {
+		if (!mm.getPrefsHelper().isContollerAutodetect()) return -1;
+		if (device == null || device.getId() == -1) return -1;
+
+		for (int i = 0; i < MAX_DEVICES; i++) {
+			if (deviceIDs[i] == device.getId())
+				return i;
+		}
+
+		return detect ? detectDevice(device) : -1;
+	}
+
+
+	// =========================================================================
+	// CORE INPUT ROUTING & BRIDGING
+	// =========================================================================
 
 	protected void setContollerData(int i, KeyEvent event, int data, int[]digital_data) {
 		int action = event.getAction();
@@ -284,30 +491,13 @@ public class GameController implements IController {
 	}
 
 	protected boolean handleControllerKey(int value, KeyEvent event, int []digital_data) {
-
 		int v = emulatorInputValues[value % emulatorInputValues.length];
 
 		if (v == EXIT_VALUE) {
 			if (event.getAction() == KeyEvent.ACTION_UP) {
-				/*
-				if (Emulator.isInMenu()) {
-					Emulator.setValue(Emulator.EXIT_GAME, 1);
-					try {
-						Thread.sleep(InputHandler.PRESS_WAIT);
-					} catch (InterruptedException ignored) {
-					}
-					Emulator.setValue(Emulator.EXIT_GAME, 0);
-				} else if (!Emulator.isInGame()) {
-					mm.showDialog(DialogHelper.DIALOG_EXIT);
-				} else {
-				*/
-					Emulator.setValue(Emulator.EXIT_GAME, 1);
-					try {
-						Thread.sleep(InputHandler.PRESS_WAIT);
-					} catch (InterruptedException e) {
-					}
-					Emulator.setValue(Emulator.EXIT_GAME, 0);
-				//}
+				Emulator.setValue(Emulator.EXIT_GAME, 1);
+				try { Thread.sleep(InputHandler.PRESS_WAIT); } catch (InterruptedException ignored) {}
+				Emulator.setValue(Emulator.EXIT_GAME, 0);
 			}
 		} else if (v == OPTION_VALUE ) {
 			if (event.getAction() == KeyEvent.ACTION_UP && !Emulator.isInOptions()) {
@@ -316,90 +506,126 @@ public class GameController implements IController {
 			}
 		} else {
 			int i = value / emulatorInputValues.length;
-			setContollerData(i, event, v,digital_data);
+			setContollerData(i, event, v, digital_data);
 			mm.getInputHandler().fixTiltCoin();
 			Emulator.setDigitalData(i, digital_data[i]);
 		}
-
 		return true;
 	}
 
-	public boolean handleGameController(int keyCode, KeyEvent event,int[]digital_data){
+	public boolean handleGameController(int keyCode, KeyEvent event, int[] digital_data) {
+		InputDevice device = event.getDevice();
 
-		boolean manageDevice = true;
-		int dev = -1;
+		// Maintain visual joystick logic (Protected against null devices)
+		int sources = (device != null) ? device.getSources() : 0;
+		boolean isGamepad = (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+		boolean isJoystick = (sources & InputDevice.SOURCE_CLASS_JOYSTICK) == InputDevice.SOURCE_CLASS_JOYSTICK;
 
-		if (!mm.getPrefsHelper().isContollerAutodetect()) {
-			manageDevice = false;
+		if (isGamepad || isJoystick) {
+			if (!joystickMotion) {
+				joystickMotion = true;
+				mm.getMainHelper().updateMAME4droid();
+			}
 		}
 
-		if(manageDevice)
-		   dev = getDevice(event.getDevice(), true);
+		// Input Gatekeeper: Evaluates hardware and routes to Autodetect or Dynamic Bridge
+		int dev = checkAndRegisterDevice(device);
+		boolean manageDevice = (dev != -1);
 
-		//System.out.println(event.getDevice().getName()+" "+dev+" "+" "+event.getKeyCode());
-		//System.out.println("IME:"+Settings.Secure.getString(mm.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD));
+		if (!manageDevice) {
+			// --- THE DYNAMIC BRIDGE ---
+			int virtualId = getPersistentDeviceId(device);
+			int actionIndex = -1;
+			boolean hasCustomProfile = false;
 
-		if (dev == -1) {//no detected
-			manageDevice = false;
-		}
+			// Query Custom Profile
+			for (int i = 0; i < keyMapping.length; i++) {
+				int mappedVal = keyMapping[i];
+				if (mappedVal != -1) {
+					int devId = getDeviceIdFromKeyCodeWithDeviceID(mappedVal);
+					int kCode = getKeyCodeFromKeyCodeWithDeviceID(mappedVal);
 
-		if(!manageDevice) {
+					if (devId == virtualId && kCode != 0xFFFF && kCode != 0) {
+						hasCustomProfile = true;
+						if (kCode == keyCode) {
+							actionIndex = i % emulatorInputValues.length;
+							break;
+						}
+					}
+				}
+			}
 
+			// Query Factory Defaults (Only fallback if no custom profile exists)
+			if (actionIndex == -1 && !hasCustomProfile) {
+				for (int i = 0; i < defaultKeyMapping.length; i++) {
+					if (defaultKeyMapping[i] == makeKeyCodeWithDeviceID(0, keyCode)) {
+						actionIndex = i % emulatorInputValues.length;
+						break;
+					}
+				}
+			}
+
+			// Route the resolved action
+			if (actionIndex != -1) {
+				int activeSlot = -1;
+
+				if (device == null || device.getId() == -1) {
+					// Virtual keyboard or on-screen touch controls.
+					// Always route these to Player 1 to ensure playability.
+					activeSlot = 0;
+				} else {
+					// Look up the physical slot assigned to this device
+					for (int j = 0; j < MAX_DEVICES; j++) {
+						if (deviceIDs[j] == device.getId()) {
+							activeSlot = j;
+							break;
+						}
+					}
+
+					// Fallback for Bluetooth PC keyboards (not flagged as gamepads and lacking a slot).
+					// Also prevents a 5th plugged-in controller from overflowing the player array.
+					if (activeSlot == -1 && !isGamepad && !isJoystick) {
+						activeSlot = 0;
+					}
+				}
+
+				if (activeSlot != -1) {
+					int mappedValue = (activeSlot * emulatorInputValues.length) + actionIndex;
+					if (handleControllerKey(mappedValue, event, digital_data)) return true;
+				}
+			}
+
+			// --- HARDCODED ANDROID FALLBACKS ---
 			if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
 				handleControllerKey(14, event, digital_data);
 				return true;
 			}
-
 			if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
 				handleControllerKey(15, event, digital_data);
 				return true;
 			}
-//TODO ver en android tv START y SELEC
 			if ((event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_START || event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER
 				|| event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT) && !Emulator.isInGame() && mm.getMainHelper().isAndroidTV()) {
 				handleControllerKey(15, event, digital_data);
 				return true;
 			}
 
-			int value = -1;
-			for (int i = 0; i < keyMapping.length; i++) {
-				//if(keyMapping[i]==keyCode)
-				if (keyMapping[i] == makeKeyCodeWithDeviceID(event.getDevice(), keyCode))
-					value = i;
+			if (hasCustomProfile) {
+				return true;
 			}
 
-			//if(value >=0 && value <=13)
-			if (value != -1)
-				if (handleControllerKey(value, event, digital_data)) return true;
-
 			return false;
-		}
-		else
-		{
+
+		} else {
+			// --- AUTODETECT PROCESSING ---
 			int v = deviceMappings[event.getKeyCode()][dev];
 
 			if (v != -1) {
 				if (v == EXIT_VALUE) {
 					if (event.getAction() == KeyEvent.ACTION_UP) {
-						//if (Emulator.isInMenu()) {
-							Emulator.setValue(Emulator.EXIT_GAME, 1);
-							try {
-								Thread.sleep(InputHandler.PRESS_WAIT);
-							} catch (InterruptedException ignored) {
-							}
-							Emulator.setValue(Emulator.EXIT_GAME, 0);
-						/*
-						} else if (!Emulator.isInGame()) {
-							mm.showDialog(DialogHelper.DIALOG_EXIT);
-						} else {
-							Emulator.setValue(Emulator.EXIT_GAME, 1);
-							try {
-								Thread.sleep(InputHandler.PRESS_WAIT);
-							} catch (InterruptedException ignored) {
-							}
-							Emulator.setValue(Emulator.EXIT_GAME, 0);
-						}
-						 */
+						Emulator.setValue(Emulator.EXIT_GAME, 1);
+						try { Thread.sleep(InputHandler.PRESS_WAIT); } catch (InterruptedException ignored) {}
+						Emulator.setValue(Emulator.EXIT_GAME, 0);
 					}
 				} else if (v == OPTION_VALUE) {
 					if (event.getAction() == KeyEvent.ACTION_UP  && !Emulator.isInOptions()) {
@@ -410,36 +636,51 @@ public class GameController implements IController {
 					int action = event.getAction();
 					if (action == KeyEvent.ACTION_DOWN) {
 						digital_data[dev] |= v;
-					} else if (action == KeyEvent.ACTION_UP)
+					} else if (action == KeyEvent.ACTION_UP) {
 						digital_data[dev] &= ~v;
+					}
 
 					mm.getInputHandler().fixTiltCoin();
-
 					Emulator.setDigitalData(dev, digital_data[dev]);
 				}
 				return true;
 			}
-
 			return false;
 		}
+	}
+
+
+	// =========================================================================
+	// ANALOG & STICK PROCESSING
+	// =========================================================================
+
+	final public float rad2degree(float r) {
+		return ((r * 180.0f) / MY_PI);
+	}
+
+	final public float getAngle(float x, float y) {
+		float ang = rad2degree((float) Math.atan2(x, y));
+		if (ang < 0.0f) ang += 360.0f;
+		return ang;
+	}
+
+	final public float getMagnitude(float x, float y) {
+		return (float) Math.sqrt((x * x) + (y * y));
 	}
 
 	protected float processAxis(InputDevice.MotionRange range, float axisvalue) {
 		float absaxisvalue = Math.abs(axisvalue);
 		float deadzone = range.getFlat();
-		//System.out.println("deadzone: "+deadzone);
-		//deadzone = Math.max(deadzone, 0.2f);
-		if (absaxisvalue <= deadzone) {
-			return 0.0f;
-		}
-		float nomralizedvalue;
-		if (axisvalue < 0.0f) {
-			nomralizedvalue = absaxisvalue / range.getMin();
-		} else {
-			nomralizedvalue = absaxisvalue / range.getMax();
-		}
 
-		return nomralizedvalue;
+		if (absaxisvalue <= deadzone) return 0.0f;
+
+		float normalizedvalue;
+		if (axisvalue < 0.0f) {
+			normalizedvalue = absaxisvalue / range.getMin();
+		} else {
+			normalizedvalue = absaxisvalue / range.getMax();
+		}
+		return normalizedvalue;
 	}
 
 	final public float getAxisValue(int axis, MotionEvent event, int historyPos) {
@@ -449,88 +690,94 @@ public class GameController implements IController {
 			InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
 			if (range != null) {
 				float axisValue;
-
 				if (historyPos >= 0) {
 					axisValue = event.getHistoricalAxisValue(axis, historyPos);
 				} else {
 					axisValue = event.getAxisValue(axis);
 				}
 				value = this.processAxis(range, axisValue);
-				//System.out.print("x: "+x);
 			}
 		}
 		return value;
 	}
 
-	final public float getAngle(float x, float y) {
-		float ang = rad2degree((float) Math.atan(y / x));
-		ang -= 90.0f;
-		if (x < 0.0f)
-			ang -= 180.0f;
-		ang = Math.abs(ang);
-		return ang;
+	protected boolean hasSignificantMovement(MotionEvent event, float threshold) {
+		int[] axes = {
+			MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
+			MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, MotionEvent.AXIS_GAS, MotionEvent.AXIS_BRAKE
+		};
+
+		for (int axis : axes) {
+			if (Math.abs(getAxisValue(axis, event, -1)) > threshold) {
+				return true;
+			}
+		}
+		return false;
 	}
 
-	final public float getMagnitude(float x, float y) {
-		return (float) Math.sqrt((x * x) + (y * y));
+	public boolean genericMotion(MotionEvent event, int[] digital_data) {
+		if (((event.getSource() & (InputDevice.SOURCE_CLASS_JOYSTICK | InputDevice.SOURCE_GAMEPAD)) == 0)
+			|| (event.getAction() != MotionEvent.ACTION_MOVE)) {
+			return false;
+		}
+
+		InputDevice device = event.getDevice();
+		if (device == null) return false; // Anti-crash protection
+
+		if (hasSignificantMovement(event, 0.20f)) {
+			if (!joystickMotion) {
+				joystickMotion = true;
+				mm.getMainHelper().updateMAME4droid();
+			}
+			// Centralize device registration upon significant analog stick movement
+			checkAndRegisterDevice(event.getDevice());
+		}
+
+		int historySize = event.getHistorySize();
+		for (int i = 0; i < historySize; i++) {
+			processStickInput(event, i, digital_data);
+		}
+
+		return processStickInput(event, -1, digital_data);
 	}
 
-	protected boolean processJoystickInput(MotionEvent event, int historyPos, int[]digital_data) {
-
+	protected boolean processStickInput(MotionEvent event, int historyPos, int[] digital_data) {
 		int ways = mm.getPrefsHelper().getStickWays();
 		if (ways == -1) ways = Emulator.getValue(Emulator.NUMWAYS);
 		boolean b = Emulator.isInGameButNotInMenu();
 
 		int dev = getDevice(event.getDevice(), false);
 
-		int iDeviceId = 0;
-		try {
-			iDeviceId = getGamePadId(event.getDevice());
-		} catch (Exception ignored) {
-		}
-
-		if (dev == -1) { //no autodetectado
+		if (dev == -1) { // It's a generic controller, find its dynamic slot
 			for (int i = 0; i < MAX_DEVICES; i++) {
-				if (iDeviceId == getDeviceIdFromKeyCodeWithDeviceID(keyMapping[i * emulatorInputValues.length])) // select each devices input settings first item UP_VALUE dpad setting not applicable seperate
-				{
+				if (deviceIDs[i] == event.getDevice().getId()) {
 					dev = i;
 					break;
 				}
 			}
 		}
 
-		int joy = dev != -1 ? dev : 0;
+		// Prevent out-of-bounds overflow for extra unseated controllers (e.g. 5th controller)
+		if (dev == -1) {
+			return false;
+		}
 
+		int joy = dev;
 		newinput[joy] = 0;
 
 		float deadZone = 0.2f;
-
 		switch (mm.getPrefsHelper().getGamepadDZ()) {
-			case 1:
-				deadZone = 0.01f;
-				break;
-			case 2:
-				deadZone = 0.15f;
-				break;
-			case 3:
-				deadZone = 0.2f;
-				break;
-			case 4:
-				deadZone = 0.3f;
-				break;
-			case 5:
-				deadZone = 0.5f;
-				break;
+			case 1: deadZone = 0.01f; break;
+			case 2: deadZone = 0.15f; break;
+			case 3: deadZone = 0.2f; break;
+			case 4: deadZone = 0.3f; break;
+			case 5: deadZone = 0.5f; break;
 		}
 
-		//System.out.println("DEAD ZONE IS "+deadZone);
-
-		float x = 0.0f;
-		float y = 0.0f;
-		float mag = 0.0f;
+		float x = 0.0f, y = 0.0f, mag = 0.0f;
 
 		for (int i = 0; i < 2; i++) {
-			if (i == 0 &&  mm.getInputHandler().getTiltSensor().isEnabled() && Emulator.isInGameButNotInMenu())
+			if (i == 0 && mm.getInputHandler().getTiltSensor().isEnabled() && Emulator.isInGameButNotInMenu())
 				continue;
 
 			if (i == 0) {
@@ -544,45 +791,25 @@ public class GameController implements IController {
 			mag = getMagnitude(x, y);
 
 			if (mag >= deadZone) {
-				if (dev == -1) {
-					dev = getDevice(event.getDevice(), true);
-					if (dev != -1) {
-						joy = dev;
-						newinput[joy] = 0;
-					}
-				}
-
 				if (i == 0) {
-					/*
-					Emulator.setAnalogData(joy, x, y * -1.0f);
-					if (Emulator.isInGame())
-						continue;*/
 					if (mm.getPrefsHelper().getControllerType() != PrefsHelper.PREF_DIGITAL_STICK) {
-						//Log.d("TRIGGER","x:"+x+" y:"+y);
-						Emulator.setAnalogData(joy, x, y * -1.0f);
+						Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, joy, x, y * -1.0f);
 						continue;
 					}
 				}
 
 				float v = getAngle(x, y);
 
+				// Arcade stick way-restrictions
 				if (ways == 2 && b) {
-					if (v < 180) {
-						newinput[joy] |= RIGHT_VALUE;
-					} else if (v >= 180) {
-						newinput[joy] |= LEFT_VALUE;
-					}
+					if (v < 180) newinput[joy] |= RIGHT_VALUE;
+					else if (v >= 180) newinput[joy] |= LEFT_VALUE;
 				} else if (ways == 4 || !b) {
-					if (v >= 315 || v < 45) {
-						newinput[joy] |= DOWN_VALUE;
-					} else if (v >= 45 && v < 135) {
-						newinput[joy] |= RIGHT_VALUE;
-					} else if (v >= 135 && v < 225) {
-						newinput[joy] |= UP_VALUE;
-					} else if (v >= 225 && v < 315) {
-						newinput[joy] |= LEFT_VALUE;
-					}
-				} else {
+					if (v >= 315 || v < 45) newinput[joy] |= DOWN_VALUE;
+					else if (v >= 45 && v < 135) newinput[joy] |= RIGHT_VALUE;
+					else if (v >= 135 && v < 225) newinput[joy] |= UP_VALUE;
+					else if (v >= 225 && v < 315) newinput[joy] |= LEFT_VALUE;
+				} else { // 8-way
 					if (v >= 330 || v < 30) {
 						newinput[joy] |= DOWN_VALUE;
 					} else if (v >= 30 && v < 60) {
@@ -591,7 +818,6 @@ public class GameController implements IController {
 					} else if (v >= 60 && v < 120) {
 						newinput[joy] |= RIGHT_VALUE;
 					} else if (v >= 120 && v < 150) {
-
 						newinput[joy] |= RIGHT_VALUE;
 						newinput[joy] |= UP_VALUE;
 					} else if (v >= 150 && v < 210) {
@@ -608,64 +834,31 @@ public class GameController implements IController {
 				}
 			} else {
 				if (i == 0) {
-					Emulator.setAnalogData(joy, 0, 0);
+					Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, joy, 0, 0);
 				}
 			}
 		}
 
 		if (!mm.getPrefsHelper().isDisabledRightStick() && Emulator.isInGame()) {
-
 			x = getAxisValue(MotionEvent.AXIS_Z, event, historyPos);
 			y = getAxisValue(MotionEvent.AXIS_RZ, event, historyPos) * -1;
-
 			mag = getMagnitude(x, y);
 
 			if (mag >= deadZone) {
-
-				float v = getAngle(x, y);
-
-				if (v >= 330 || v < 30) {
-					newinput[joy] |= D_VALUE;
-				} else if (v >= 30 && v < 60) {
-					newinput[joy] |= D_VALUE;
-					newinput[joy] |= A_VALUE;
-				} else if (v >= 60 && v < 120) {
-					newinput[joy] |= A_VALUE;
-				} else if (v >= 120 && v < 150) {
-					newinput[joy] |= A_VALUE;
-					newinput[joy] |= B_VALUE;
-				} else if (v >= 150 && v < 210) {
-					newinput[joy] |= B_VALUE;
-				} else if (v >= 210 && v < 240) {
-					newinput[joy] |= B_VALUE;
-					newinput[joy] |= C_VALUE;
-				} else if (v >= 240 && v < 300) {
-					newinput[joy] |= C_VALUE;
-				} else if (v >= 300 && v < 330) {
-					newinput[joy] |= C_VALUE;
-					newinput[joy] |= D_VALUE;
-				}
+				Emulator.setAnalogData(Emulator.RIGHT_STICK_DATA, joy, x, y);
+			} else {
+				Emulator.setAnalogData(Emulator.RIGHT_STICK_DATA, joy, 0.0f, 0.0f);
 			}
 		}
 
 		x = getAxisValue(MotionEvent.AXIS_GAS, event, historyPos);
-		//Log.d("TRIGGER","x:"+ x);
-		if (x >= 0.35f) {
-			//nothing
-		}
 		y = getAxisValue(MotionEvent.AXIS_BRAKE, event, historyPos);
-		//System.out.println("y:"+y);
-		if (y >= 0.35f) {
-            //nothing
-		}
-		//Log.d("TRIGGER","y:"+y);
-		Emulator.setAnalogData(joy+4, (x * 2.0f) -1.0f, (y * 2.0f) -1.0f);
+		Emulator.setAnalogData(Emulator.TRIGGER_DATA, joy, (x * 2.0f) - 1.0f, (y * 2.0f) - 1.0f);
 
 		digital_data[joy] &= ~(oldinput[joy] & ~newinput[joy]);
 		digital_data[joy] |= newinput[joy];
 
 		mm.getInputHandler().fixTiltCoin();
-
 		Emulator.setDigitalData(joy, digital_data[joy]);
 
 		oldinput[joy] = newinput[joy];
@@ -673,69 +866,10 @@ public class GameController implements IController {
 		return true;
 	}
 
-	public boolean genericMotion(MotionEvent event,int[]digital_data ) {
-/*
-		if (!mm.getPrefsHelper().isContollerAutodetect()) {
-			return false;
-		}
-*/
-		if (((event.getSource() & (InputDevice.SOURCE_CLASS_JOYSTICK | InputDevice.SOURCE_GAMEPAD)) == 0)
-			|| (event.getAction() != MotionEvent.ACTION_MOVE)) {
-			return false;
-		}
 
-		if(!joystickMotion) {
-			int dev = getDevice(event.getDevice(), true);
-			if(dev==-1) { //joystick generico no autodetectado
-				CharSequence text = "Detected generic controller. You should map it on settings! ";
-				new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.YELLOW, true);
-				mm.getMainHelper().updateMAME4droid();
-			}
-			joystickMotion = true;
-		}
-
-		int historySize = event.getHistorySize();
-		for (int i = 0; i < historySize; i++) {
-			processJoystickInput(event, i,digital_data);
-		}
-
-		return processJoystickInput(event, -1,digital_data);
-	}
-
-	protected int getDevice(InputDevice device, boolean detect) {
-
-		if (!mm.getPrefsHelper().isContollerAutodetect())
-			return -1;
-
-		if (device == null)
-			return -1;
-		//dav
-		if (device.getId() == -1)
-			return -1;
-		///
-		for (int i = 0; i < MAX_DEVICES; i++) {
-			if (deviceIDs[i] == device.getId())
-				return i;
-		}
-
-		//clean dissconected devices
-		int[] ids = InputDevice.getDeviceIds();
-		for (int i = 0; i < MAX_DEVICES; i++) {
-			boolean found = false;
-			for (int j = 0; j < ids.length && !found; j++) {
-				found = deviceIDs[i] == ids[j];
-			}
-			if (!found) {
-				deviceIDs[i] = -1;
-				banDev.clear();
-			}
-		}
-
-		if (detect)
-			return detectDevice(device);
-		else
-			return -1;
-	}
+	// =========================================================================
+	// AUTODETECT SYSTEM (Hardcoded profiles)
+	// =========================================================================
 
 	protected void mapDPAD(int id) {
 		deviceMappings[KeyEvent.KEYCODE_DPAD_UP][id] = UP_VALUE;
@@ -760,23 +894,15 @@ public class GameController implements IController {
 	}
 
 	protected int detectDevice(InputDevice device) {
-
 		boolean detected = false;
-
 		int id = -1;
+
 		for (int i = 0; i < MAX_DEVICES && id == -1; i++) {
-			if (deviceIDs[i] == -1)
-				id = i;
+			if (deviceIDs[i] == -1) id = i;
 		}
 
-		if (id == -1)
-			return -1;
-
-		if (device == null || banDev == null)
-			return -1;
-
-		if (banDev.get(device.getId()) == 1)
-			return -1;
+		if (id == -1 || device == null || banDev == null) return -1;
+		if (banDev.get(device.getId()) == 1) return -1;
 
 		final String name = device.getName();
 
@@ -788,13 +914,7 @@ public class GameController implements IController {
 		CharSequence desc = "";
 
 		if (name.contains("PLAYSTATION(R)3") || name.indexOf("Dualshock3") != -1
-			|| name.contains("Sixaxis") || name.contains("Gasia,Co")
-		) {
-
-			//deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = Y_VALUE;
-			//deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = X_VALUE;
-			//deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = A_VALUE;
-			//deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = B_VALUE;
+			|| name.contains("Sixaxis") || name.contains("Gasia,Co")) {
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
@@ -806,15 +926,11 @@ public class GameController implements IController {
 			mapTHUMBS(id);
 			mapSelectStart(id);
 
-			//deviceMappings[KeyEvent.KEYCODE_BACK][id] = SELECT_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
-
 			desc = "Sixaxis";
-
 			detected = true;
-		} else if (name.contains("Gamepad 0") || name.contains("Gamepad 1") //Sixaxis Controller
-			|| name.contains("Gamepad 2")) {
 
+		} else if (name.contains("Gamepad 0") || name.contains("Gamepad 1") || name.contains("Gamepad 2")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
@@ -826,10 +942,9 @@ public class GameController implements IController {
 			mapSelectStart(id);
 
 			desc = "Gamepad";
-
 			detected = true;
-		} else if (name.contains("nvidia_joypad") || name.contains("NVIDIA Controller")) {
 
+		} else if (name.contains("nvidia_joypad") || name.contains("NVIDIA Controller")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
@@ -838,18 +953,13 @@ public class GameController implements IController {
 			mapL1R1(id);
 			mapTHUMBS(id);
 
-			//deviceMappings[KeyEvent.KEYCODE_BACK][id] = SELECT_VALUE;
-			//deviceMappings[KeyEvent.KEYCODE_BUTTON_START] [id]= START_VALUE;
-
-
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
 
+			desc = "NVIDIA Shield";
 			detected = true;
 
-			desc = "NVIDIA Shield";
 		} else if (name.contains("ipega Extending")) {
-
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
@@ -861,15 +971,10 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_SELECT][id] = EXIT_VALUE;
 
+			desc = "Ipega Extending Game";
 			detected = true;
 
-			desc = "Ipega Extending Game";
-		}
-		//else if (name.indexOf("X-Box 360")!=-1 || name.indexOf("X-Box")!=-1
-		//		   || name.indexOf("Xbox 360 Wireless Receiver")!=-1 || name.indexOf("Xbox Wireless")!=-1 ){
-		else if (name.contains("X-Box") || name.contains("Xbox")) {
-
-
+		} else if (name.contains("X-Box") || name.contains("Xbox")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
@@ -881,12 +986,10 @@ public class GameController implements IController {
 			mapSelectStart(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
-
 			desc = "XBox";
-
 			detected = true;
-		} else if (name.contains("Logitech") && name.contains("Dual Action")) {
 
+		} else if (name.contains("Logitech") && name.contains("Dual Action")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = D_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = B_VALUE;
@@ -897,10 +1000,9 @@ public class GameController implements IController {
 			mapSelectStart(id);
 
 			desc = "Dual Action";
-
 			detected = true;
-		} else if (name.contains("Logitech") && name.contains("RumblePad 2")) {
 
+		} else if (name.contains("Logitech") && name.contains("RumblePad 2")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
@@ -916,11 +1018,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_12][id] = EXIT_VALUE;
 
 			desc = "Rumblepad 2";
-
 			detected = true;
 
 		} else if (name.contains("Logitech") && name.contains("Precision")) {
-
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
@@ -936,10 +1036,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_10][id] = START_VALUE;
 
 			desc = "Logitech Precision";
-
 			detected = true;
-		} else if (name.contains("TTT THT Arcade console 2P USB Play")) {
 
+		} else if (name.contains("TTT THT Arcade console 2P USB Play")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = D_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = B_VALUE;
@@ -951,10 +1050,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = START_VALUE;
 
 			desc = "TTT THT Arcade";
-
 			detected = true;
-		} else if (name.contains("TOMMO NEOGEOX Arcade Stick")) {
 
+		} else if (name.contains("TOMMO NEOGEOX Arcade Stick")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
@@ -966,10 +1064,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = START_VALUE;
 
 			desc = "TOMMO Neogeo X Arcade";
-
 			detected = true;
-		} else if (name.contains("Onlive Wireless Controller")) {
 
+		} else if (name.contains("Onlive Wireless Controller")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
@@ -984,10 +1081,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = START_VALUE;
 
 			desc = "Onlive Wireless";
-
 			detected = true;
-		} else if (name.contains("MadCatz") && name.contains("PC USB Wired Stick")) {
 
+		} else if (name.contains("MadCatz") && name.contains("PC USB Wired Stick")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = A_VALUE;
@@ -1003,10 +1099,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = START_VALUE;
 
 			desc = "Madcatz PC USB Stick";
-
 			detected = true;
-		} else if (name.contains("Logicool") && name.contains("RumblePad 2")) {
 
+		} else if (name.contains("Logicool") && name.contains("RumblePad 2")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = D_VALUE;
@@ -1022,10 +1117,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = START_VALUE;
 
 			desc = "Logicool Rumblepad 2";
-
 			detected = true;
-		} else if (name.contains("Zeemote") && name.contains("Steelseries free")) {
 
+		} else if (name.contains("Zeemote") && name.contains("Steelseries free")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
@@ -1038,10 +1132,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
 
 			desc = "Zeemote Steelseries";
-
 			detected = true;
-		} else if (name.contains("HuiJia  USB GamePad")) {
 
+		} else if (name.contains("HuiJia  USB GamePad")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
@@ -1054,10 +1147,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_10][id] = START_VALUE;
 
 			desc = "Huijia USB SNES";
-
 			detected = true;
-		} else if (name.contains("Smartjoy Family Super Smartjoy 2")) {
 
+		} else if (name.contains("Smartjoy Family Super Smartjoy 2")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
@@ -1070,10 +1162,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = START_VALUE;
 
 			desc = "Super Smartjoy";
-
 			detected = true;
-		} else if (name.contains("Jess Tech Dual Analog Rumble Pad")) {
 
+		} else if (name.contains("Jess Tech Dual Analog Rumble Pad")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = A_VALUE;
@@ -1088,11 +1179,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_11][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_12][id] = START_VALUE;
 
-			//desc = "Super Smartjoy";
-
 			detected = true;
-		} else if (name.contains("Microsoft") && name.contains("Dual Strike")) {
 
+		} else if (name.contains("Microsoft") && name.contains("Dual Strike")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
@@ -1107,10 +1196,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = START_VALUE;
 
 			desc = "MS Dual Strike";
-
 			detected = true;
-		} else if (name.contains("Microsoft") && name.contains("SideWinder")) {
 
+		} else if (name.contains("Microsoft") && name.contains("SideWinder")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
@@ -1126,13 +1214,12 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_12][id] = START_VALUE;
 
 			desc = "MS Sidewinder";
-
 			detected = true;
+
 		} else if (name.contains("WiseGroup") &&
 			(name.contains("JC-PS102U") || name.contains("TigerGame")) ||
 			name.contains("Game Controller Adapter") || name.contains("Dual USB Joypad") ||
-			name.contains("Twin USB Joystick")
-		) {
+			name.contains("Twin USB Joystick")) {
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_13][id] = UP_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_15][id] = DOWN_VALUE;
@@ -1154,10 +1241,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = START_VALUE;
 
 			desc = "PlayStation2";
-
 			detected = true;
-		} else if (name.contains("MOGA") || name.contains("Moga")) {
 
+		} else if (name.contains("MOGA") || name.contains("Moga")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
@@ -1172,10 +1258,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = START_VALUE;
 
 			desc = "MOGA";
-
 			detected = true;
-		} else if (name.contains("OUYA Game Controller")) {
 
+		} else if (name.contains("OUYA Game Controller")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
@@ -1186,14 +1271,12 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_MENU][id] = OPTION_VALUE;
 
 			mapL1R1(id);
-			//mapL2R2(id);
 			mapTHUMBS(id);
 
 			desc = "OUYA";
-
 			detected = true;
-		} else if (name.contains("DragonRise")) {
 
+		} else if (name.contains("DragonRise")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
@@ -1208,10 +1291,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = START_VALUE;
 
 			desc = "DragonRise";
-
 			detected = true;
-		} else if (name.contains("Thrustmaster T Mini")) {
 
+		} else if (name.contains("Thrustmaster T Mini")) {
 			mapDPAD(id);
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
@@ -1229,10 +1311,9 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = START_VALUE;
 
 			desc = "Thrustmaster T Mini";
-
 			detected = true;
-		} else if (name.contains("ADC joystick")) {
 
+		} else if (name.contains("ADC joystick")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = C_VALUE;
@@ -1249,8 +1330,8 @@ public class GameController implements IController {
 
 			desc = "JXD S7800";
 			detected = true;
-		} else if (name.contains("Green Throttle Atlas")) {
 
+		} else if (name.contains("Green Throttle Atlas")) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
@@ -1265,8 +1346,8 @@ public class GameController implements IController {
 
 			desc = "Green Throttle";
 			detected = true;
-		} else if (name.contains("joy_key") && mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_AGAMEPAD2) {
 
+		} else if (name.contains("joy_key") && mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_AGAMEPAD2) {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
@@ -1283,9 +1364,9 @@ public class GameController implements IController {
 
 			desc = "Archos Gamepad 2";
 			detected = true;
+
 		} else if (name.contains("NYKO PLAYPAD") ||
 			(name.contains("Broadcom Bluetooth HID") && mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_SHIELD)) {
-
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
@@ -1297,43 +1378,33 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
 
+			desc = "NYKO PLAYPAD";
 			detected = true;
 
-			desc = "NYKO PLAYPAD";
 		} else if (name.contains("BSP-D8")) {
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
 
+			mapDPAD(id);
+			mapL1R1(id);
+			mapTHUMBS(id);
 
-				deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-				deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-				deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-				deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_SELECT][id] = OPTION_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = EXIT_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
 
-				mapDPAD(id);
-				mapL1R1(id);
-				mapTHUMBS(id);
-
-				//mapSelectStart(id);
-			    deviceMappings[KeyEvent.KEYCODE_BUTTON_SELECT][id] = OPTION_VALUE ;
-			    deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = EXIT_VALUE;
-
-				deviceMappings[KeyEvent.KEYCODE_BACK][id] = EXIT_VALUE;
-
-				desc = "BSP-D8";
-
-				detected = true;
+			desc = "BSP-D8";
+			detected = true;
 		}
 
-		//JOYPAD_B = X_VALUE
-		//JOYPAD_Y = A_VALUE
-		//JOYPAD_A = B_VALUE
-		//JOYPAD_X = Y_VALUE
-
 		if (detected) {
-			System.out.println("Controller detected: " + device.getName());
+			Log.d(TAG,"Controller detected: " + device.getName());
 			deviceIDs[id] = device.getId();
 			id++;
-			if (id == 1)
-				mm.getMainHelper().updateMAME4droid();
+
+			if (id == 1) mm.getMainHelper().updateMAME4droid();
 
 			CharSequence text = "Detected " + desc + " controller as P" + id;
 			new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
@@ -1345,14 +1416,4 @@ public class GameController implements IController {
 
 		return -1;
 	}
-
-	public boolean isEnabled(){
-		int numDevs = 0;
-		for (int i = 0; i < MAX_DEVICES; i++) {
-			if (deviceIDs[i] != -1)
-				numDevs++;
-		}
-		return numDevs != 0 || joystickMotion==true;
-	}
-
 }

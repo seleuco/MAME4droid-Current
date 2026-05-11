@@ -125,6 +125,15 @@ extern "C" {
 #define com_seleuco_mame4droid_Emulator_FINGER_DOWN 2L
 #undef com_seleuco_mame4droid_Emulator_FINGER_UP
 #define com_seleuco_mame4droid_Emulator_FINGER_UP 3L
+#undef com_seleuco_mame4droid_Emulator_LEFT_STICK_DATA
+#define com_seleuco_mame4droid_Emulator_LEFT_STICK_DATA 1L
+#undef com_seleuco_mame4droid_Emulator_RIGHT_STICK_DATA
+#define com_seleuco_mame4droid_Emulator_RIGHT_STICK_DATA 2L
+#undef com_seleuco_mame4droid_Emulator_TRIGGER_DATA
+#define com_seleuco_mame4droid_Emulator_TRIGGER_DATA 3L
+#undef com_seleuco_mame4droid_Emulator_LIGHTGUN_DATA
+#define com_seleuco_mame4droid_Emulator_LIGHTGUN_DATA 4L
+
 /*
  * Class:     com_seleuco_mame4droid_Emulator
  * Method:    init
@@ -155,7 +164,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setDigitalData
  * Signature: (IFF)V
  */
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setAnalogData
-  (JNIEnv *, jclass, jint, jfloat, jfloat);
+  (JNIEnv *, jclass, jint, jint, jfloat, jfloat);
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator

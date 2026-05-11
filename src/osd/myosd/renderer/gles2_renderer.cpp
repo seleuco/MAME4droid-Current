@@ -34,25 +34,41 @@ constexpr int VECTOR_FBO_HEIGHT =  480;
 // Light falloff curve (CRT Phosphor)
 // High values (5.5 - 6.0) = Pure Arcade, very bright core and tight halo.
 // Low values (3.0 - 4.0) = Modern HDR Bloom, soft and nebulous halo.
-constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.5f;
+//constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.5f;
+//constexpr float BLOOM_PHOSPHOR_FALLOFF = 4.5f;
+constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.0f;
 
 // Lines (Standard vectors)
-constexpr float BLOOM_LINE_WIDTH_MULT = 4.0f;  
-constexpr float BLOOM_LINE_ALPHA      = 0.65f; 
+//constexpr float BLOOM_LINE_WIDTH_MULT = 4.0f;  
+//constexpr float BLOOM_LINE_ALPHA      = 0.65f; 
+//constexpr float BLOOM_LINE_WIDTH_MULT = 5.0f;  
+//constexpr float BLOOM_LINE_ALPHA      = 0.85f;
+constexpr float BLOOM_LINE_WIDTH_MULT = 4.5f;  
+constexpr float BLOOM_LINE_ALPHA      = 0.75f;
 
 // Points (Stars / Shots)
-constexpr float BLOOM_POINT_WIDTH_MULT = 2.2f; 
-constexpr float BLOOM_POINT_ALPHA      = 0.42f;
+//constexpr float BLOOM_POINT_WIDTH_MULT = 2.2f; 
+//constexpr float BLOOM_POINT_ALPHA      = 0.42f;
+//constexpr float BLOOM_POINT_WIDTH_MULT = 3.0f; 
+//constexpr float BLOOM_POINT_ALPHA      = 0.65f;
+constexpr float BLOOM_POINT_WIDTH_MULT = 2.6f; 
+constexpr float BLOOM_POINT_ALPHA      = 0.55f;
 
 // -----------------------------------------------------------------------
 // EXCESS LIGHT PHYSICS (OVERBRIGHT / HDR)
 // -----------------------------------------------------------------------
 // Maximum extra energy a vector can receive (Safety ceiling)
-constexpr float BLOOM_OVERBRIGHT_MAX = 1.25f; 
+//constexpr float BLOOM_OVERBRIGHT_MAX = 1.25f; 
+//constexpr float BLOOM_OVERBRIGHT_MAX = 2.0f;
+constexpr float BLOOM_OVERBRIGHT_MAX = 1.6f;
 
 // How much they physically expand when receiving excess light
-constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.35f; 
-constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.28f; 
+//constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.35f; 
+//constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.28f; 
+//constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.65f; 
+//constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.50f;
+constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.50f; 
+constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.40f;
 // =======================================================================
 
 

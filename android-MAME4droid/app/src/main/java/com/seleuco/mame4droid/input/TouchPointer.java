@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,100 +51,122 @@ import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
 
 public class TouchPointer implements IController {
-	protected int touchpointer_pid = -1;
 
+	protected int touchpointer_pid = -1;
 	protected boolean touchpointer_down = false;
 
 	protected MAME4droid mm = null;
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
-
-    public int getTouchPointerPid() {
-        return touchpointer_pid;
-    }
-
-	protected float getCX(int pointerId, View v, MotionEvent event){
-		final int[] location = {0, 0};
-		v.getLocationOnScreen(location);
-
-		int i = event.findPointerIndex(pointerId);
-
-		int x = (int) event.getX(i) + location[0];
-
-		mm.getEmuView().getLocationOnScreen(location);
-		x -= location[0];
-
-		float x1 = mm.getEmuView().getWidth();
-		float x2 = Emulator.getEmulatedWidth();
-
-		float xf = (float) (x1 - x) / (float) x1;
-		xf = (1 - xf) * x2;
-
-		return xf;
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
 	}
 
-	protected float getCY(int pointerId, View v, MotionEvent event){
-		final int[] location = {0, 0};
-		v.getLocationOnScreen(location);
+	public int getTouchPointerPid() {
+		return touchpointer_pid;
+	}
 
+	protected float getCX(int pointerId, View v, MotionEvent event) {
 		int i = event.findPointerIndex(pointerId);
 
+		// Failsafe: Android can occasionally drop pointer indices in rapid multi-touch scenarios
+		if (i == -1) return -1;
+
+		final int[] location = {0, 0};
+		v.getLocationOnScreen(location);
+		int x = (int) event.getX(i) + location[0];
+
+		if (mm.getEmuView() != null) {
+			mm.getEmuView().getLocationOnScreen(location);
+			x -= location[0];
+
+			float viewWidth = mm.getEmuView().getWidth();
+			float emuWidth = Emulator.getEmulatedWidth();
+
+			// Protect against division by zero during screen rotations or layout passes
+			if (viewWidth > 0) {
+				// Optimized math: Translates absolute screen touch to emulated coordinate space
+				float xf = ((float) x / viewWidth) * emuWidth;
+
+				// Clamp to screen bounds to prevent sending out-of-bounds coordinates to the core
+				return Math.max(0, Math.min(emuWidth, xf));
+			}
+		}
+		return -1;
+	}
+
+	protected float getCY(int pointerId, View v, MotionEvent event) {
+		int i = event.findPointerIndex(pointerId);
+
+		if (i == -1) return -1;
+
+		final int[] location = {0, 0};
+		v.getLocationOnScreen(location);
 		int y = (int) event.getY(i) + location[1];
 
-		mm.getEmuView().getLocationOnScreen(location);
-		y -= location[1];
+		if (mm.getEmuView() != null) {
+			mm.getEmuView().getLocationOnScreen(location);
+			y -= location[1];
 
-		float y1 = mm.getEmuView().getHeight();
-		float y2 = Emulator.getEmulatedHeight();
+			float viewHeight = mm.getEmuView().getHeight();
+			float emuHeight = Emulator.getEmulatedHeight();
 
-		float yf = (float) (y1 - y) / (float) y1;
-		yf = (1 - yf) * y2;
-
-		return yf;
+			if (viewHeight > 0) {
+				float yf = ((float) y / viewHeight) * emuHeight;
+				return Math.max(0, Math.min(emuHeight, yf));
+			}
+		}
+		return -1;
 	}
 
 	public void handleTouchPointer(View v, MotionEvent event) {
-		int pid = 0;
 		int action = event.getAction();
 		int actionEvent = action & MotionEvent.ACTION_MASK;
 
 		int pointerIndex = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-		pid = event.getPointerId(pointerIndex);
+		int pid = event.getPointerId(pointerIndex);
 
 		if (actionEvent == MotionEvent.ACTION_UP ||
 			actionEvent == MotionEvent.ACTION_POINTER_UP ||
 			actionEvent == MotionEvent.ACTION_CANCEL) {
+
 			if (pid == touchpointer_pid) {
 				if (touchpointer_down) {
-					float xf = this.getCX(touchpointer_pid,v,event);
-					float yf = this.getCY(touchpointer_pid,v,event);
-					Emulator.setTouchData(0, Emulator.FINGER_UP,xf,yf);
+					float xf = this.getCX(touchpointer_pid, v, event);
+					float yf = this.getCY(touchpointer_pid, v, event);
+
+					// Send the release event. If coordinates were lost during UP, fallback to -1.
+					if (xf != -1 && yf != -1) {
+						Emulator.setTouchData(0, Emulator.FINGER_UP, xf, yf);
+					} else {
+						Emulator.setTouchData(0, Emulator.FINGER_UP, -1, -1);
+					}
 					touchpointer_down = false;
 				}
 				touchpointer_pid = -1;
 			}
-		} else {
-			for (int i = 0; i < event.getPointerCount(); i++) {
+		} else { // MOVE / DOWN / POINTER_DOWN
 
+			for (int i = 0; i < event.getPointerCount(); i++) {
 				int pointerId = event.getPointerId(i);
 
-				if (touchpointer_pid == -1)
+				// Anchor the primary touch to the emulation pointer
+				if (touchpointer_pid == -1) {
 					touchpointer_pid = pointerId;
+				}
 
 				if (touchpointer_pid == pointerId) {
+					float xf = this.getCX(touchpointer_pid, v, event);
+					float yf = this.getCY(touchpointer_pid, v, event);
 
-					float xf = this.getCX(touchpointer_pid,v,event);
-					float yf = this.getCY(touchpointer_pid,v,event);
+					// Skip invalid or dropped pointer coordinates
+					if (xf == -1 || yf == -1) continue;
 
 					Emulator.setTouchData(0, Emulator.FINGER_MOVE, xf, yf);
 
+					// Fire the initial DOWN state if not already engaged (and tilt isn't overriding)
 					if (!touchpointer_down && !mm.getInputHandler().getTiltSensor().isEnabled()) {
-						//if (xf >= 0 && xf <= x2 && yf >= 0 && yf <= y2) {
-							Emulator.setTouchData(0, Emulator.FINGER_DOWN, xf, yf);
-							touchpointer_down = true;
-						//}
+						Emulator.setTouchData(0, Emulator.FINGER_DOWN, xf, yf);
+						touchpointer_down = true;
 					}
 				}
 			}

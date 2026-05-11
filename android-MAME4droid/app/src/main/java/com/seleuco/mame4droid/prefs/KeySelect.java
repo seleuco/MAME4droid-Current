@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,100 +44,101 @@
 
 package com.seleuco.mame4droid.prefs;
 
-
 import com.seleuco.mame4droid.input.GameController;
-import com.seleuco.mame4droid.input.InputHandler;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup.LayoutParams;
+import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
-
+import android.widget.TextView;
+import android.view.Gravity;
 
 public class KeySelect extends Activity {
 
-    protected int emulatorInputIndex;
+	protected int emulatorInputIndex;
 
-    @Override
-    public void onCreate(Bundle icicle) {
-        super.onCreate(icicle);
+	@Override
+	public void onCreate(Bundle icicle) {
+		super.onCreate(icicle);
 
-        emulatorInputIndex = getIntent().getIntExtra("emulatorInputIndex", 0);
-        setTitle("Press button for \"" + ListKeys.emulatorInputLabels[emulatorInputIndex] + "\"");
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND,
+			WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
 
+		emulatorInputIndex = getIntent().getIntExtra("emulatorInputIndex", 0);
+		setTitle("Press button for \"" + ListKeys.emulatorInputLabels[emulatorInputIndex] + "\"");
 
-        final Button chancelButton = new Button(this) {
-            {
-                setText("Cancel");
-                setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View v) {
-                        setResult(RESULT_CANCELED, new Intent());
-                        finish();
-                    }
-                });
-            }
-        };
+		int dp16 = (int) (16 * getResources().getDisplayMetrics().density);
+		int dp300 = (int) (300 * getResources().getDisplayMetrics().density); // Ancho máximo sugerido
 
-        final Button clearButton = new Button(this) {
-            {
-                setText("Clear");
-                setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View v) {
-                        setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", -1));
-                        finish();
-                    }
-                });
-            }
-        };
+		LinearLayout root = new LinearLayout(this);
+		root.setOrientation(LinearLayout.VERTICAL);
+		root.setGravity(Gravity.CENTER);
+		root.setPadding(dp16, dp16, dp16, dp16);
 
-        final View primaryView = new View(this) {
-            {
-                setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT, 1));
-                setFocusable(true);
-                setFocusableInTouchMode(true);
-                requestFocus();
-            }
+		LinearLayout dialogBox = new LinearLayout(this);
+		dialogBox.setOrientation(LinearLayout.VERTICAL);
 
-            /*
+		LinearLayout.LayoutParams dialogParams = new LinearLayout.LayoutParams(
+			dp300, ViewGroup.LayoutParams.WRAP_CONTENT);
+		dialogBox.setLayoutParams(dialogParams);
+
+		Button cancelButton = new Button(this);
+		cancelButton.setText("Cancel");
+		cancelButton.setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				setResult(RESULT_CANCELED, new Intent());
+				finish();
+			}
+		});
+
+		Button clearButton = new Button(this);
+		clearButton.setText("Clear");
+		clearButton.setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", -1));
+				finish();
+			}
+		});
+
+		TextView helpText = new TextView(this);
+		helpText.setText("\nWaiting for input...\n");
+		helpText.setGravity(Gravity.CENTER);
+		helpText.setTextAppearance(this, android.R.style.TextAppearance_Medium);
+
+		View keyCapturer = new View(this) {
 			@Override
-			public boolean onKeyPreIme (int keyCode, KeyEvent event) {
+			public boolean onKeyDown(int keyCode, KeyEvent event) {
+				if (emulatorInputIndex != 12 && keyCode == KeyEvent.KEYCODE_BACK) return false;
+				if (emulatorInputIndex != 13 && keyCode == KeyEvent.KEYCODE_MENU) return false;
 
-				setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", keyCode));
+				setResult(RESULT_OK, new Intent()
+					.putExtra("androidKeyCode", keyCode)
+					.putExtra("androidGamePadID", GameController.getPersistentDeviceId(event.getDevice())));
+
 				finish();
 				return true;
 			}
-			*/
-            @Override
-            public boolean onKeyDown(int keyCode, KeyEvent event) {
+		};
+		keyCapturer.setFocusable(true);
+		keyCapturer.setFocusableInTouchMode(true);
+		keyCapturer.requestFocus();
 
-                if (emulatorInputIndex != 12 && keyCode == KeyEvent.KEYCODE_BACK)
-                    return false;
-                if (emulatorInputIndex != 13 && keyCode == KeyEvent.KEYCODE_MENU)
-                    return false;
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+			ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		lp.setMargins(0, 0, 0, dp16);
 
-                //setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", keyCode));
+		dialogBox.addView(cancelButton, lp);
+		dialogBox.addView(clearButton, lp);
+		dialogBox.addView(helpText);
+		dialogBox.addView(keyCapturer, new LinearLayout.LayoutParams(1, 1)); // Casi invisible
 
-                setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", keyCode).putExtra("androidGamePadID", GameController.getGamePadId(event.getDevice())));
-                finish();
-                return true;
-            }
-        };
+		root.addView(dialogBox);
 
-        final LinearLayout parentContainer = new LinearLayout(this) {
-            {
-                setOrientation(LinearLayout.VERTICAL);
-                addView(chancelButton);
-                addView(clearButton);
-                addView(primaryView);
-            }
-        };
-
-        setContentView(parentContainer, new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-
-    }
-
+		setContentView(root, new ViewGroup.LayoutParams(
+			ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+	}
 }

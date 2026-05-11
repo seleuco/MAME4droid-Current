@@ -67,8 +67,8 @@
 
 		<activity android:name="com.seleuco.mame4droid.prefs.UserPreferences" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Settings"/>
 		<activity android:name="com.seleuco.mame4droid.WebHelpActivity" android:launchMode="singleTop" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Help"/>
-		<activity android:name="com.seleuco.mame4droid.prefs.DefineKeys" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Define Keys"/>
-		<activity android:name="com.seleuco.mame4droid.prefs.ListKeys" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Player Keys"/>
+		<activity android:name="com.seleuco.mame4droid.prefs.DefineKeys" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Define Buttons"/>
+		<activity android:name="com.seleuco.mame4droid.prefs.ListKeys" android:theme="@style/Theme.MAME4droid.TitleBar" android:label="MAME4droid Controller Buttons"/>
 		<activity android:name="com.seleuco.mame4droid.prefs.KeySelect" android:label="Select Key" android:theme="@android:style/Theme.Dialog"/>
     </application>
 

@@ -784,12 +784,12 @@ galaxy sde	   --> 2560x1600 16:10
         if (op != -1 && (state == TouchController.STATE_SHOWING_CONTROLLER))
             inputView.setAlpha(op);
 */
+
 		inputView.requestLayout();
         emuView.requestLayout();
 
 		inputView.invalidate();
         emuView.invalidate();
-
 
 		//Log.d("isMouse"," value:"+mm.getPrefsHelper().isTouchMouse());
     }
@@ -841,7 +841,18 @@ galaxy sde	   --> 2560x1600 16:10
     public void activityResult(int requestCode, int resultCode, Intent intent) {
 
         if (requestCode == SUBACTIVITY_USER_PREFS) {
-            updateMAME4droid();
+			final View frame = mm.findViewById(R.id.EmulatorFrame); // (O la vista raíz que tengas)
+			if (frame != null) {
+				frame.post(new Runnable() {
+					@Override
+					public void run() {
+						updateMAME4droid();
+					}
+				});
+			} else {
+				updateMAME4droid();
+			}
+            //updateMAME4droid();
         }
 
         if (requestCode == MainHelper.REQUEST_CODE_OPEN_DIRECTORY &&

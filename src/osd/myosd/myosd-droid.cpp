@@ -69,6 +69,8 @@ static unsigned long joy_status[MYOSD_NUM_JOY];
 
 static float joy_analog_x[MYOSD_NUM_JOY];
 static float joy_analog_y[MYOSD_NUM_JOY];
+static float joy_analog_x_r[MYOSD_NUM_JOY];
+static float joy_analog_y_r[MYOSD_NUM_JOY];
 static float joy_analog_trigger_x[MYOSD_NUM_JOY];
 static float joy_analog_trigger_y[MYOSD_NUM_JOY];
 
@@ -526,36 +528,87 @@ void myosd_droid_setDigitalData(int i, unsigned long value) {
     //__android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "set_pad %ld",value);
 }
 
-void myosd_droid_setAnalogData(int i, float v1, float v2) {
+void myosd_droid_setAnalogData(int t, int i, float v1, float v2) {
 
-    if(i>8) return;
+    if (i < 0) return;
 
-    if(i == 8) {
-        lightgun_x[0] = v1;
-        lightgun_y[0] = v2;
-    } else {
-        if(myosd_droid_pxasp1 && !myosd_droid_inMenu && myosd_droid_num_of_joys<=1)
-        {
-            for(int j=0; j<MYOSD_NUM_JOY;j++)
-            {
-                joy_analog_x[j] = v1;
-                joy_analog_y[j] = v2;
-                joy_analog_trigger_x[j-4]=v1;
-                joy_analog_trigger_y[j-4]=v2;
-            };
-        }
-        else if(i<4)
-        {
-            joy_analog_x[i] = v1;
-            joy_analog_y[i] = v2;
-        }
-        else
-        {
-            joy_analog_trigger_x[i-4]=v1;
-            joy_analog_trigger_y[i-4]=v2;
+    bool mirror_to_all = (i == 0 && myosd_droid_pxasp1 && !myosd_droid_inMenu && myosd_droid_num_of_joys <= 1);
+	
+	if (t == com_seleuco_mame4droid_Emulator_LEFT_STICK_DATA || 
+        t == com_seleuco_mame4droid_Emulator_RIGHT_STICK_DATA) {
+        
+        if (v1 != 0.0f || v2 != 0.0f) {
+            for(int g = 0; g < MYOSD_NUM_GUN; g++) {
+                lightgun_x[g] = 0.0f;
+                lightgun_y[g] = 0.0f;
+            }
         }
     }
-    //__android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "set analog %d %f %f",i,v1,v2);
+
+    switch(t) {
+        case com_seleuco_mame4droid_Emulator_LEFT_STICK_DATA:
+            if (i >= MYOSD_NUM_JOY) return;
+            
+            if (mirror_to_all) {
+                for(int j = 0; j < MYOSD_NUM_JOY; j++) {
+                    joy_analog_x[j] = v1;
+                    joy_analog_y[j] = v2;
+                }
+            } else {
+                joy_analog_x[i] = v1;
+                joy_analog_y[i] = v2;
+            }
+            break;
+
+        case com_seleuco_mame4droid_Emulator_RIGHT_STICK_DATA:
+            if (i >= MYOSD_NUM_JOY) return;
+            
+            if (mirror_to_all) {
+                for(int j = 0; j < MYOSD_NUM_JOY; j++) {
+                    joy_analog_x_r[j] = v1;
+                    joy_analog_y_r[j] = v2;
+                }
+            } else {
+                joy_analog_x_r[i] = v1;
+                joy_analog_y_r[i] = v2;
+            }
+            break;
+
+        case com_seleuco_mame4droid_Emulator_TRIGGER_DATA:
+            if (i >= MYOSD_NUM_JOY) return;
+            
+            if (mirror_to_all) {
+                for(int j = 0; j < MYOSD_NUM_JOY; j++) {
+                    joy_analog_trigger_x[j] = v1;
+                    joy_analog_trigger_y[j] = v2;
+                }
+            } else {
+                joy_analog_trigger_x[i] = v1;
+                joy_analog_trigger_y[i] = v2;
+            }
+            break;
+
+        case com_seleuco_mame4droid_Emulator_LIGHTGUN_DATA:
+            if (i >= MYOSD_NUM_GUN) return;
+            
+            if (mirror_to_all) {
+                for(int j = 0; j < MYOSD_NUM_GUN; j++) {
+                    lightgun_x[j] = v1;
+                    lightgun_y[j] = v2;
+                }
+            } else {
+                lightgun_x[i] = v1;
+                lightgun_y[i] = v2;
+            }
+            break;			
+            break;
+            
+        default:
+		
+            break;
+    }
+
+    //__android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "set analog %d %d %f %f",t,i,v1,v2);
 }
 
 int myosd_droid_setKeyData(int keyCode,int keyAction,char keyChar) {
@@ -836,6 +889,12 @@ static void droid_init_input(){
 
     memset(joy_analog_x,0, sizeof(joy_analog_x));
     memset(joy_analog_y,0, sizeof(joy_analog_y));
+	
+	memset(joy_analog_x,0, sizeof(joy_analog_x_r));
+    memset(joy_analog_y,0, sizeof(joy_analog_y_r));
+	
+	memset(joy_analog_x,0, sizeof(joy_analog_trigger_x));
+    memset(joy_analog_y,0, sizeof(joy_analog_trigger_y));
 
     memset(joy_status,0, sizeof(joy_status));//si reseteo se inicia la rom ??
 
@@ -1097,11 +1156,18 @@ static void droid_input_poll_cb(bool relative_reset,
                                 myosd_input_state *input, size_t state_size) {
 
     for(int i=0; i<MYOSD_NUM_JOY; i++) {
-        input->joy_status[i] = joy_status[i];
-        input->joy_analog[i][MYOSD_AXIS_RX] = joy_analog_x[i];
-        input->joy_analog[i][MYOSD_AXIS_RY] = joy_analog_y[i];
+		
+		input->joy_status[i] = joy_status[i];
+
+        input->joy_analog[i][MYOSD_AXIS_LX] = joy_analog_x[i];
+        input->joy_analog[i][MYOSD_AXIS_LY] = joy_analog_y[i];
+
+        input->joy_analog[i][MYOSD_AXIS_RX] = joy_analog_x_r[i];
+        input->joy_analog[i][MYOSD_AXIS_RY] = joy_analog_y_r[i];
+		
         input->joy_analog[i][MYOSD_AXIS_RZ] = joy_analog_trigger_x[i];
         input->joy_analog[i][MYOSD_AXIS_LZ] = joy_analog_trigger_y[i];
+
     }
 
     for(int i=0; i<MYOSD_NUM_GUN; i++) {

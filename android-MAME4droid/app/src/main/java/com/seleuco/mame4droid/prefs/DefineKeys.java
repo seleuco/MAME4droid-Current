@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,31 +44,26 @@
 
 package com.seleuco.mame4droid.prefs;
 
-import android.app.AlertDialog;
+
 import android.app.ListActivity;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
-import android.widget.TextView;
-
-import com.seleuco.mame4droid.R;
-import com.seleuco.mame4droid.input.GameController;
 
 public class DefineKeys extends ListActivity {
 
-    protected int playerIndex = 0;
+    protected int controllerIndex = 0;
+
+	private ArrayAdapter<String> keyLabelsAdapter;
 
     public static final String[] playerLabels = {
-            "Player 1",
-            "Player 2",
-            "Player 3",
-            "Player 4",
+            "Controller 1",
+            "Controller 2",
+            "Controller 3",
+            "Controller 4",
     };
 
     @Override
@@ -81,49 +76,25 @@ public class DefineKeys extends ListActivity {
         drawListAdapter();
     }
 
-    private void drawListAdapter() {
-        final Context context = this;
+	private void drawListAdapter() {
+		if (keyLabelsAdapter == null) {
+			// Usamos el layout estándar de Android sin sobreescribir el getView
+			keyLabelsAdapter = new ArrayAdapter<String>(
+				this,
+				android.R.layout.simple_list_item_1,
+				DefineKeys.playerLabels
+			);
+			setListAdapter(keyLabelsAdapter);
+		} else {
+			keyLabelsAdapter.notifyDataSetChanged();
+		}
+	}
 
-        ArrayAdapter<String> keyLabelsAdapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_list_item_1, DefineKeys.playerLabels) {
-            @Override
-            public View getView(final int position, final View convertView,
-                                final ViewGroup parent) {
-                final TextView textView = new TextView(context);
-                textView.setPadding(60, 0, 60, 0);
-                textView.setTextAppearance(context, R.style.ListText);
-                textView.setText(getItem(position));
-                return textView;
-            }
-        };
-
-        setListAdapter(keyLabelsAdapter);
-    }
-
-    @Override
+	@Override
     public void onListItemClick(ListView parent, View v, int position, long id) {
-        playerIndex = position;
-
-        boolean auto_detected = false;
-        try {
-            auto_detected = GameController.deviceIDs[position] != -1;
-        } catch (Throwable e) {
-        }
-
-        if (auto_detected) {
-            AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
-
-            alertDialog.setTitle("GamePad Autodetect is enabled!");
-            alertDialog.setPositiveButton("Dismiss", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int which) {
-                }
-            });
-            alertDialog.setMessage("Player " + (position + 1) + " gamepad is autodetected! You need to disable autodetection to change keys for this player.");
-            alertDialog.show();
-        } else {
-            startActivityForResult(new Intent(this, ListKeys.class).putExtra(
-                    "playerIndex", playerIndex), 0);
-        }
+		controllerIndex = position;
+        startActivityForResult(new Intent(this, ListKeys.class).putExtra(
+                    "controllerIndex", controllerIndex), 0);
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {

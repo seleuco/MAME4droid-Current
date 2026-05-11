@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,314 +65,244 @@ import com.seleuco.mame4droid.helpers.PrefsHelper;
 
 public class TiltSensor {
 
+	DecimalFormat df = new DecimalFormat("000.00");
 
-    DecimalFormat df = new DecimalFormat("000.00");
+	protected MAME4droid mm = null;
 
-    protected MAME4droid mm = null;
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+	}
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
+	public static String str;
 
-    public static String str;
+	public static float rx = 0;
+	public static float ry = 0;
 
-    public static float rx = 0;
-    public static float ry = 0;
+	private float tilt_x;
+	private float tilt_z;
+	private float ang_x;
+	private float ang_z;
 
-    private float tilt_x;
-    private float tilt_z;
-    private float ang_x;
-    private float ang_z;
+	private boolean fallback = false;
+	private boolean init = false;
+	private boolean enabled = false;
 
-    private boolean fallback = false;
+	public boolean isEnabled() {
+		return enabled;
+	}
 
-    private boolean init = false;
+	// Polling rate optimized for gaming (approx 50Hz / 20ms)
+	private static final int delay = SensorManager.SENSOR_DELAY_GAME;
 
-    private boolean enabled = false;
+	public TiltSensor() {}
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+	@SuppressLint("InlinedApi")
+	public void enable() {
+		if (!enabled && mm != null && mm.getPrefsHelper().isTiltSensorEnabled()) {
+			SensorManager man = (SensorManager) mm.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+			Sensor acc_sensor = null;
 
-    // Change this to make the sensors respond quicker, or slower:
-    private static final int delay = SensorManager.SENSOR_DELAY_GAME;
+			// Prefer the hardware Gravity sensor as it excludes linear acceleration (user shaking the device)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+				acc_sensor = man.getDefaultSensor(Sensor.TYPE_GRAVITY);
+			}
 
-    public TiltSensor() {
+			// Fallback to raw Accelerometer for very old or budget devices
+			if (acc_sensor == null) {
+				acc_sensor = man.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+				fallback = true;
+			}
+			enabled = man.registerListener(listen, acc_sensor, delay);
+		}
+	}
 
-    }
+	public void disable() {
+		if (enabled && mm != null) {
+			SensorManager man = (SensorManager) mm.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+			man.unregisterListener(listen);
+			enabled = false;
+		}
+	}
 
-    @SuppressLint("InlinedApi")
-    public void enable() {
+	int old_x = 0;
+	int old_y = 0;
 
-        if (!enabled) {
-            if (mm == null)
-                return;
-            if (!mm.getPrefsHelper().isTiltSensorEnabled())
-                return;
-            SensorManager man = (SensorManager) mm.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+	protected void reset() {
+		old_x = 0;
+		old_y = 0;
+		tilt_x = 0;
+		tilt_z = 0;
+		mm.getInputHandler().digital_data[0] = 0;
+		Emulator.setDigitalData(0, 0);
+		mm.getInputHandler().getTouchController().handleImageStates(true, mm.getInputHandler().digital_data);
+		rx = 0;
+		ry = 0;
+		Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, 0, 0, 0);
+	}
 
-            Sensor acc_sensor = null;
+	// Primary sensor callback.
+	private final SensorEventListener listen = new SensorEventListener() {
+		public void onSensorChanged(SensorEvent e) {
+			if (mm == null) return;
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD)
-                acc_sensor = man.getDefaultSensor(Sensor.TYPE_GRAVITY);
+			PrefsHelper pH = mm.getPrefsHelper();
 
-            if (acc_sensor == null) {
-                acc_sensor = man.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                fallback = true;
-            }
-            enabled = man.registerListener(listen, acc_sensor, delay);
-        }
+			// Low-Pass Filter (LPF) constant for the raw accelerometer fallback
+			final float alpha = 0.1f;
 
-    }
+			float value_x = -e.values[0];
+			float value_z = pH.isTiltSwappedYZ() ? e.values[1] : e.values[2];
 
-    synchronized public void disable() {
-        if (enabled) {
-            SensorManager man = (SensorManager) mm.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
-            man.unregisterListener(listen);
-            enabled = false;
-        }
-    }
+			// Compensate for the physical orientation of the display
+			try {
+				int rotation = mm.getWindowManager().getDefaultDisplay().getRotation();
+				switch (rotation) {
+					case Surface.ROTATION_0:   value_x = -e.values[0]; break;
+					case Surface.ROTATION_90:  value_x =  e.values[1]; break;
+					case Surface.ROTATION_180: value_x =  e.values[0]; break;
+					case Surface.ROTATION_270: value_x = -e.values[1]; break;
+				}
+			} catch (Throwable ignored) {}
 
-    int old_x = 0;
-    int old_y = 0;
+			// Apply Low-Pass Filter ONLY if using the raw accelerometer.
+			// This mathematically strips out sudden shaking, isolating gravity.
+			if (fallback) {
+				tilt_x = alpha * tilt_x + (1 - alpha) * value_x;
+				tilt_z = alpha * tilt_z + (1 - alpha) * value_z;
+			} else {
+				tilt_x = value_x;
+				tilt_z = value_z;
+			}
 
-    protected void reset() {
-        old_x = 0;
-        old_y = 0;
-        tilt_x = 0;
-        tilt_z = 0;
-        mm.getInputHandler().digital_data[0] = 0;
-        Emulator.setDigitalData(0, 0);
-        mm.getInputHandler().getTouchController().handleImageStates(true,mm.getInputHandler().digital_data);
-        rx = 0;
-        ry = 0;
-        Emulator.setAnalogData(0, 0, 0);
-    }
+			if (pH.isTiltInvertedX()) {
+				tilt_x *= -1;
+			}
 
-    // Special class used to handle sensor events:
-    private final SensorEventListener listen = new SensorEventListener() {
-        synchronized public void onSensorChanged(SensorEvent e) {
+			float deadZone = getDZ();
+			boolean run = Emulator.isInGameButNotInMenu() && !Emulator.isPaused();
 
-            if (mm == null) return;
+			if (run) {
+				if (!init) {
+					reset();
+					init = true;
+				}
 
-            PrefsHelper pH = mm.getPrefsHelper();
+				// Prevent accidental tilt inputs while the user is inserting coins or starting a game
+				boolean skip = (mm.getInputHandler().digital_data[0] & IController.COIN_VALUE) != 0 ||
+					(mm.getInputHandler().digital_data[0] & IController.START_VALUE) != 0;
 
-            final float alpha = 0.1f;
-            //final float alpha = 0.3f;
-            float value_x = -e.values[0];
-            float value_z;
+				// --- X AXIS (Horizontal) ---
+				if (Math.abs(tilt_x) < deadZone || skip) {
+					mm.getInputHandler().digital_data[0] &= ~IController.LEFT_VALUE;
+					mm.getInputHandler().digital_data[0] &= ~IController.RIGHT_VALUE;
+					old_x = 0;
+					rx = 0;
+				} else if (tilt_x < 0) {
+					mm.getInputHandler().digital_data[0] |= IController.LEFT_VALUE;
+					mm.getInputHandler().digital_data[0] &= ~IController.RIGHT_VALUE;
+					old_x = 1;
+				} else {
+					mm.getInputHandler().digital_data[0] &= ~IController.LEFT_VALUE;
+					mm.getInputHandler().digital_data[0] |= IController.RIGHT_VALUE;
+					old_x = 2;
+				}
 
-            if (pH.isTiltSwappedYZ())
-                value_z = e.values[1];
-            else
-                value_z = e.values[2];
+				// --- Z AXIS (Vertical / Pitch) ---
+				float neutralZ = getNeutralPos();
 
-            try {
-                int r = mm.getWindowManager().getDefaultDisplay().getRotation();
+				if (Math.abs(tilt_z - neutralZ) < deadZone || skip) {
+					mm.getInputHandler().digital_data[0] &= ~IController.UP_VALUE;
+					mm.getInputHandler().digital_data[0] &= ~IController.DOWN_VALUE;
+					old_y = 0;
+					ry = 0;
+				} else if ((tilt_z - neutralZ) > 0) {
+					mm.getInputHandler().digital_data[0] |= IController.UP_VALUE;
+					mm.getInputHandler().digital_data[0] &= ~IController.DOWN_VALUE;
+					old_y = 1;
+				} else {
+					mm.getInputHandler().digital_data[0] &= ~IController.UP_VALUE;
+					mm.getInputHandler().digital_data[0] |= IController.DOWN_VALUE;
+					old_y = 2;
+				}
 
-                if (r == Surface.ROTATION_0)
-                    value_x = -e.values[0];
-                else if (r == Surface.ROTATION_90)
-                    value_x = e.values[1];
-                else if (r == Surface.ROTATION_180)
-                    value_x = e.values[0];
-                else
-                    value_x = -e.values[1];
-            } catch (Throwable ee) {
-            }
+				Emulator.setDigitalData(0, mm.getInputHandler().digital_data[0]);
+				mm.getInputHandler().getTouchController().handleImageStates(true, mm.getInputHandler().digital_data);
 
-            //low pass filter to get gravity
-            if (fallback) {
-                tilt_x = alpha * tilt_x + (1 - alpha) * value_x;
-                tilt_z = alpha * tilt_z + (1 - alpha) * value_z;
-            } else {
-                tilt_x = value_x;
-                tilt_z = value_z;
-            }
+				// --- ANALOG MAPPING ---
+				if (pH.isTiltAnalog() && !skip) {
+					if (Math.abs(tilt_x) >= deadZone) {
+						rx = tilt_x / getSensitivity();
+						rx = Math.max(-1.0f, Math.min(1.0f, rx)); // Clamp strictly to [-1.0, 1.0]
+					}
 
-            if (pH.isTiltInvertedX())
-                tilt_x *= -1;
+					if (Math.abs(tilt_z - neutralZ) >= deadZone) {
+						ry = (tilt_z - neutralZ) / getSensitivity();
+						ry = Math.max(-1.0f, Math.min(1.0f, ry)); // Clamp strictly to [-1.0, 1.0]
+					}
+				}
 
-            float deadZone = getDZ();
+				Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, 0, rx, ry);
+			}
 
-            boolean run = Emulator.isInGameButNotInMenu() && !Emulator.isPaused();
+			if (!run) {
+				if (old_x != 0 || old_y != 0) reset();
+				init = false;
+			}
 
-            if (run) {
-                if (!init) {
-                    reset();
-                    init = true;
-                }
+			// OSD Debug telemetry
+			if (Emulator.isDebug()) {
+				ang_x = (float) Math.toDegrees(Math.atan(9.81f / tilt_x) * 2);
+				ang_x = ang_x < 0 ? -(ang_x + 180) : 180 - ang_x;
+				ang_z = (float) Math.toDegrees(Math.atan(9.81f / tilt_z) * 2);
+				str = df.format(rx) + " " + df.format(tilt_x) + " " + df.format(ang_x) + " " + df.format(ry) + " " + df.format(tilt_z) + " " + df.format(ang_z);
+				mm.getInputView().invalidate();
+			}
+		}
 
-                boolean skip = (mm.getInputHandler().digital_data[0] & IController.COIN_VALUE) != 0 ||
-                        (mm.getInputHandler().digital_data[0] & IController.START_VALUE) != 0;//avoid player 2,3,4 start or coin
+		public void onAccuracyChanged(Sensor event, int res) {}
+	};
 
-                if (Math.abs(tilt_x) < deadZone || skip) {
-                    mm.getInputHandler().digital_data[0] &= ~IController.LEFT_VALUE;
-                    mm.getInputHandler().digital_data[0] &= ~IController.RIGHT_VALUE;
-                    old_x = 0;
-                    rx = 0;
-                } else if (tilt_x < 0) {
-                    mm.getInputHandler().digital_data[0] |= IController.LEFT_VALUE;
-                    mm.getInputHandler().digital_data[0] &= ~IController.RIGHT_VALUE;
-                    old_x = 1;
-                } else {
-                    mm.getInputHandler().digital_data[0] &= ~IController.LEFT_VALUE;
-                    mm.getInputHandler().digital_data[0] |= IController.RIGHT_VALUE;
-                    old_x = 2;
-                }
+	protected float getDZ() {
+		switch (mm.getPrefsHelper().getTiltDZ()) {
+			case 1: return 0.0f;
+			case 2: return 0.1f;
+			case 3: return 0.25f;
+			case 4: return 0.5f;
+			case 5: return 1.5f;
+			default: return 0.0f;
+		}
+	}
 
-                float a = getNeutralPos();
+	protected float getSensitivity() {
+		switch (mm.getPrefsHelper().getTiltSensitivity()) {
+			case 10: return 1.0f;
+			case 9:  return 1.5f;
+			case 8:  return 2.0f;
+			case 7:  return 2.5f;
+			case 6:  return 3.0f;
+			case 5:  return 3.5f;
+			case 4:  return 4.0f;
+			case 3:  return 4.5f;
+			case 2:  return 5.0f;
+			case 1:  return 5.5f;
+			default: return 3.0f;
+		}
+	}
 
-                if (Math.abs(tilt_z - a) < deadZone || skip) {
-                    mm.getInputHandler().digital_data[0] &= ~IController.UP_VALUE;
-                    mm.getInputHandler().digital_data[0] &= ~IController.DOWN_VALUE;
-                    old_y = 0;
-                    ry = 0;
-                } else if (tilt_z - a > 0) {
-                    mm.getInputHandler().digital_data[0] |= IController.UP_VALUE;
-                    mm.getInputHandler().digital_data[0] &= ~IController.DOWN_VALUE;
-                    old_y = 1;
-                } else {
-                    mm.getInputHandler().digital_data[0] &= ~IController.UP_VALUE;
-                    mm.getInputHandler().digital_data[0] |= IController.DOWN_VALUE;
-                    old_y = 2;
-                }
-
-                Emulator.setDigitalData(0, mm.getInputHandler().digital_data[0]);
-                mm.getInputHandler().getTouchController().handleImageStates(true,mm.getInputHandler().digital_data);
-
-                if (pH.isTiltAnalog() && !skip) {
-                    if (Math.abs(tilt_x) >= deadZone) {
-                        rx = ((float) (tilt_x - 0) / (float) (getSensitivity() - 0));
-                        if (rx > 1.0f) rx = 1.0f;
-                        if (rx < -1.0f) rx = -1.0f;
-                    }
-
-                    if (Math.abs(tilt_z - a) >= deadZone) {
-                        ry = ((float) (tilt_z - a - 0) / (float) (getSensitivity() - 0));
-                        if (ry > 1.0f) ry = 1.0f;
-                        if (ry < -1.0f) ry = -1.0f;
-                    }
-                }
-
-                Emulator.setAnalogData(0, rx, ry);
-            }
-
-            if (!run) {
-                if (old_x != 0 || old_y != 0)
-                    reset();
-                init = false;
-            }
-
-            if (Emulator.isDebug()) {
-                ang_x = (float) Math.toDegrees(Math.atan(9.81f / tilt_x) * 2);
-                ang_x = ang_x < 0 ? -(ang_x + 180) : 180 - ang_x;
-                ang_z = (float) Math.toDegrees(Math.atan(9.81f / tilt_z) * 2);
-                str = df.format(rx) + " " + df.format(tilt_x) + " " + df.format(ang_x) + " " + df.format(ry) + " " + df.format(tilt_z) + " " + df.format(ang_z);
-                mm.getInputView().invalidate();
-            }
-        }
-
-        public void onAccuracyChanged(Sensor event, int res) {
-        }
-    };
-
-    protected float getDZ() {
-        float v = 0;
-        switch (mm.getPrefsHelper().getTiltDZ()) {
-            case 1:
-                v = 0.0f;
-                break;
-            case 2:
-                v = 0.1f;
-                break;
-            case 3:
-                v = 0.25f;
-                break;
-            case 4:
-                v = 0.5f;
-                break;
-            case 5:
-                v = 1.5f;
-                break;
-        }
-        return v;
-    }
-
-    protected float getSensitivity() {
-        float v = 0;
-        switch (mm.getPrefsHelper().getTiltSensitivity()) {
-            case 10:
-                v = 1.0f;
-                break;
-            case 9:
-                v = 1.5f;
-                break;
-            case 8:
-                v = 2.0f;
-                break;
-            case 7:
-                v = 2.5f;
-                break;
-            case 6:
-                v = 3.0f;
-                break;
-            case 5:
-                v = 3.5f;
-                break;
-            case 4:
-                v = 4.0f;
-                break;
-            case 3:
-                v = 4.5f;
-                break;
-            case 2:
-                v = 5.0f;
-                break;
-            case 1:
-                v = 5.5f;
-                break;
-        }
-        return v;
-    }
-
-    protected float getNeutralPos() {
-        float v = 0;
-        switch (mm.getPrefsHelper().getTiltVerticalNeutralPos()) {
-            case 0:
-                v = 0.0f;
-                break;
-            case 1:
-                v = 1.09f;
-                break;
-            case 2:
-                v = 2.18f;
-                break;
-            case 3:
-                v = 3.27f;
-                break;
-            case 4:
-                v = 4.36f;
-                break;
-            case 5:
-                v = 5.0f;
-                break;
-            case 6:
-                v = 5.45f;
-                break;
-            case 7:
-                v = 6.54f;
-                break;
-            case 8:
-                v = 7.63f;
-                break;
-            case 9:
-                v = 8.72f;
-                break;
-            case 10:
-                v = 9.81f;
-                break;
-        }
-        return v;
-    }
+	protected float getNeutralPos() {
+		switch (mm.getPrefsHelper().getTiltVerticalNeutralPos()) {
+			case 0:  return 0.0f;
+			case 1:  return 1.09f;
+			case 2:  return 2.18f;
+			case 3:  return 3.27f;
+			case 4:  return 4.36f;
+			case 5:  return 5.0f;
+			case 6:  return 5.45f;
+			case 7:  return 6.54f;
+			case 8:  return 7.63f;
+			case 9:  return 8.72f;
+			case 10: return 9.81f;
+			default: return 0.0f;
+		}
+	}
 }

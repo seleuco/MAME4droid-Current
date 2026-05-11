@@ -122,14 +122,27 @@ void my_osd_interface::input_init()
         joystick->add_item("RY Axis", "", ITEM_ID_RYAXIS, get_axis_neg, &g_input.joy_analog[i][MYOSD_AXIS_RY]);
         joystick->add_item("RZ Axis", "", ITEM_ID_RZAXIS, get_axis,     &g_input.joy_analog[i][MYOSD_AXIS_RZ]);
 
-        assignments.emplace_back(IPT_JOYSTICKLEFT_LEFT,SEQ_TYPE_STANDARD,
-                input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_LEFT, ITEM_ID_RXAXIS)));
+
+		//left (ppal)
+		assignments.emplace_back(IPT_JOYSTICKLEFT_LEFT,SEQ_TYPE_STANDARD,
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_LEFT, ITEM_ID_XAXIS)));
         assignments.emplace_back(IPT_JOYSTICKLEFT_RIGHT,SEQ_TYPE_STANDARD,
-                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_RIGHT, ITEM_ID_RXAXIS)));
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_RIGHT, ITEM_ID_XAXIS)));
         assignments.emplace_back(IPT_JOYSTICKLEFT_UP,SEQ_TYPE_STANDARD,
-                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_UP, ITEM_ID_RYAXIS)));
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_UP, ITEM_ID_YAXIS)));
         assignments.emplace_back(IPT_JOYSTICKLEFT_DOWN,SEQ_TYPE_STANDARD,
-                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_DOWN, ITEM_ID_RYAXIS)));
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_DOWN, ITEM_ID_YAXIS)));
+								 							 
+		//right
+        assignments.emplace_back(IPT_JOYSTICKRIGHT_LEFT,SEQ_TYPE_STANDARD,
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RXAXIS)));
+        assignments.emplace_back(IPT_JOYSTICKRIGHT_RIGHT,SEQ_TYPE_STANDARD,
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RXAXIS)));
+        assignments.emplace_back(IPT_JOYSTICKRIGHT_UP,SEQ_TYPE_STANDARD,
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RYAXIS)));
+        assignments.emplace_back(IPT_JOYSTICKRIGHT_DOWN,SEQ_TYPE_STANDARD,
+                                 input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RYAXIS)));								 
+						 
 
         assignments.emplace_back(IPT_POSITIONAL,SEQ_TYPE_INCREMENT,
                                  input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, ITEM_ID_BUTTON5)));
@@ -411,7 +424,7 @@ void my_osd_interface::input_update(bool relative_reset)
     // and call host
     if (m_callbacks.input_poll != nullptr)
         m_callbacks.input_poll(relative_reset,&g_input, sizeof(g_input));
-
+	
     // see if host requested an exit or reset
     if (g_input.keyboard[MYOSD_KEY_EXIT] != 0 && !machine().exit_pending())
         machine().schedule_exit();
@@ -573,19 +586,19 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
             // allow the DPAD to move the UI
             case IPT_UI_UP:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1UP_INDEXED(0);
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_NEG_SWITCH_INDEXED(0);
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_UP_SWITCH_INDEXED(0);
                 break;
             case IPT_UI_DOWN:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1DOWN_INDEXED(0);
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_POS_SWITCH_INDEXED(0);
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_DOWN_SWITCH_INDEXED(0);
                 break;
             case IPT_UI_LEFT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1LEFT_INDEXED(0);
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_NEG_SWITCH_INDEXED(0);
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_LEFT_SWITCH_INDEXED(0);
                 break;
             case IPT_UI_RIGHT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1RIGHT_INDEXED(0);
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_POS_SWITCH_INDEXED(0);
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_RIGHT_SWITCH_INDEXED(0);
                 break;
 
             /* allow L1 and R1 to move pages in MAME UI */
@@ -608,58 +621,55 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
                 entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_V_POS_SWITCH_INDEXED(0);
                 break;
 
-            /* these are mostly the same as MAME defaults, except we add dpad to them */
-            case IPT_JOYSTICK_UP:
-            case IPT_JOYSTICKLEFT_UP:
+            /* LEFT Joystick these are mostly the same as MAME defaults, except we add dpad to them */
+			case IPT_JOYSTICK_UP:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1UP_INDEXED(entry.player());
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_NEG_SWITCH_INDEXED(entry.player());
-
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_UP_SWITCH_INDEXED(entry.player());
                 break;
             case IPT_JOYSTICK_DOWN:
-            case IPT_JOYSTICKLEFT_DOWN:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1DOWN_INDEXED(entry.player());
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_POS_SWITCH_INDEXED(entry.player());
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_DOWN_SWITCH_INDEXED(entry.player());
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_DOWN_SWITCH_INDEXED(entry.player());
                 break;
             case IPT_JOYSTICK_LEFT:
-            case IPT_JOYSTICKLEFT_LEFT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1LEFT_INDEXED(entry.player());
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_NEG_SWITCH_INDEXED(entry.player());
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_LEFT_SWITCH_INDEXED(entry.player());
-
-                /*
-                constexpr input_code JOYCODE_X_LEFT_SWITCH_INDEXED(int n)
-                { return input_code(DEVICE_CLASS_JOYSTICK, n, ITEM_CLASS_SWITCH, ITEM_MODIFIER_LEFT, ITEM_ID_XAXIS); }
-                input_seq(make_code(ITEM_CLASS_SWITCH, ITEM_MODIFIER_LEFT, axisactual[0])));
-                 */
-
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_LEFT_SWITCH_INDEXED(entry.player());
                 break;
             case IPT_JOYSTICK_RIGHT:
-            case IPT_JOYSTICKLEFT_RIGHT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1RIGHT_INDEXED(entry.player());
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_POS_SWITCH_INDEXED(entry.player());
-
-                //KKK
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_LEFT_SWITCH_INDEXED(entry.player());
-
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_RIGHT_SWITCH_INDEXED(entry.player());
                 break;
 
-            //map right stick to buttons so dual games like robotron could be played
-            case IPT_JOYSTICKRIGHT_UP:
+            /* --- TWIN-STICK (Smash TV, Total Carnage, etc.) --- */
+            case IPT_JOYSTICKLEFT_UP:
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1UP_INDEXED(entry.player());
+                break;
+            case IPT_JOYSTICKLEFT_DOWN:
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1DOWN_INDEXED(entry.player());
+                break;
+            case IPT_JOYSTICKLEFT_LEFT:
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1LEFT_INDEXED(entry.player());
+                break;
+            case IPT_JOYSTICKLEFT_RIGHT:
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_HAT1RIGHT_INDEXED(entry.player());
+                break;
+								
+			//RIGHT Joystick 
+			//also map right stick to buttons so dual games like robotron could be played? should be configurable or only triger by touch
+			case IPT_JOYSTICKRIGHT_UP:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON4_INDEXED(entry.player());
+                //entry.defseq(SEQ_TYPE_STANDARD) |= input_code(DEVICE_CLASS_JOYSTICK, entry.player(), ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RYAXIS);
                 break;
             case IPT_JOYSTICKRIGHT_DOWN:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON2_INDEXED(entry.player());
+                //entry.defseq(SEQ_TYPE_STANDARD) |= input_code(DEVICE_CLASS_JOYSTICK, entry.player(), ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RYAXIS);
                 break;
             case IPT_JOYSTICKRIGHT_LEFT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON3_INDEXED(entry.player());
+                //entry.defseq(SEQ_TYPE_STANDARD) |= input_code(DEVICE_CLASS_JOYSTICK, entry.player(), ITEM_CLASS_SWITCH, ITEM_MODIFIER_NEG, ITEM_ID_RXAXIS);
                 break;
             case IPT_JOYSTICKRIGHT_RIGHT:
                 entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON1_INDEXED(entry.player());
-
-                //KKK
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_LEFT_SWITCH_INDEXED(entry.player());
-
+                //entry.defseq(SEQ_TYPE_STANDARD) |= input_code(DEVICE_CLASS_JOYSTICK, entry.player(), ITEM_CLASS_SWITCH, ITEM_MODIFIER_POS, ITEM_ID_RXAXIS);
                 break;
 
             //map adstick,dial, trackball
@@ -669,7 +679,7 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
             case IPT_DIAL_V:
             case IPT_PADDLE_V:
             //case IPT_POSITIONAL_V:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_INDEXED(entry.player());
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_INDEXED(entry.player());
                 if(entry.type()!=IPT_LIGHTGUN_Y) {
                     entry.defseq(SEQ_TYPE_INCREMENT) |= JOYCODE_HAT1DOWN_INDEXED(entry.player());
                     entry.defseq(SEQ_TYPE_DECREMENT) |= JOYCODE_HAT1UP_INDEXED(entry.player());
@@ -680,7 +690,7 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
             case IPT_LIGHTGUN_X:
             case IPT_DIAL:
             case IPT_PADDLE:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_INDEXED(entry.player());
+				entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_INDEXED(entry.player());
                 if(entry.type()!=IPT_LIGHTGUN_X) {
                     entry.defseq(SEQ_TYPE_INCREMENT) |= JOYCODE_HAT1RIGHT_INDEXED(entry.player());
                     entry.defseq(SEQ_TYPE_DECREMENT) |= JOYCODE_HAT1LEFT_INDEXED(entry.player());
@@ -701,11 +711,12 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
                 //entry.defseq(SEQ_TYPE_DECREMENT) |= JOYCODE_BUTTON6_INDEXED(entry.player());
                 break;
             case IPT_MOUSE_X:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_U_INDEXED(entry.player());
+				entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_X_INDEXED(entry.player());
                 entry.defseq(SEQ_TYPE_INCREMENT) |= JOYCODE_HAT1RIGHT_INDEXED(entry.player());
                 entry.defseq(SEQ_TYPE_DECREMENT) |= JOYCODE_HAT1LEFT_INDEXED(entry.player());
+				break;
             case IPT_MOUSE_Y:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_V_INDEXED(entry.player());
+				entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_Y_INDEXED(entry.player());
                 entry.defseq(SEQ_TYPE_INCREMENT) |= JOYCODE_HAT1DOWN_INDEXED(entry.player());
                 entry.defseq(SEQ_TYPE_DECREMENT) |= JOYCODE_HAT1UP_INDEXED(entry.player());
 

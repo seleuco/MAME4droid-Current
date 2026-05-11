@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,16 +57,14 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.seleuco.mame4droid.R;
 import com.seleuco.mame4droid.input.GameController;
-import com.seleuco.mame4droid.input.InputHandler;
 
 public class ListKeys extends ListActivity {
 
 	public static final String[] androidKeysLabels = {
 		/* 0 - 9*/
 		"UNKNOWN", "SOFT_LEFT","SOFT_RIGHT", "HOME", "BACK", "CALL", "ENDCALL", "0", "1", "2",
-        /* 10 - 19*/
+		/* 10 - 19*/
 		"3", "4", "5", "6", "7", "8", "9", "STAR", "POUND", "DPAD_UP",
 		/* 20 - 29*/
 		"DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "DPAD_CENTER", "VOLUME_UP","VOLUME_DOWN", "POWER", "CAMERA", "CLEAR", "A",
@@ -106,65 +104,112 @@ public class ListKeys extends ListActivity {
 		"BUTTON_3","BUTTON_4","BUTTON_5","BUTTON_6","BUTTON_7","BUTTON_8","BUTTON_9","BUTTON_10","BUTTON_11","BUTTON_12",
 		/* 200 - 204*/
 		"BUTTON_13","BUTTON_14","BUTTON_15","BUTTON_16"
-		};
-
+	};
 
 	public static final String[] emulatorInputLabels = {
-        "Up",
-        "Down",
-        "Left",
-        "Right",
-        "Button A",
-        "Button B",
-        "Button C",
-        "Button D",
-        "Button E",
-        "Button F",
-		"Button G",
-		"Button H",
-        "Coin",
-        "Start",
-        "Exit",
-        "Option",
+		"Up", "Down", "Left", "Right",
+		"Button A", "Button B", "Button C", "Button D",
+		"Button E", "Button F", "Button G", "Button H",
+		"Coin", "Start", "Exit", "Option",
 	};
 
 	protected int emulatorInputIndex = 0;
-	protected int playerIndex = 0;
+	protected int controllerIndex = 0;
+
+	private ArrayAdapter<String> keyLabelsAdapter;
 
 	@Override
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
 
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND,
-				WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+			WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
 
-		playerIndex = getIntent().getIntExtra("playerIndex", 0);
-
-		setTitle("MAME4droid Player "+(playerIndex+1)+" keys");
+		controllerIndex = getIntent().getIntExtra("controllerIndex", 0);
+		setTitle("MAME4droid Controller " + (controllerIndex + 1) + " buttons");
 
 		drawListAdapter();
 	}
 
 	private void drawListAdapter() {
-		final Context context = this;
+		if (keyLabelsAdapter == null) {
+			final Context context = this;
 
-		ArrayAdapter<String> keyLabelsAdapter = new ArrayAdapter<String>(this,
-				android.R.layout.simple_list_item_1, ListKeys.emulatorInputLabels) {
-			@Override
-			public View getView(final int position, final View convertView,
-					final ViewGroup parent) {
-				return new Modified(context, getItem(position), (playerIndex * emulatorInputLabels.length)+ position);
-			}
-		};
+			keyLabelsAdapter = new ArrayAdapter<String>(this, 0, emulatorInputLabels) {
+				@Override
+				public View getView(int position, View convertView, ViewGroup parent) {
+					LinearLayout layout;
+					TextView leftText;
+					TextView rightText;
 
-		setListAdapter(keyLabelsAdapter);
+					if (convertView == null) {
+						layout = new LinearLayout(context);
+						layout.setOrientation(LinearLayout.HORIZONTAL);
+						layout.setGravity(Gravity.CENTER_VERTICAL);
+
+						int paddingHorizontal = (int) (16 * getResources().getDisplayMetrics().density);
+						int minHeight = (int) (56 * getResources().getDisplayMetrics().density);
+
+						layout.setPadding(paddingHorizontal, 0, paddingHorizontal, 0);
+						layout.setMinimumHeight(minHeight);
+
+						// Text("Button A")
+						leftText = new TextView(context);
+						leftText.setId(android.R.id.text1);
+						leftText.setTextAppearance(context, android.R.style.TextAppearance_Medium);
+						leftText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+						// Text ("ID 9999 : BUTTON_A")
+						rightText = new TextView(context);
+						rightText.setId(android.R.id.text2);
+						rightText.setTextAppearance(context, android.R.style.TextAppearance_Small);
+						rightText.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+						rightText.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+						layout.addView(leftText);
+						layout.addView(rightText);
+					} else {
+						layout = (LinearLayout) convertView;
+						leftText = layout.findViewById(android.R.id.text1);
+						rightText = layout.findViewById(android.R.id.text2);
+					}
+
+					int mapPosition = (controllerIndex * emulatorInputLabels.length) + position;
+					leftText.setText(getItem(position));
+
+					int mappedValue = GameController.keyMapping[mapPosition];
+
+					if (mappedValue != -1) {
+						String label = "???";
+						int idx = GameController.getKeyCodeFromKeyCodeWithDeviceID(mappedValue);
+
+						if (idx < androidKeysLabels.length) {
+							label = androidKeysLabels[idx];
+						}
+
+						rightText.setText(String.format("ID %d : %s",
+							GameController.getDeviceIdFromKeyCodeWithDeviceID(mappedValue),
+							label
+						));
+					} else {
+						rightText.setText("Not mapped");
+					}
+
+					return layout;
+				}
+			};
+
+			setListAdapter(keyLabelsAdapter);
+		} else {
+			keyLabelsAdapter.notifyDataSetChanged();
+		}
 	}
 
 	@Override
 	public void onListItemClick(ListView parent, View v, int position, long id) {
 		emulatorInputIndex = position;
 		startActivityForResult(new Intent(this, KeySelect.class).putExtra(
-				"emulatorInputIndex", emulatorInputIndex), 0);
+			"emulatorInputIndex", emulatorInputIndex), 0);
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -172,78 +217,17 @@ public class ListKeys extends ListActivity {
 
 		if (resultCode == RESULT_OK && requestCode == 0) {
 			int androidKeyCode = data.getIntExtra("androidKeyCode", 0);
-
 			int androidGamePadID = data.getIntExtra("androidGamePadID", 0);
 			int iKeyCodeWithDeviceId = GameController.makeKeyCodeWithDeviceID(androidGamePadID, androidKeyCode);
 
 			for (int i = 0; i < GameController.keyMapping.length; i++) {
-				//if (InputHandler.keyMapping[i] == androidKeyCode)
 				if (GameController.keyMapping[i] == iKeyCodeWithDeviceId)
 					GameController.keyMapping[i] = -1;
 			}
 
-		   //InputHandler.keyMapping[(playerIndex * emulatorInputLabels.length)+ emulatorInputIndex] = androidKeyCode;
-			GameController.keyMapping[(playerIndex * emulatorInputLabels.length)+ emulatorInputIndex] = iKeyCodeWithDeviceId;
+			GameController.keyMapping[(controllerIndex * emulatorInputLabels.length) + emulatorInputIndex] = iKeyCodeWithDeviceId;
 		}
+
 		drawListAdapter();
 	}
 }
-
-class Modified extends LinearLayout {
-
-
-	public Modified(final Context context, final String keyLabel,
-			final int position) {
-		super(context);
-
-		if (keyLabel != null) {
-
-			setOrientation(HORIZONTAL);
-
-			final TextView textView = new TextView(context);
-			textView.setTextAppearance(context, R.style.ListText);
-
-
-			final TextView textView2 = new TextView(context);
-			textView2.setTextAppearance(context, R.style.ListTextSmall);
-
-
-			textView.setText(keyLabel);
-			textView.setPadding(60, 0, 0, 0);
-
-			textView2.setText("?");
-
-			if (GameController.keyMapping[position] != -1 /*&& InputHandler.keyMapping[position] > 0*/)
-			{
-				String label = "???";
-
-				int idx = GameController.getKeyCodeFromKeyCodeWithDeviceID(GameController.keyMapping[position]);
-
-				if(idx < ListKeys.androidKeysLabels.length)
-				   label = ListKeys.androidKeysLabels[idx];
-
-				textView2.setText(String.format("%d : %s"
-						, GameController.getDeviceIdFromKeyCodeWithDeviceID(GameController.keyMapping[position])
-						, label
-						)
-		        );
-				//textView2.setText(ListKeys.androidKeysLabels[InputHandler.keyMapping[position]]);
-			}
-			textView2.setGravity(Gravity.RIGHT);
-			textView2.setPadding(0, 0, 60, 0);
-
-			addView(textView, new LinearLayout.LayoutParams(
-					LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
-			addView(textView2, new LinearLayout.LayoutParams(
-					LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-
-		} else {
-
-			final View hiddenView = new View(context);
-			hiddenView.setVisibility(INVISIBLE);
-			addView(hiddenView, new LinearLayout.LayoutParams(0, 0));
-
-		}
-	}
-}
-

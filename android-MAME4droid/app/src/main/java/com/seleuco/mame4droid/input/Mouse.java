@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ package com.seleuco.mame4droid.input;
 
 import android.graphics.Color;
 import android.view.MotionEvent;
-import android.widget.Toast;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
@@ -55,20 +54,20 @@ import com.seleuco.mame4droid.widgets.WarnWidget;
 public class Mouse implements IController {
 
 	protected boolean isMouseEnabled = false;
+
 	public boolean isEnabled() {
 		return isMouseEnabled;
 	}
 
 	protected MAME4droid mm = null;
 
-    public void setMAME4droid(MAME4droid value) {
-        mm = value;
-    }
+	public void setMAME4droid(MAME4droid value) {
+		mm = value;
+	}
 
 	public boolean handleMouse(MotionEvent event) {
 
-		//Log.d("MOUSEB", event.toString());
-
+		// Display OSD feedback only on the first hardware mouse interaction
 		if (!isMouseEnabled) {
 			isMouseEnabled = true;
 			CharSequence text = "Mouse is enabled!";
@@ -78,40 +77,38 @@ public class Mouse implements IController {
 			mm.getInputHandler().resetInput(true);
 		}
 
-		float cx = event.getX();
-		float cy = event.getY();
 		int aBtn = event.getActionButton();
-		int action = event.getAction();
+		int actionMasked = event.getActionMasked();
 
-		if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+		// --- RELATIVE MOUSE MOVEMENT (Captured Pointer API) ---
+		if (actionMasked == MotionEvent.ACTION_MOVE) {
 
-			float x = event.getX();
-			for (int i = 0; i < event.getHistorySize(); i++) {
-				x += event.getHistoricalX(i);
+			float dx = event.getX();
+			float dy = event.getY();
+
+			// CRITICAL: Android batches high-frequency hardware events (e.g. 1000Hz gaming mice)
+			// per UI frame. We MUST accumulate historical relative deltas, otherwise we lose
+			// sub-frame precision and the mouse movement will feel stuttery.
+			int historySize = event.getHistorySize();
+			for (int i = 0; i < historySize; i++) {
+				dx += event.getHistoricalX(i);
+				dy += event.getHistoricalY(i);
 			}
 
-			float y = event.getY();
-			for (int i = 0; i < event.getHistorySize(); i++) {
-				y += event.getHistoricalY(i);
-			}
-
-			Emulator.setMouseData(0,Emulator.MOUSE_MOVE, 0, x, y);
+			Emulator.setMouseData(0, Emulator.MOUSE_MOVE, 0, dx, dy);
 		}
 
-		//int pressedButtons = event.getButtonState();
-
+		// --- HARDWARE BUTTON ROUTING ---
 		if (aBtn == MotionEvent.BUTTON_PRIMARY) {
-			Emulator.setMouseData(0, action == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 1, -1, -1);
+			Emulator.setMouseData(0, actionMasked == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 1, -1, -1);
 		}
-		if (aBtn == MotionEvent.BUTTON_SECONDARY || aBtn == MotionEvent.BUTTON_BACK) {
-			Emulator.setMouseData(0, action == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 2, -1, -1);
+		else if (aBtn == MotionEvent.BUTTON_SECONDARY || aBtn == MotionEvent.BUTTON_BACK) {
+			Emulator.setMouseData(0, actionMasked == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 2, -1, -1);
 		}
-		if (aBtn == MotionEvent.BUTTON_TERTIARY || aBtn == MotionEvent.BUTTON_FORWARD) {
-			Emulator.setMouseData(0, action == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 3, -1, -1);
+		else if (aBtn == MotionEvent.BUTTON_TERTIARY || aBtn == MotionEvent.BUTTON_FORWARD) {
+			Emulator.setMouseData(0, actionMasked == MotionEvent.ACTION_BUTTON_PRESS ? Emulator.MOUSE_BTN_DOWN : Emulator.MOUSE_BTN_UP, 3, -1, -1);
 		}
 
-		//Log.d("RATON", " cx="+cx+" cy="+cy+" aBtn="+aBtn+" act"+action);
 		return true;
 	}
-
 }

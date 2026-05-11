@@ -1,7 +1,7 @@
 /*
  * This file is part of MAME4droid.
  *
- * Copyright (C) 2024 David Valdeita (Seleuco)
+ * Copyright (C) 2026 David Valdeita (Seleuco)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 
 	protected Keyboard keyboard = new Keyboard();
 	protected TiltSensor tiltSensor = new TiltSensor();
-    protected ControlCustomizer controlCustomizer = new ControlCustomizer();
+	protected ControlCustomizer controlCustomizer = new ControlCustomizer();
 
 	public TouchController getTouchController() {return touchController;}
 	public TouchStick getTouchStick() {return touchStick;}
@@ -84,22 +84,18 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 	public Mouse getMouse() {return mouse;}
 	public Keyboard getKeyboard() {return keyboard;}
 	public GameController getGameController() {return gameController;}
-    public TiltSensor getTiltSensor() {
-        return tiltSensor;
-    }
-    public ControlCustomizer getControlCustomizer() {
-        return controlCustomizer;
-    }
+	public TiltSensor getTiltSensor() { return tiltSensor; }
+	public ControlCustomizer getControlCustomizer() { return controlCustomizer; }
 
-    protected int[] digital_data = new int[4];
+	protected int[] digital_data = new int[4];
 
-    protected MAME4droid mm = null;
+	protected MAME4droid mm = null;
 
-    public InputHandler(MAME4droid value) {
-
-        mm = value;
+	public InputHandler(MAME4droid value) {
+		mm = value;
 		if (mm == null) return;
 
+		// Hook up all sub-handlers to the main emulator context
 		touchController.setMAME4droid(mm);
 		touchStick.setMAME4droid(mm);
 		touchMouse.setMAME4droid(mm);
@@ -111,22 +107,28 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 		tiltSensor.setMAME4droid(mm);
 		controlCustomizer.setMAME4droid(mm);
 
-        resetInput(true);
-    }
+		resetInput(true);
+	}
 
-    public void resetInput(boolean digital) {
-        for (int i = 0; i < 4 * 3; i++) {
-            try {
-				if(digital) {
-					if (i < 4) {
-						digital_data[i] = 0;
-						Emulator.setDigitalData(i, digital_data[i]);
-					}
+	public void resetInput(boolean digital) {
+		// Clear all input states to prevent stuck buttons when pausing or switching games
+		for (int i = 0; i < 4; i++) {
+			try {
+				if (digital) {
+					digital_data[i] = 0;
+					Emulator.setDigitalData(i, digital_data[i]);
 				}
-                Emulator.setAnalogData(i, 0, 0);
-            } catch (Throwable ignored) {
-            }
-        }
+
+				Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, i, 0.0f, 0.0f);
+				Emulator.setAnalogData(Emulator.RIGHT_STICK_DATA, i, 0.0f, 0.0f);
+				Emulator.setAnalogData(Emulator.TRIGGER_DATA, i, 0.0f, 0.0f);
+
+			} catch (Throwable ignored) {}
+		}
+
+		try {
+			Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, 0.0f, 0.0f);
+		} catch (Throwable ignored) {}
 
 		Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 1, -1, -1);
 		Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 2, -1, -1);
@@ -136,57 +138,44 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 		Emulator.setTouchData(0, Emulator.FINGER_UP, -1, -1);
 
 		touchStick.reset();
-    }
+	}
 
 	public void fixTiltCoin() {
+		// Hack to prevent accidental tilt sensor movement while inserting coins or pressing start
 		if (tiltSensor.isEnabled() && ((digital_data[0] & IController.COIN_VALUE) != 0 || (digital_data[0] & IController.START_VALUE) != 0)) {
 			digital_data[0] &= ~IController.LEFT_VALUE;
 			digital_data[0] &= ~IController.RIGHT_VALUE;
 			digital_data[0] &= ~IController.UP_VALUE;
 			digital_data[0] &= ~IController.DOWN_VALUE;
-			Emulator.setAnalogData(0, 0, 0);
+			Emulator.setAnalogData(Emulator.LEFT_STICK_DATA, 0, 0, 0);
 		}
 	}
 
-    public boolean onKey(View v, int keyCode, KeyEvent event) {
-        //Log.d(TAG, "onKeyDown=" + keyCode + " " + event.getAction() + " " + event.getDisplayLabel() + " " + event.getUnicodeChar() + " " + event.getNumber());
-
-		if(event.getSource() == InputDevice.SOURCE_MOUSE_RELATIVE)//TODO parametrize check mouse
-		{
+	public boolean onKey(View v, int keyCode, KeyEvent event) {
+		// Ignore relative mouse movements here (handled by generic motion/pointer events)
+		if(event.getSource() == InputDevice.SOURCE_MOUSE_RELATIVE) {
 			return true;
 		}
 
-		/*
-        if (ControlCustomizer.isEnabled()) {
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                mm.showDialog(DialogHelper.DIALOG_FINISH_CUSTOM_LAYOUT);
-            }
-            return true;
-		}
-        */
+		// 1. Give priority to gamepads and arcade sticks
+		if(gameController.handleGameController(keyCode,event,digital_data))
+			return true;
 
-        if(gameController.handleGameController(keyCode,event,digital_data))
-		   return true;
-
-		if(event.getDevice()!=null && (mm.getPrefsHelper().isVirtualKeyboardEnabled() || mm.getPrefsHelper().isKeyboardEnabled())) {
-
-             if(keyboard.handleKeyboard(keyCode,event))
-				 return true;
+		// 2. Fallback to physical or virtual keyboard
+		if(mm.getPrefsHelper().isVirtualKeyboardEnabled() || mm.getPrefsHelper().isKeyboardEnabled()) {
+			if(keyboard.handleKeyboard(keyCode,event))
+				return true;
 		}
 
-        return false;
-    }
+		return false;
+	}
 
 	@Override
-    public boolean onTouch(View v, MotionEvent event) {
+	public boolean onTouch(View v, MotionEvent event) {
+		if (mm == null) return false;
 
-        //Log.d("touch",event.getRawX()+" "+event.getX()+" "+event.getRawY()+" "+event.getY());
-        if (mm == null /*|| mm.getMainHelper()==null*/) return false;
-
-		//Log.d("Touch",v==mm.getEmuView() ? "EMUVIEW" : v==mm.getInputView() ? "INPUTVIEW": "OTRA");
-
-        if (v == mm.getEmuView() &&
-			touchController.getState() != TouchController.STATE_SHOWING_NONE) {//EMU VIEW WITH TOUCH CONTROLLER
+		if (v == mm.getEmuView() && touchController.getState() != TouchController.STATE_SHOWING_NONE) {
+			// --- TOUCH ON EMU VIEW (Main game screen) ---
 
 			if(mm.getPrefsHelper().isTouchLightgun() && !Emulator.isInMenu()) {
 				touchLightgun.handleTouchLightgun(v, event, digital_data);
@@ -195,147 +184,135 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 
 			if(mm.getPrefsHelper().isTouchMouseEnabled()) {
 				if((mm.getPrefsHelper().isTouchGameMouse() && !Emulator.isInMenu()) ||
-					(!mm.getPrefsHelper().isTouchUI()  && (!Emulator.isInGame() || Emulator.isInMenu()))
-				) {
-						touchMouse.handleTouchMouse(v, event);
-						return true;
+					(!mm.getPrefsHelper().isTouchUI()  && (!Emulator.isInGame() || Emulator.isInMenu()))) {
+					touchMouse.handleTouchMouse(v, event);
+					return true;
 				}
 			}
 
 			if(mm.getPrefsHelper().isTouchUI()) {
-				touchPointer.handleTouchPointer(v,event);
+				touchPointer.handleTouchPointer(v, event);
 				return true;
 			}
 
-            return false;
+			return false;
 
-        } else if (v == mm.getInputView()) { //INPUTVIEW
+		} else if (v == mm.getInputView()) {
+			// --- TOUCH ON INPUT VIEW (On-screen controls overlay) ---
 
-            if (ControlCustomizer.isEnabled()) {
-                controlCustomizer.handleMotion(event);
-                return true;
-            }
+			if (ControlCustomizer.isEnabled()) {
+				controlCustomizer.handleMotion(event);
+				return true;
+			}
 
-            if (touchController.isHandledStick() &&
+			if (touchController.isHandledStick() &&
 				mm.getPrefsHelper().getControllerType() != PrefsHelper.PREF_DIGITAL_DPAD &&
-				!(tiltSensor.isEnabled() && Emulator.isInGameButNotInMenu()))
-                digital_data[0] = touchStick.handleMotion(event, digital_data[0]);
-
-			boolean handled = touchController.handleTouchController(event,digital_data);
-
-            if (!handled && mm.getPrefsHelper().isTouchLightgun() &&
-				(!Emulator.isInMenu() || touchLightgun.getLightgun_pid()!=-1)
-				&& !(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT && !mm.getPrefsHelper().isPortraitFullscreen()
-
-					)
-            ) {
-				touchLightgun.handleTouchLightgun(v, event,digital_data);
-				return true;
+				!(tiltSensor.isEnabled() && Emulator.isInGameButNotInMenu())) {
+				digital_data[0] = touchStick.handleMotion(event, digital_data[0]);
 			}
-			else
 
-			if(!handled && (mm.getPrefsHelper().isTouchMouseEnabled() || mm.getPrefsHelper().isTouchUI())
-				&& !(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT && !mm.getPrefsHelper().isPortraitFullscreen())
-			) {
+			boolean handled = touchController.handleTouchController(event, digital_data);
+
+			// Fallback: Try passing unhandled events to the lightgun/mouse
+			if (!handled && mm.getPrefsHelper().isTouchLightgun() &&
+				(!Emulator.isInMenu() || touchLightgun.getLightgun_pid() != -1) &&
+				!(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT && !mm.getPrefsHelper().isPortraitFullscreen())) {
+
+				touchLightgun.handleTouchLightgun(v, event, digital_data);
+				return true;
+
+			} else if(!handled && (mm.getPrefsHelper().isTouchMouseEnabled() || mm.getPrefsHelper().isTouchUI()) &&
+				!(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT && !mm.getPrefsHelper().isPortraitFullscreen())) {
+
 				if(mm.getPrefsHelper().isTouchMouseEnabled()) {
 					if ((mm.getPrefsHelper().isTouchGameMouse() && !Emulator.isInMenu()) ||
-						(!mm.getPrefsHelper().isTouchUI() && (!Emulator.isInGame() || Emulator.isInMenu()))
-					) {
+						(!mm.getPrefsHelper().isTouchUI() && (!Emulator.isInGame() || Emulator.isInMenu()))) {
 						touchMouse.handleTouchMouse(v, event);
 						return true;
 					}
 				}
 
 				if(mm.getPrefsHelper().isTouchUI()) {
-					touchPointer.handleTouchPointer(v,event);
+					touchPointer.handleTouchPointer(v, event);
 					return true;
 				}
 			}
 
-            //return handled;
-			return true;//capture all events so drag over is handled
-        } else {//OFFSCREEN + EMUVIEW not TOUCH CONTROLLER
+			// Capture all remaining events so sliding/dragging fingers across the screen works smoothly
+			return true;
+
+		} else {
+			// --- OFF-SCREEN OR EMU VIEW (Without touch controller) ---
+			// Very useful for lightgun off-screen reloads
 
 			if ((mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_PORTRAIT &&
-				touchController.getState() != TouchController.STATE_SHOWING_NONE)
-                    ||
-				(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_LANDSCAPE
-					&& touchController.getState() != TouchController.STATE_SHOWING_NONE)) {
+				touchController.getState() != TouchController.STATE_SHOWING_NONE) ||
+				(mm.getMainHelper().getscrOrientation() == Configuration.ORIENTATION_LANDSCAPE &&
+					touchController.getState() != TouchController.STATE_SHOWING_NONE)) {
 
-                if (mm.getPrefsHelper().isTouchLightgun() && !Emulator.isInMenu()) {//OFFSCREEN RELOAD
-                    touchLightgun.handleTouchLightgun(v, event,digital_data);
-                    return true;
-                }
+				if (mm.getPrefsHelper().isTouchLightgun() && !Emulator.isInMenu()) {
+					touchLightgun.handleTouchLightgun(v, event, digital_data);
+					return true;
+				}
 
 				if(mm.getPrefsHelper().isTouchMouseEnabled()) {
 					if((mm.getPrefsHelper().isTouchGameMouse() && !Emulator.isInMenu()) ||
-						(!mm.getPrefsHelper().isTouchUI()  && (!Emulator.isInGame() || Emulator.isInMenu()))
-					) {
+						(!mm.getPrefsHelper().isTouchUI()  && (!Emulator.isInGame() || Emulator.isInMenu()))) {
 						touchMouse.handleTouchMouse(v, event);
 						return true;
 					}
 				}
 
 				if(mm.getPrefsHelper().isTouchUI()) {
-					touchPointer.handleTouchPointer(v,event);
+					touchPointer.handleTouchPointer(v, event);
 					return true;
 				}
 
-                return false;
-            }
+				return false;
+			}
 
-            mm.showDialog(DialogHelper.DIALOG_FULLSCREEN);
-            return true;
-        }
-    }
+			// Failsafe dialog for unhandled edge cases
+			mm.showDialog(DialogHelper.DIALOG_FULLSCREEN);
+			return true;
+		}
+	}
 
 	public boolean capturedPointerEvent(MotionEvent event){
 		return mouse.handleMouse(event);
 	}
 
-    public void setInputListeners() {
+	public void setInputListeners() {
+		// Bind input callbacks to the UI views
+		mm.getEmuView().setOnKeyListener(this);
+		mm.getEmuView().setOnTouchListener(this);
 
-        mm.getEmuView().setOnKeyListener(this);
-        mm.getEmuView().setOnTouchListener(this);
+		mm.getInputView().setOnTouchListener(this);
+		mm.getInputView().setOnKeyListener(this);
+	}
 
-        mm.getInputView().setOnTouchListener(this);
-        mm.getInputView().setOnKeyListener(this);
+	public void unsetInputListeners() {
+		if (mm == null || mm.getInputView() == null || mm.getEmuView() == null) return;
 
-        //mm.findViewById(R.id.EmulatorFrame).setOnTouchListener(this);
-        //mm.findViewById(R.id.EmulatorFrame).setOnKeyListener(this);
-    }
+		mm.getEmuView().setOnKeyListener(null);
+		mm.getEmuView().setOnTouchListener(null);
 
-    public void unsetInputListeners() {
-        if (mm == null)
-            return;
-        if (mm.getInputView() == null)
-            return;
-        if (mm.getEmuView() == null)
-            return;
+		mm.getInputView().setOnTouchListener(null);
+		mm.getInputView().setOnKeyListener(null);
+	}
 
-        mm.getEmuView().setOnKeyListener(null);
-        mm.getEmuView().setOnTouchListener(null);
-
-        mm.getInputView().setOnTouchListener(null);
-        mm.getInputView().setOnKeyListener(null);
-    }
-
-    public boolean isHideTouchController() {
-        return (keyboard.isKeyboardEnabled() && mm.getPrefsHelper().isKeyboardHideController())  ||
+	public boolean isHideTouchController() {
+		// Hide virtual pad if physical hardware (keyboard, gamepad, or mouse) is actively taking over
+		return (keyboard.isKeyboardEnabled() && mm.getPrefsHelper().isKeyboardHideController()) ||
 			gameController.isEnabled() ||
-			(mouse.isEnabled() && Emulator.isInGameButNotInMenu())
-			;
-    }
+			(mouse.isEnabled() && Emulator.isInGameButNotInMenu());
+	}
 
-    public boolean genericMotion(MotionEvent event) {
+	public boolean genericMotion(MotionEvent event) {
+		// Route analog stick / trigger movements to the gamepad handler
+		return gameController.genericMotion(event, digital_data);
+	}
 
-		//if(gameController.isEnabled()) {
-			return gameController.genericMotion(event, digital_data);
-		//}
-
-        //return false;
-    }
-
+	// Debug utility to trace raw MotionEvents
 	public void dumpEvent(MotionEvent event) {
 		String[] names = {"DOWN", "UP", "MOVE", "CANCEL", "OUTSIDE",
 			"POINTER_DOWN", "POINTER_UP", "7?", "8?", "9?","10?","11?","12?"};
@@ -343,13 +320,12 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 		int action = event.getAction();
 		int actionCode = action & MotionEvent.ACTION_MASK;
 		sb.append("event ACTION_").append(names[actionCode]);
-		if (actionCode == MotionEvent.ACTION_POINTER_DOWN
-			|| actionCode == MotionEvent.ACTION_POINTER_UP) {
-			sb.append("(pid ").append(
-				//action >> MotionEvent.ACTION_POINTER_ID_SHIFT);
-				(action & MotionEvent.ACTION_POINTER_ID_MASK) >> MotionEvent.ACTION_POINTER_ID_SHIFT);
+
+		if (actionCode == MotionEvent.ACTION_POINTER_DOWN || actionCode == MotionEvent.ACTION_POINTER_UP) {
+			sb.append("(pid ").append((action & MotionEvent.ACTION_POINTER_ID_MASK) >> MotionEvent.ACTION_POINTER_ID_SHIFT);
 			sb.append(")");
 		}
+
 		sb.append("[");
 		for (int i = 0; i < event.getPointerCount(); i++) {
 			sb.append("#").append(i);
@@ -360,8 +336,7 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 				sb.append(";");
 		}
 		sb.append("]");
-		//if(action != MotionEvent.ACTION_MOVE)
+
 		Log.d(TAG, sb.toString());
 	}
-
 }
