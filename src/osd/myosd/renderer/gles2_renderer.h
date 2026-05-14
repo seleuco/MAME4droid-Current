@@ -157,7 +157,8 @@ private:
 	void upload_pending_textures(std::vector<local_primitive>& draw_prims);
 	void calculate_vector_bounds(const std::vector<local_primitive>& draw_prims, render_bounds& out_bounds);
 	void draw_vector_fbo(const render_bounds& v_bounds);
-	void process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom);
+	void process_dwell_point(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time, float& prev_x, float& prev_y, float& prev_dx_norm, float& prev_dy_norm);
+	void process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time);
 	void process_quad_primitive(const local_primitive& prim, bool is_screen, int needed_blend);
 
 	//Shader program to render a quad primitive
@@ -196,7 +197,7 @@ private:
 
     int m_view_width = 1;
     int m_view_height = 1;
-    bool m_force_viewport_update = true;
+    bool m_init = true;
     bool m_flush_textures = false;
     int m_last_filter_mode;
 	

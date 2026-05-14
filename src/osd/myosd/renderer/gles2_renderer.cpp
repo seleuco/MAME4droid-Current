@@ -27,49 +27,186 @@
 
 constexpr int VECTOR_FBO_HEIGHT =  480; 
 
+// =======================================================================
+// HDR TONE MAPPING (EXPOSURE)
+// =======================================================================
+// - Purpose: Prevents the 8-bit FBO from clamping bright vectors. Dims the raw RGB 
+//   colors so additive bloom has "headroom" to build up without hitting the 1.0 ceiling.
+// - Suggested Range: [0.30f - 0.70f]. (0.45f leaves enough headroom for bloom accumulation).
+constexpr float BLOOM_EXPOSURE_RGB = 0.45f;
 
 // =======================================================================
 // VECTOR BLOOM EFFECT CONFIGURATION
 // =======================================================================
-// Light falloff curve (CRT Phosphor)
-// High values (5.5 - 6.0) = Pure Arcade, very bright core and tight halo.
-// Low values (3.0 - 4.0) = Modern HDR Bloom, soft and nebulous halo.
-//constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.5f;
-//constexpr float BLOOM_PHOSPHOR_FALLOFF = 4.5f;
-constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.0f;
 
-// Lines (Standard vectors)
-//constexpr float BLOOM_LINE_WIDTH_MULT = 4.0f;  
-//constexpr float BLOOM_LINE_ALPHA      = 0.65f; 
-//constexpr float BLOOM_LINE_WIDTH_MULT = 5.0f;  
-//constexpr float BLOOM_LINE_ALPHA      = 0.85f;
-constexpr float BLOOM_LINE_WIDTH_MULT = 4.5f;  
+// Defines the light falloff curve (Gaussian) for the CRT Phosphor.
+// - Purpose: Controls how sharp or soft the core of the line is compared to its glowing halo.
+// - Suggested Range: [3.0f - 6.0f] 
+//   -> 3.0f = Modern HDR bloom (very soft, nebulous).
+//   -> 5.0f = Sweet spot (solid core, smooth natural decay).
+//   -> 6.0f = Pure 80s Arcade (extremely tight core, abrupt halo).
+//constexpr float BLOOM_PHOSPHOR_FALLOFF = 5.0f;
+constexpr float BLOOM_PHOSPHOR_FALLOFF = 4.5f;
+
+// --- Lines (Standard vectors) ---
+// - Purpose: Base physical width (in pixels) and base opacity for drawing standard lines.
+// - Width Range: [3.0f - 6.0f] (Depends on screen DPI. 4.0f is generally safe).
+// - Alpha Range: [0.50f - 1.0f] (0.75f allows some transparency before HDR kicks in).
+//constexpr float BLOOM_LINE_WIDTH_MULT = 3.5f;  
+//constexpr float BLOOM_LINE_ALPHA      = 0.75f;
+
+constexpr float BLOOM_LINE_WIDTH_MULT = 10.0f;  
 constexpr float BLOOM_LINE_ALPHA      = 0.75f;
 
-// Points (Stars / Shots)
-//constexpr float BLOOM_POINT_WIDTH_MULT = 2.2f; 
-//constexpr float BLOOM_POINT_ALPHA      = 0.42f;
-//constexpr float BLOOM_POINT_WIDTH_MULT = 3.0f; 
-//constexpr float BLOOM_POINT_ALPHA      = 0.65f;
-constexpr float BLOOM_POINT_WIDTH_MULT = 2.6f; 
-constexpr float BLOOM_POINT_ALPHA      = 0.55f;
+// --- Points (Stars / Shots / Explosions) ---
+// - Purpose: Base physical width and opacity for drawing single points (vertices).
+// - Width Range: [2.0f - 4.0f] (Keep it smaller than lines so stars look sharp).
+// - Alpha Range: [0.40f - 0.85f] (Points naturally overlap less, 0.55f is a good baseline).
+//constexpr float BLOOM_POINT_WIDTH_MULT = 2.5f; 
+//constexpr float BLOOM_POINT_ALPHA      = 0.55f;
+constexpr float BLOOM_POINT_WIDTH_MULT = 4.5f; 
+constexpr float BLOOM_POINT_ALPHA      = 0.85f;
+
+// =======================================================================
+// DUAL-LOBE PHOSPHOR CONFIGURATION (CRT OPTICS)
+// =======================================================================
+
+// 1. Core Lobe Sharpness (Laser impact)
+// - Purpose: Defines how sharp and bright the pure core of the vector is.
+// - Suggested Range: [8.0f - 16.0f]. Higher value = thinner and harder laser. (12.0f recommended)
+//constexpr float BLOOM_CORE_SHARPNESS = 12.0f;
+constexpr float BLOOM_CORE_SHARPNESS = 14.0f;
+
+// 2. Secondary Lobe Spread (Scattering halo)
+// - Purpose: How far the light travels inside the CRT tube glass.
+// - Suggested Range: [1.5f - 4.0f]. Lower value = wider halo. (2.5f recommended)
+constexpr float BLOOM_GLOW_SPREAD = 2.5f;
+//constexpr float BLOOM_GLOW_SPREAD = 1.2f;
+
+// 3. Secondary Lobe Weight (Halo opacity)
+// - Purpose: The intensity of the light fog surrounding the laser.
+// - Suggested Range: [0.15f - 0.50f]. Higher value = thicker light fog. (0.35f recommended)
+constexpr float BLOOM_GLOW_WEIGHT = 0.35f;
+//constexpr float BLOOM_GLOW_WEIGHT = 0.65f;
+
 
 // -----------------------------------------------------------------------
 // EXCESS LIGHT PHYSICS (OVERBRIGHT / HDR)
 // -----------------------------------------------------------------------
-// Maximum extra energy a vector can receive (Safety ceiling)
-//constexpr float BLOOM_OVERBRIGHT_MAX = 1.25f; 
-//constexpr float BLOOM_OVERBRIGHT_MAX = 2.0f;
-constexpr float BLOOM_OVERBRIGHT_MAX = 1.6f;
 
-// How much they physically expand when receiving excess light
-//constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.35f; 
-//constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.28f; 
+// The absolute maximum limit for extra HDR energy a vector can accumulate.
+// - Purpose: Acts as a safety ceiling to prevent the bloom from completely white-washing the screen.
+// - Suggested Range: [1.5f - 3.0f] (2.5f allows bright flashes without blinding the player).
+//constexpr float BLOOM_OVERBRIGHT_MAX = 2.5f;
+constexpr float BLOOM_OVERBRIGHT_MAX = 2.5f;
+
+// How much lines and points physically expand their radius when overloaded with energy.
+// - Purpose: Simulates the phosphor bleeding light into adjacent areas when saturated.
+// - Suggested Range: [0.30f - 0.70f] (Above 0.8f, the lines will look like fat neon tubes).
+constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.55f; 
+//constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.45f;
 //constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.65f; 
-//constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.50f;
-constexpr float BLOOM_OVERBRIGHT_LINE_MULT  = 0.50f; 
-constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 0.40f;
+constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 1.35f;
+
+
+// -----------------------------------------------------------------------
+// CRT GLOBAL DRIVE (MONITOR VOLTAGE / BRIGHTNESS)
+// -----------------------------------------------------------------------
+
+// Global energy multiplier applied to the raw alpha value provided by MAME.
+// - Purpose: Simulates turning the "Brightness" or "Drive" knob on the back of the arcade monitor.
+// - Suggested Range: [1.0f - 2.0f]
+//   -> 1.0f = Dark, accurate, strictly follows MAME's alpha.
+//   -> 1.35f = Recommended (Arcade monitor running slightly overdriven).
+//   -> 1.8f+ = Extremely bright, almost everything will generate bloom.
+//constexpr float BLOOM_GLOBAL_DRIVE_MULTIPLIER = 1.35f;
+constexpr float BLOOM_GLOBAL_DRIVE_MULTIPLIER = 1.35f;//TODO AJUSTAR BIEN PARA QUE NO BRILLE TODO
+
+
+// -----------------------------------------------------------------------
+// BEAM SPEED PHYSICS (INTENSITY DYNAMICS)
+// -----------------------------------------------------------------------
+
+// What percentage of the screen height is considered a "short" line.
+// - Purpose: Identifies high-energy strokes like text characters, ships, or small details.
+// - Suggested Range: [0.02f - 0.10f] (0.04f = 4% of screen height, perfect for standard text).
+constexpr float BLOOM_SHORT_LINE_THRESHOLD_PCT = 0.04f;
+
+// How much extra light energy a tiny line receives.
+// - Purpose: Simulates the electron beam burning the phosphor harder because it's moving less distance.
+// - Suggested Range: [0.50f - 2.0f] (1.0f = +100% extra energy, makes text highly legible).
+//constexpr float BLOOM_SHORT_LINE_INTENSITY_BOOST = 1.0f;
+constexpr float BLOOM_SHORT_LINE_INTENSITY_BOOST = 0.5f;
+
+// How much the core physically widens when burning the phosphor harder.
+// - Purpose: Simulates thermal expansion of the dot on the screen.
+// - Suggested Range: [0.10f - 0.40f] (0.20f = +20% thicker core for short lines).
+//constexpr float BLOOM_SHORT_LINE_WIDTH_BOOST = 0.20f;
+constexpr float BLOOM_SHORT_LINE_WIDTH_BOOST = 0.10f;
+
 // =======================================================================
+// BEAM INERTIA & DWELL TIME (CORNER BURN)
+// =======================================================================
+
+// Master toggle to enable or disable the corner burn effect entirely.
+constexpr bool BLOOM_CORNER_BURN_ENABLED = true;
+
+// 1. Angular Threshold (Dot Product)
+// - Purpose: How sharp a turn must be to cause the beam to decelerate and burn the corner.
+// - Suggested Range: [0.30f - 0.70f]. 
+//   -> 0.50f (60 degrees) triggers burns on sharp polygons like the Asteroids ship.
+constexpr float BLOOM_CORNER_DOT_THRESHOLD = 0.50f;
+
+// 2. Corner Burn Intensity Boost
+// - Purpose: How much extra energy is dumped into the phosphor during the dwell time.
+// - Suggested Range: [1.0f - 3.0f]. (1.5f provides a beautiful glowing weld effect at vertices).
+//constexpr float BLOOM_CORNER_BURN_BOOST = 1.5f;
+constexpr float BLOOM_CORNER_BURN_BOOST = 1.7;
+
+// 3. Corner Burn Physical Size
+// - Purpose: Confines the extra light inside the vector path to prevent spherical blobs at vertices.
+// - Suggested Range: [0.15f - 0.30f]. (0.20f keeps the burn intense but visually sharp).
+//constexpr float BLOOM_CORNER_BURN_WIDTH_MULT = 0.20f;
+constexpr float BLOOM_CORNER_BURN_WIDTH_MULT = 0.30f;
+
+// -----------------------------------------------------------------------
+// ANALOG IMPERFECTIONS (NOISE & MAGNETIC JITTER)
+// -----------------------------------------------------------------------
+
+// Maximum physical deviation of the beam due to magnetic coil noise/heat (in pixels).
+// - Purpose: Adds a subtle, living vibration to the vectors, breaking the "perfect digital" look.
+// - Suggested Range: [0.0f - 0.60f] 
+//   -> 0.0f = Off (Perfectly stable lines).
+//   -> 0.35f = Recommended (Subtle electric hum).
+//   -> 0.60f+ = Heavy wear/damaged yoke (Looks like a broken monitor).
+//constexpr float BLOOM_BEAM_JITTER_AMOUNT = 0.35f; 
+constexpr float BLOOM_BEAM_JITTER_AMOUNT = 0.15f;
+
+// =======================================================================
+// PHOSPHOR COLOR RESPONSE (LUMINANCE & BLEED)
+// =======================================================================
+
+// Master toggle to enable or disable the phosphor color response (luminance calculation).
+// - Purpose: Disabling this treats all colors (Red, Green, Blue) equally with 100% efficiency.
+//   Turn to 'false' if you feel certain colors (like pure Blue) are too dim.
+constexpr bool BLOOM_PHOSPHOR_RESPONSE_ENABLED = false;
+
+// 1. Perceptual Color Weights (Rec.601 / NTSC standard)
+// - Purpose: Defines how strongly each color excites the CRT phosphor.
+//   Green is highly efficient and bleeds heavily. Blue is inefficient and tight.
+constexpr float BLOOM_PHOSPHOR_WEIGHT_R = 0.299f;
+constexpr float BLOOM_PHOSPHOR_WEIGHT_G = 0.587f;
+constexpr float BLOOM_PHOSPHOR_WEIGHT_B = 0.114f;
+
+// 2. Base Phosphor Response (Floor)
+// - Purpose: The minimum energy retained by the darkest/least efficient color (Blue).
+// - Suggested Range: [0.30f - 0.50f]. (0.40f ensures blue vectors remain visible).
+constexpr float BLOOM_PHOSPHOR_BASE_RESPONSE = 0.40f;
+
+// 3. Luminance Multiplier
+// - Purpose: How much the calculated color luminance boosts the final beam energy.
+// - Suggested Range: [0.40f - 0.80f]. (0.60f combined with a 0.40f base perfectly caps at 1.0).
+constexpr float BLOOM_PHOSPHOR_LUMA_BOOST = 0.60f;
 
 
 struct line_aa_step {
@@ -211,16 +348,29 @@ gles2_renderer::gles2_renderer(int width, int height)
 	uint32_t glow_pixels[64 * 64];
 	for (int y = 0; y < 64; y++) {
 		for (int x = 0; x < 64; x++) {
-			float dx = (x - 31.5f) / 31.5f;
-			float dy = (y - 31.5f) / 31.5f;
+			// Instead of treating x and y equally, we apply "Astigmatism" to the glass.
+			// By compressing X, the light reaches further (wider halo horizontally).
+			// By expanding Y, the light cuts off sooner (narrower halo vertically).
+			float dx = ((x - 31.5f) / 31.5f) * 0.85f; // Travels easier horizontally
+			float dy = ((y - 31.5f) / 31.5f) * 1.15f; // Has more resistance vertically
 			float dist = std::sqrt(dx*dx + dy*dy);
 			
-			float intensity = std::exp(-(dist * dist) * BLOOM_PHOSPHOR_FALLOFF); 
+			// --- DUAL-LOBE PHOSPHOR OPTICS ---
+			// 1. Dense and sharp core (Beam impact)
+			float core = std::exp(-(dist * dist) * BLOOM_CORE_SHARPNESS); 
+			
+			// 2. Soft and expansive halo (Optical scattering)
+			float glow = std::exp(-(dist * dist) * BLOOM_GLOW_SPREAD) * BLOOM_GLOW_WEIGHT; 
+			
+			// Add both lobes and clamp to 1.0 for mathematical safety
+			float intensity = std::min(core + glow, 1.0f);
+			// ---------------------------------
 			
 			uint8_t a = (uint8_t)(intensity * 255.0f);
 			glow_pixels[y * 64 + x] = (a << 24) | 0x00FFFFFF; 
 		}
 	}
+
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, glow_pixels);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	
@@ -249,12 +399,12 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
 
     m_last_filter_mode = myosd_get(MYOSD_BITMAP_FILTERING);
 
-    m_force_viewport_update = true;
-
     m_flush_textures = true;
     m_filter.set_ortho(m_ortho);
 	
 	m_fbo_dirty = true;
+	
+	m_init = true;
 }
 
 void gles2_renderer::create_fbo(int width, int height) {
@@ -473,6 +623,7 @@ void gles2_renderer::calculate_vector_bounds(const std::vector<local_primitive>&
     
 }
 
+
 void gles2_renderer::draw_vector_fbo(const render_bounds& v_bounds)
 {
     glEnable(GL_BLEND);
@@ -496,87 +647,277 @@ void gles2_renderer::draw_vector_fbo(const render_bounds& v_bounds)
     m_current_texture = 0; m_last_blendmode = -1;
 }
 
-void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom)
+void gles2_renderer::process_dwell_point(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time, float& prev_x, float& prev_y, float& prev_dx_norm, float& prev_dy_norm)
+{
+    // Early exit if the effect is disabled globally or not applicable
+    if (!BLOOM_CORNER_BURN_ENABLED || !is_vector || !enable_bloom) {
+        return; 
+    }
+
+    float px0 = prim.bounds.x0; float py0 = prim.bounds.y0;
+    float px1 = prim.bounds.x1; float py1 = prim.bounds.y1;
+    
+    float dx = px1 - px0;
+    float dy = py1 - py0;
+    float len = std::sqrt(dx*dx + dy*dy);
+    
+    if (len > 0.001f) {
+        float dx_norm = dx / len;
+        float dy_norm = dy / len;
+        
+        // If the current line starts where the previous one ended (continuous stroke)
+        if (std::abs(px0 - prev_x) < 1.0f && std::abs(py0 - prev_y) < 1.0f) {
+            
+            // Dot Product to find the turn angle
+            float dot = (prev_dx_norm * dx_norm) + (prev_dy_norm * dy_norm);
+            
+            // If the turn is sharper than our threshold
+            if (dot < BLOOM_CORNER_DOT_THRESHOLD) {
+                
+                // Calculate brake aggressiveness (0.0 to 1.0)
+                float sharpness = (BLOOM_CORNER_DOT_THRESHOLD - dot) / (BLOOM_CORNER_DOT_THRESHOLD + 1.0f);
+                
+                // INJECT A "DWELL POINT" (Corner Burn)
+                local_primitive corner_prim = prim;
+                corner_prim.bounds.x0 = px0; corner_prim.bounds.x1 = px0;
+                corner_prim.bounds.y0 = py0; corner_prim.bounds.y1 = py0;
+                
+                // Confine the light physically inside the vector
+                corner_prim.width = prim.width * BLOOM_CORNER_BURN_WIDTH_MULT;
+                
+                // Boost the point's energy based on turn sharpness
+                float energy_boost = 1.0f + (sharpness * BLOOM_CORNER_BURN_BOOST);
+                corner_prim.color.a = std::min(prim.color.a * energy_boost, 1.0f);
+                
+                // Draw the bright point before drawing the actual line
+                process_line_primitive(corner_prim, is_vector, enable_bloom, current_time);
+            }
+        }
+        
+        // Save the beam state to compare with the next line
+        prev_x = px1;
+        prev_y = py1;
+        prev_dx_norm = dx_norm;
+        prev_dy_norm = dy_norm;
+        
+    } else {
+        // If length is 0 (it was an isolated point), break the continuous stroke
+        prev_x = -9999.0f; 
+    }
+}
+
+
+void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time)
 {
     float effwidth = std::max(prim.width, 1.0f);
-    
-    float dx = prim.bounds.x1 - prim.bounds.x0;
-    float dy = prim.bounds.y1 - prim.bounds.y0;
-	bool is_point = (std::abs(dx) < 0.001f && std::abs(dy) < 0.001f);
 
-    float raw_intensity = prim.color.a * 255.0f; 
-    float core_alpha = std::min(raw_intensity, 1.0f);
+    // --- COHERENT MAGNETIC WOBBLE (Analog Jitter) ---
+    float px0 = prim.bounds.x0;
+    float py0 = prim.bounds.y0;
+    float px1 = prim.bounds.x1;
+    float py1 = prim.bounds.y1;
+	
+    if (is_vector && enable_bloom) {
+        // Use the center of the line for spatial coherence
+        float center_x = (px0 + px1) * 0.5f;
+        float center_y = (py0 + py1) * 0.5f;
+
+        // Coupled wave formulas (Simulates electromagnetic interference)
+        // Multiplying coordinates by 0.05f ensures nearby lines move together.
+        float jx = std::sin(current_time * 13.2f + center_y * 0.05f) * BLOOM_BEAM_JITTER_AMOUNT;
+        float jy = std::cos(current_time * 11.7f + center_x * 0.05f) * BLOOM_BEAM_JITTER_AMOUNT;
+
+        px0 += jx;
+        py0 += jy;
+        px1 += jx;
+        py1 += jy;
+    }
     
-    float overbright_raw = std::max(raw_intensity - 1.0f, 0.0f);
+    // Calculate distances using the new jittered coordinates (px, py)
+    float dx = px1 - px0;
+    float dy = py1 - py0;
+    bool is_point = (std::abs(dx) < 0.001f && std::abs(dy) < 0.001f);
+    
+    float length = is_point ? 0.0f : std::sqrt(dx*dx + dy*dy);
+    
+	// 1. Get raw MAME intensity (0.0 to 1.0)
+    float base_intensity = prim.color.a; 
+
+    // --- HDR TONE MAPPING (Exposure) ---
+    // Dim the raw MAME RGB color if bloom is active to prevent 8-bit FBO clamping.
+    float exposure = (is_vector && enable_bloom) ? BLOOM_EXPOSURE_RGB : 1.0f;
+    float col_r = prim.color.r * exposure;
+    float col_g = prim.color.g * exposure;
+    float col_b = prim.color.b * exposure;
+    // -----------------------------------
+
+    // --- PHOSPHOR COLOR RESPONSE (Luminance & Bleed) ---
+    float phosphor_response = 1.0f;
+    
+    //float drive = enable_bloom ? BLOOM_GLOBAL_DRIVE_MULTIPLIER : 1.0; 
+	//float drive = BLOOM_GLOBAL_DRIVE_MULTIPLIER; 
+	float drive = enable_bloom ? BLOOM_GLOBAL_DRIVE_MULTIPLIER : 1.0; 
+    
+    if (enable_bloom && BLOOM_PHOSPHOR_RESPONSE_ENABLED) {
+        // Calculate perceptual color weight using the standard NTSC/Rec.601 formula.
+        float luminance = (prim.color.r * BLOOM_PHOSPHOR_WEIGHT_R) + 
+                          (prim.color.g * BLOOM_PHOSPHOR_WEIGHT_G) + 
+                          (prim.color.b * BLOOM_PHOSPHOR_WEIGHT_B);
+                          
+        phosphor_response = BLOOM_PHOSPHOR_BASE_RESPONSE + (luminance * BLOOM_PHOSPHOR_LUMA_BOOST);
+    }
+
+    // 2. Apply simulated energy physics
+    float simulated_energy = base_intensity * drive * phosphor_response;
+
+    // 3. BEAM SPEED DYNAMICS (Electron gun physics)
+    if (is_vector && !is_point) {
+        float threshold = m_height * BLOOM_SHORT_LINE_THRESHOLD_PCT; 
+        
+        if (length < threshold && length > 0.1f) {
+            float shortness = 1.0f - (length / threshold);
+            // Multiply simulated energy, not the base intensity
+            simulated_energy *= (1.0f + shortness * BLOOM_SHORT_LINE_INTENSITY_BOOST);
+            effwidth *= (1.0f + shortness * BLOOM_SHORT_LINE_WIDTH_BOOST);
+        }
+    }
+
+    // 4. Core saturates naturally (NON-LINEAR PHOSPHOR COMPRESSION)
+    float core_alpha;
+    if (enable_bloom) {
+        // Filmic curve for Bloom mode
+        core_alpha = 1.0f - std::exp(-simulated_energy * 1.5f);
+    } else {
+        // Strict digital clamp for "No Bloom" mode
+        core_alpha = std::min(simulated_energy, 1.0f);
+    }
+    
+    // 5. Excess energy feeds the Bloom
+    float overbright_raw = std::max(simulated_energy - 1.0f, 0.0f);
     float overbright = std::min(std::pow(overbright_raw, 0.7f), BLOOM_OVERBRIGHT_MAX);
 
-    float bloom_scale = m_usefilter ? 0.6f : 1.0f;
+    // Desaturation (Whitewashing) ONLY applies when Bloom is active.
+    if (enable_bloom && overbright > 0.0f) {
+        float desaturation = std::min(overbright * 0.3f, 1.0f); // 30% white-washing
+        col_r = col_r + (1.0f - col_r) * desaturation;
+        col_g = col_g + (1.0f - col_g) * desaturation;
+        col_b = col_b + (1.0f - col_b) * desaturation;
+    }
+    
+    float bloom_scale = 1.0f;
 
     if (is_point) {
-		
+        
         if (is_vector && enable_bloom) {
             float dynamic_width = BLOOM_POINT_WIDTH_MULT + (overbright * BLOOM_OVERBRIGHT_POINT_MULT);
             float bloom_w = effwidth * dynamic_width * bloom_scale;
             
-            m_quad_verts[0] = prim.bounds.x0 - bloom_w; m_quad_verts[1] = prim.bounds.y0 - bloom_w; 
-            m_quad_verts[2] = prim.bounds.x0 - bloom_w; m_quad_verts[3] = prim.bounds.y0 + bloom_w; 
-            m_quad_verts[4] = prim.bounds.x0 + bloom_w; m_quad_verts[5] = prim.bounds.y0 + bloom_w; 
-            m_quad_verts[6] = prim.bounds.x0 + bloom_w; m_quad_verts[7] = prim.bounds.y0 - bloom_w; 
+            m_quad_verts[0] = px0 - bloom_w; m_quad_verts[1] = py0 - bloom_w; 
+            m_quad_verts[2] = px0 - bloom_w; m_quad_verts[3] = py0 + bloom_w; 
+            m_quad_verts[4] = px0 + bloom_w; m_quad_verts[5] = py0 + bloom_w; 
+            m_quad_verts[6] = px0 + bloom_w; m_quad_verts[7] = py0 - bloom_w; 
             
             float bloom_uv[8] = { 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f };
             
             float max_alpha = 0.85f + (overbright * 0.1f);
-            float safe_bloom_alpha = std::min(raw_intensity * BLOOM_POINT_ALPHA, max_alpha);
-            render_color c_bloom = { safe_bloom_alpha, prim.color.r, prim.color.g, prim.color.b };
+            float safe_bloom_alpha = std::min(simulated_energy * BLOOM_POINT_ALPHA, max_alpha);
+            
+            // Anti Black-Crush floor
+            if (simulated_energy > 0.01f) {
+                safe_bloom_alpha = std::max(0.08f, safe_bloom_alpha);
+            }			
+            
+            // USE EXPOSED COLORS
+            render_color c_bloom = { safe_bloom_alpha, col_r, col_g, col_b };
             
             push_quad(m_quad_verts, bloom_uv, c_bloom);
         }
 
         float half_w = effwidth * 0.5f;
-        m_quad_verts[0] = prim.bounds.x0 - half_w; m_quad_verts[1] = prim.bounds.y0 - half_w; 
-        m_quad_verts[2] = prim.bounds.x0 - half_w; m_quad_verts[3] = prim.bounds.y0 + half_w; 
-        m_quad_verts[4] = prim.bounds.x0 + half_w; m_quad_verts[5] = prim.bounds.y0 + half_w; 
-        m_quad_verts[6] = prim.bounds.x0 + half_w; m_quad_verts[7] = prim.bounds.y0 - half_w; 
+        m_quad_verts[0] = px0 - half_w; m_quad_verts[1] = py0 - half_w; 
+        m_quad_verts[2] = px0 - half_w; m_quad_verts[3] = py0 + half_w; 
+        m_quad_verts[4] = px0 + half_w; m_quad_verts[5] = py0 + half_w; 
+        m_quad_verts[6] = px0 + half_w; m_quad_verts[7] = py0 - half_w; 
         
         float core_uv[8] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
-        render_color c_core = { core_alpha, prim.color.r, prim.color.g, prim.color.b };
+        
+        // USE EXPOSED COLORS
+        render_color c_core = { core_alpha, col_r, col_g, col_b };
         push_quad(m_quad_verts, is_vector ? core_uv : nullptr, c_core);
         
     } else {
 
         if (is_vector && enable_bloom) {
-            float length = std::sqrt(dx*dx + dy*dy);
             float length_factor = std::min(length / (0.15f * m_height), 1.0f); 
             
             float dynamic_bloom_mult = (BLOOM_LINE_WIDTH_MULT * (0.5f + 0.5f * length_factor)) + (overbright * BLOOM_OVERBRIGHT_LINE_MULT);
             float bloom_width = effwidth * dynamic_bloom_mult * bloom_scale;
-            
-            auto [bb0, bb1] = render_line_to_quad(prim.bounds, bloom_width, 0.0f);
+            float half_w = bloom_width * 0.5f;
 
-            m_quad_verts[0] = bb0.x0; m_quad_verts[1] = bb0.y0; 
-            m_quad_verts[2] = bb0.x1; m_quad_verts[3] = bb0.y1; 
-            m_quad_verts[4] = bb1.x1; m_quad_verts[5] = bb1.y1; 
-            m_quad_verts[6] = bb1.x0; m_quad_verts[7] = bb1.y0; 
+            // Calculate normal vectors (width) and directional vectors (length for caps)
+            float nx = (-dy / length) * half_w;
+            float ny = ( dx / length) * half_w;
+            float dx_ext = (dx / length) * half_w;
+            float dy_ext = (dy / length) * half_w;
 
-            float bloom_uv[8] = { 0.5f, 0.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 0.0f };
-            
+            // Base vertices of the line using Jitter
+            float ax0 = px0 + nx; float ay0 = py0 + ny;
+            float ax1 = px0 - nx; float ay1 = py0 - ny;
+            float bx0 = px1 + nx; float by0 = py1 + ny;
+            float bx1 = px1 - nx; float by1 = py1 - ny;
+
             float max_alpha = 0.85f + (overbright * 0.1f);
-            float safe_bloom_alpha = std::min(raw_intensity * BLOOM_LINE_ALPHA, max_alpha);
-            render_color c_bloom = { safe_bloom_alpha, prim.color.r, prim.color.g, prim.color.b };
             
-            push_quad(m_quad_verts, bloom_uv, c_bloom);
+            // Anti Black-Crush floor
+            float safe_bloom_alpha = std::min(simulated_energy * BLOOM_LINE_ALPHA, max_alpha);
+            if (simulated_energy > 0.01f) {
+                safe_bloom_alpha = std::max(0.08f, safe_bloom_alpha);
+            }
+            
+            // USE EXPOSED COLORS
+            render_color c_bloom = { safe_bloom_alpha, col_r, col_g, col_b };
+
+            // 1. START CAP
+            m_quad_verts[0] = ax0 - dx_ext; m_quad_verts[1] = ay0 - dy_ext; 
+            m_quad_verts[2] = ax1 - dx_ext; m_quad_verts[3] = ay1 - dy_ext; 
+            m_quad_verts[4] = ax1;          m_quad_verts[5] = ay1; 
+            m_quad_verts[6] = ax0;          m_quad_verts[7] = ay0; 
+            float cap1_uv[8] = { 0.0f, 0.0f,  1.0f, 0.0f,  1.0f, 0.5f,  0.0f, 0.5f };
+            push_quad(m_quad_verts, cap1_uv, c_bloom);
+
+            // 2. BODY
+            m_quad_verts[0] = ax0; m_quad_verts[1] = ay0; 
+            m_quad_verts[2] = ax1; m_quad_verts[3] = ay1; 
+            m_quad_verts[4] = bx1; m_quad_verts[5] = by1; 
+            m_quad_verts[6] = bx0; m_quad_verts[7] = by0; 
+            float body_uv[8] = { 0.0f, 0.5f,  1.0f, 0.5f,  1.0f, 0.5f,  0.0f, 0.5f };
+            push_quad(m_quad_verts, body_uv, c_bloom);
+
+            // 3. END CAP
+            m_quad_verts[0] = bx0;          m_quad_verts[1] = by0; 
+            m_quad_verts[2] = bx1;          m_quad_verts[3] = by1; 
+            m_quad_verts[4] = bx1 + dx_ext; m_quad_verts[5] = by1 + dy_ext; 
+            m_quad_verts[6] = bx0 + dx_ext; m_quad_verts[7] = by0 + dy_ext; 
+            float cap2_uv[8] = { 0.0f, 0.5f,  1.0f, 0.5f,  1.0f, 1.0f,  0.0f, 1.0f };
+            push_quad(m_quad_verts, cap2_uv, c_bloom);
         }
 
-        auto [b0, b1] = render_line_to_quad(prim.bounds, effwidth, 0.0f);
-		bool use_aa = PRIMFLAG_GET_ANTIALIAS(prim.flags) && !enable_bloom;
+        // --- CORE ---
+        // Create a temporary render_bounds for the render_line_to_quad function
+        render_bounds jittered_bounds = { px0, py0, px1, py1 };
+        auto [b0, b1] = render_line_to_quad(jittered_bounds, effwidth, 0.0f);
+        
+        bool use_aa = PRIMFLAG_GET_ANTIALIAS(prim.flags) && !enable_bloom;
         const line_aa_step* step = use_aa ? line_aa_4step : line_aa_1step;
         
         for (; step->weight != 0.0f; step++) {
             render_color c;
             c.a = core_alpha * step->weight; 
-            c.r = prim.color.r;
-            c.g = prim.color.g;
-            c.b = prim.color.b;
+            
+            // USE EXPOSED COLORS
+            c.r = col_r;
+            c.g = col_g;
+            c.b = col_b;
 
             m_quad_verts[0] = b0.x0 + step->xoffs; m_quad_verts[1] = b0.y0 + step->yoffs; 
             m_quad_verts[2] = b0.x1 + step->xoffs; m_quad_verts[3] = b0.y1 + step->yoffs; 
@@ -588,7 +929,6 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
         }
     }
 }
-
 void gles2_renderer::process_quad_primitive(const local_primitive& prim, bool is_screen, int needed_blend)
 {
     m_quad_verts[0] = prim.bounds.x0; m_quad_verts[1] = prim.bounds.y0; 
@@ -622,6 +962,14 @@ void gles2_renderer::process_quad_primitive(const local_primitive& prim, bool is
 
 void gles2_renderer::render()
 {
+	float current_time = (float)osd_ticks() / (float)osd_ticks_per_second();	
+	
+	// --- ELECTRON GUN STATE (To calculate Dwell Time at the corners) ---
+    float prev_x = -9999.0f;
+    float prev_y = -9999.0f;
+    float prev_dx_norm = 0.0f;
+    float prev_dy_norm = 0.0f;	
+	
 	std::vector<local_primitive> draw_prims;
     std::vector<GLuint> delete_texs;
 
@@ -639,23 +987,25 @@ void gles2_renderer::render()
 	
     render_bounds v_bounds = { 99999.0f, 99999.0f, -99999.0f, -99999.0f };
     calculate_vector_bounds(draw_prims, v_bounds);
+	
+	if (m_init)
+    {
+        //NADA
+		m_init = false;
+    }
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); 
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-
-    if (m_force_viewport_update)
+    //glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+	
+	GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    if (viewport[2] > 0 && viewport[3] > 0)
     {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-		GLint viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
-
-        if (viewport[2] > 0 && viewport[3] > 0)
-        {
-            m_view_width = viewport[2];
-            m_view_height = viewport[3];
-            m_force_viewport_update = false;
-        }
+        m_view_width = viewport[2];
+        m_view_height = viewport[3];
     }
 
 	upload_pending_textures(draw_prims);
@@ -679,6 +1029,7 @@ void gles2_renderer::render()
                 flush_batch(); 
                 glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
                 glViewport(0, 0, m_width, m_height);
+				//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
                 glClearColor(0, 0, 0, 0); 
                 glClear(GL_COLOR_BUFFER_BIT);
                 fbo_active = true;
@@ -686,6 +1037,7 @@ void gles2_renderer::render()
         } else if (fbo_active && !is_vector) {
             flush_batch(); 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
             glViewport(0, 0, m_view_width, m_view_height); 
             fbo_active = false;
             draw_vector_fbo(v_bounds); 
@@ -703,8 +1055,13 @@ void gles2_renderer::render()
 		switch (prim.type)
 		{
 			case render_primitive::LINE:
-			{
-				process_line_primitive(prim, is_vector, enable_bloom);
+			{					
+				// Process magnetic inertia and corner burns
+				process_dwell_point(prim, is_vector, enable_bloom, current_time, prev_x, prev_y, prev_dx_norm, prev_dy_norm);					
+   
+				// Process the main vector line
+				process_line_primitive(prim, is_vector, enable_bloom, current_time);
+				
 				
 			} break;
 
@@ -722,9 +1079,12 @@ void gles2_renderer::render()
 	
 	if (m_usefilter && fbo_active) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE); 
         glViewport(0, 0, m_view_width, m_view_height);
         draw_vector_fbo(v_bounds);
     }
+	
+	//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);	
 
 	if (!delete_texs.empty()) 
 		glDeleteTextures(delete_texs.size(), delete_texs.data());
