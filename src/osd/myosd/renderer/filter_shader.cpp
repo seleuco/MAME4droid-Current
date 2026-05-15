@@ -11,7 +11,7 @@
 
 #include "filter_shader.h"
 #include "gl_utils.hxx"
-#include "gles2_renderer.h"
+#include "gles3_renderer.h"
 
 #include <android/log.h>
 #include <cstdio>
@@ -35,7 +35,7 @@ void filter_shader::load_filter(const std::string& filter_src, bool linear)
     auto vert_shader = gl_utils::load_shader(filter_src.c_str(), GL_VERTEX_SHADER);
     auto frag_shader = gl_utils::load_shader(filter_src.c_str(), GL_FRAGMENT_SHADER);
 
-    m_program = gl_utils::create_program(vert_shader, frag_shader, {{gles2_renderer::ATTRIB_POSITION, "VertexCoord"}, {gles2_renderer::ATTRIB_TEXUV, "TexCoord"}});
+    m_program = gl_utils::create_program(vert_shader, frag_shader, {{gles3_renderer::ATTRIB_POSITION, "VertexCoord"}, {gles3_renderer::ATTRIB_TEXUV, "TexCoord"}});
 
     //Flag the shader objects to deletion once the associated program is also deleted
     glDeleteShader(vert_shader);
@@ -90,11 +90,11 @@ void filter_shader::draw_quad(GLuint texture_id, const float* verts, const float
 
 	if (m_uniform_FrameCount != -1) glUniform1i(m_uniform_FrameCount, ++m_framecount);
 
-    glVertexAttribPointer(gles2_renderer::ATTRIB_POSITION, 2, GL_FLOAT, GL_FALSE, 0, verts);
-    glEnableVertexAttribArray(gles2_renderer::ATTRIB_POSITION);
+    glVertexAttribPointer(gles3_renderer::ATTRIB_POSITION, 2, GL_FLOAT, GL_FALSE, 0, verts);
+    glEnableVertexAttribArray(gles3_renderer::ATTRIB_POSITION);
 
-    glVertexAttribPointer(gles2_renderer::ATTRIB_TEXUV, 2, GL_FLOAT, GL_FALSE, 0, uv);
-    glEnableVertexAttribArray(gles2_renderer::ATTRIB_TEXUV);
+    glVertexAttribPointer(gles3_renderer::ATTRIB_TEXUV, 2, GL_FLOAT, GL_FALSE, 0, uv);
+    glEnableVertexAttribArray(gles3_renderer::ATTRIB_TEXUV);
 
     static const GLubyte indices[] = { 0, 1, 2, 0, 2, 3 };
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

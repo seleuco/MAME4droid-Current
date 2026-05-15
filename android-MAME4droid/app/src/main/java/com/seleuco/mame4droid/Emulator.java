@@ -61,6 +61,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.View;
 
+
 import com.seleuco.mame4droid.helpers.DialogHelper;
 import com.seleuco.mame4droid.helpers.PrefsHelper;
 import com.seleuco.mame4droid.input.TouchController;
@@ -360,6 +361,8 @@ public class Emulator {
 		//}
 	}
 
+
+
 	//synchronized
 	static public void changeVideo(final int newWidth, final int newHeight, int newVisWidth, int newVisHeight) {
 
@@ -398,7 +401,7 @@ public class Emulator {
 		});
 
 		try {
-			latch.await(1000, java.util.concurrent.TimeUnit.MILLISECONDS);
+			latch.await(3000, java.util.concurrent.TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

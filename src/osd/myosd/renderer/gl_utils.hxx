@@ -1,4 +1,15 @@
 // license:BSD-3-Clause
+// copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
+/***************************************************************************
+
+    gl_utils.hxx
+
+    Common GLES utilities for MAME4droid
+
+***************************************************************************/
+
+
+// license:BSD-3-Clause
 // copyright-holders:Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
@@ -14,8 +25,8 @@
 #ifndef MAME4DROID_GLUTILS
 #define MAME4DROID_GLUTILS
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
 #include <array>
 #include <string>
 #include <utility>
@@ -63,9 +74,11 @@ namespace gl_utils
 		GLuint shader = glCreateShader(type);
 
 		if (shader == 0)
-			throw std::runtime_error("GLES2: unable to allocate a shader object");
+			throw std::runtime_error("GLES3: unable to allocate a shader object");
 
-		std::string _shaderSrc = "#version 100\n"; //GLES2 glsl version
+		// --- EL GRAN CAMBIO: Inyectamos versión de GLES3 ---
+		std::string _shaderSrc = "#version 300 es\n"; //GLES3 glsl version
+		
 		if (type == GL_FRAGMENT_SHADER)
 		{
 			_shaderSrc +=
@@ -94,7 +107,7 @@ namespace gl_utils
 			static char infoLog[300];
 
 			glGetShaderInfoLog(shader, sizeof infoLog, NULL, infoLog);
-			throw std::runtime_error(std::string("GLES2: Failure on compiling shaders:\n") + infoLog);
+			throw std::runtime_error(std::string("GLES3: Failure on compiling shaders:\n") + infoLog);
 		}
 
 		return shader;
@@ -107,7 +120,7 @@ namespace gl_utils
 		GLuint programObject = glCreateProgram();
 		
 		if (programObject == 0)
-			throw std::runtime_error("GLES2: Unable to allocate a program object");
+			throw std::runtime_error("GLES3: Unable to allocate a program object");
 
 		//Bind the attrib locations
 		for (auto [attrib, name] : bindings)

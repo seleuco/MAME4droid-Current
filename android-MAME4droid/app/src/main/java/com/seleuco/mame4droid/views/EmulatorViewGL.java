@@ -156,8 +156,8 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 		if(mm != null) {
 			// Check if shaders are enabled in the preferences.
 			if (mm.getPrefsHelper().isShadersEnabled()) {
-			    //If so, use OpenGL ES 2.0 for advanced effects.
-				setEGLContextClientVersion(2);
+			    //If so, use OpenGL ES 3.0 for advanced effects.
+				setEGLContextClientVersion(3);
 			 	render = new GLNativeRenderer();
 			} else {
 				// Otherwise, use the more compatible GLES10

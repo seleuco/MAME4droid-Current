@@ -22,7 +22,7 @@
 #include "myosd.h"
 
 #include "renderer/myosd_renderer.h"
-#include "renderer/gles2_renderer.h"
+#include "renderer/gles3_renderer.h"
 #include "renderer/gles1_renderer.h"
 
 #include <android/log.h>
@@ -244,7 +244,7 @@ void myosd_video_createRenderer(int renderer)
             break;
 
         case NATIVE_RENDERER:
-            my_renderer = new gles2_renderer(render_width, render_height);
+            my_renderer = new gles3_renderer(render_width, render_height);
             break;
         default:
             ANDROID_LOG("Error create renderer: Renderer %d not found!", current_renderer);
@@ -311,7 +311,7 @@ extern "C" void myosd_video_getShaders(const char*** list, int* n)
 
     static std::vector<std::string> shaders;
 
-	shaders = gles2_renderer::get_shaders_supported();
+	shaders = gles3_renderer::get_shaders_supported();
 
 	if (shaders.size() > 0)
 	{
@@ -358,6 +358,6 @@ extern "C" bool myosd_video_setShader(const char* shader_name)
 extern "C" void myosd_video_loadShaders(const char* path)
 {
     // load effect shaders for gles2 renderer
-    gles2_renderer::load_shaders(path);
+    gles3_renderer::load_shaders(path);
 }
 

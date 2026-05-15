@@ -2,16 +2,16 @@
 // copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
-    gles2_renderer.h
+    gles3_renderer.h
 
-    GLES2 renderer for MAME4droid
+    GLES3 renderer for MAME4droid
 
 ***************************************************************************/
 
 #pragma once
 
-#ifndef GLES2_RENDERER_H
-#define GLES2_RENDERER_H
+#ifndef GLES3_RENDERER_H
+#define GLES3_RENDERER_H
 
 #include "myosd_renderer.h"
 
@@ -19,8 +19,8 @@
 
 #include "osdcore.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
 
 #include <array>
 #include <cstdio>
@@ -31,10 +31,10 @@
 
 typedef uintptr_t HashT;
 
-class gles2_renderer : public myosd_renderer
+class gles3_renderer : public myosd_renderer
 {
 public:
-	gles2_renderer(int width, int height);
+	gles3_renderer(int width, int height);
 
 	void end_renderer() override;
 
@@ -57,10 +57,10 @@ public:
 		}
 	}
 
-	struct gles2_texture
+	struct gles_texture
 	{
 		HashT hash;
-		GLuint texture_id = 0; //GLES2 texture object id
+		GLuint texture_id = 0; //GLES texture object id
 		render_texinfo texinfo; //Copy of the render_primitive texture info
 		u32 prim_flags;  //Copy of the render_primitive flags
 		osd_ticks_t last_access;
@@ -72,9 +72,9 @@ public:
 		void* base_back = nullptr;
 		bool owned = false; //Do we own the raw data pointer, or is it a direct reference to textinfo.base?
 
-        gles2_texture() = default;
+        gles_texture() = default;
 
-		~gles2_texture()
+		~gles_texture()
 		{
 			//glDeleteTextures(1, &texture_id);
 
@@ -84,8 +84,8 @@ public:
 			}
 		}
 
-        gles2_texture(const gles2_texture&) = delete;
-        gles2_texture& operator=(const gles2_texture&) = delete;
+        gles_texture(const gles_texture&) = delete;
+        gles_texture& operator=(const gles_texture&) = delete;
 	};
 
 	struct local_primitive {
@@ -96,16 +96,17 @@ public:
         uint32_t flags;
 		float width;
 		bool needs_texture_upload = false;
-		std::shared_ptr<gles2_texture> texture;
+		std::shared_ptr<gles_texture> texture;
 		void* upload_ptr = nullptr;
     };
 	
-	struct vertex_data {
-		float x, y;
-		float u, v;
-		float r, g, b, a;
-	};	
-
+	struct instance_data {
+        float p0x, p0y, p1x, p1y; // Vertices 0 and 1
+        float p2x, p2y, p3x, p3y; // Vertices 2 and 3
+        float u0, v0, u1, v1;     // UVs 0 and 1
+        float u2, v2, u3, v3;     // UVs 2 and 3
+        float r, g, b, a;         // A single color per instance
+    };
 	//GL vertex attributes
 	static constexpr GLuint ATTRIB_POSITION = 0; 
 	static constexpr GLuint ATTRIB_TEXUV = 1; 
@@ -113,7 +114,7 @@ public:
 
 	static constexpr u8 s_quad_indices[] = { 0, 1, 2, 0, 2, 3 }; //Indices to draw a quad with glDrawElements
 
-    ~gles2_renderer() override
+    ~gles3_renderer() override
     {
         glDeleteProgram(m_quad_program);
 		
@@ -149,9 +150,9 @@ private:
 	int m_last_blendmode = -1;
 	void set_blendmode(int blendmode);
 
-	void update_texture_cache(const render_primitive& prim, std::shared_ptr<gles2_texture>& out_tex);
-	std::shared_ptr<gles2_texture> texture_find(const render_primitive& prim, osd_ticks_t now);
-	std::shared_ptr<gles2_texture> texture_create(const render_primitive& prim);
+	void update_texture_cache(const render_primitive& prim, std::shared_ptr<gles_texture>& out_tex);
+	std::shared_ptr<gles_texture> texture_find(const render_primitive& prim, osd_ticks_t now);
+	std::shared_ptr<gles_texture> texture_create(const render_primitive& prim);
 	void cleanup_texture_cache();
 	
 	void upload_pending_textures(std::vector<local_primitive>& draw_prims);
@@ -165,6 +166,13 @@ private:
 	//each one deals with a specific texture format
 	GLuint m_quad_program;
 	GLint m_uniform_ortho_quad;
+	
+	// --- ELEMENTOS PARA TRUE HDR ---
+	GLuint m_hdr_program;
+	GLint m_uniform_ortho_hdr;
+	GLint m_uniform_exposure_hdr;
+	bool m_fbo_is_hdr = false;
+    // --------------------------------------
 
 	GLuint m_white_texture = 0;
 	GLuint m_glow_texture = 0;	
@@ -172,11 +180,14 @@ private:
 	bool m_fbo_dirty = false;	
 	GLuint m_fbo = 0;
 	GLuint m_fbo_texture = 0;
-	void create_fbo(int width, int height);
+	void create_fbo(int width, int height, bool is_hdr);
 	void delete_fbo();
 	
-	std::vector<vertex_data> m_batch_vertices;
-	std::vector<GLushort> m_batch_indices;
+	std::vector<instance_data> m_batch_instances;
+    
+    // Native OpenGL buffers
+    GLuint m_corner_vbo = 0;
+    GLuint m_instance_vbo = 0;
 
 	void flush_batch();
 	void push_quad(const float* verts, const float* uv, const render_color& color);
@@ -201,7 +212,7 @@ private:
     bool m_flush_textures = false;
     int m_last_filter_mode;
 	
-	std::list<std::shared_ptr<gles2_texture>> m_texlist; //Currently allocated textures
+	std::list<std::shared_ptr<gles_texture>> m_texlist; //Currently allocated textures
 };
 
-#endif //GLES2_RENDERER_H
+#endif //GLES3_RENDERER_H

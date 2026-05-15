@@ -2,13 +2,13 @@
 // copyright-holders: David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
 /***************************************************************************
 
-    gles2_renderer.cpp
+    gles3_renderer.cpp
 
-    GL MAME Native renderer based on GLES 2.x for MAME4droid
+    GL MAME Native renderer based on GLES 3.x for MAME4droid
 
 ***************************************************************************/
 
-#include "gles2_renderer.h"
+#include "gles3_renderer.h"
 #include "gl_utils.hxx"
 
 #include "shader_sources.hxx"
@@ -23,7 +23,18 @@
 #include <cmath>
 #include <utility>
 
-#define ANDROID_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "gles2_renderer", __VA_ARGS__)
+#define ANDROID_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "gles3_renderer", __VA_ARGS__)
+
+
+
+// =======================================================================
+// VECTOR BLOOM EFFECT CONFIGURATION
+// =======================================================================
+
+// Forces the use of the FBO for vectors whenever bloom is enabled,
+// even if no MAME CRT filter (shader) is selected.
+constexpr bool BLOOM_FORCE_FBO = true;
+
 
 constexpr int VECTOR_FBO_HEIGHT =  480; 
 
@@ -50,12 +61,12 @@ constexpr float BLOOM_PHOSPHOR_FALLOFF = 4.5f;
 
 // --- Lines (Standard vectors) ---
 // - Purpose: Base physical width (in pixels) and base opacity for drawing standard lines.
-// - Width Range: [3.0f - 6.0f] (Depends on screen DPI. 4.0f is generally safe).
+// - Width Range: [3.0f - 6.0f] (4.0f is generally safe).
 // - Alpha Range: [0.50f - 1.0f] (0.75f allows some transparency before HDR kicks in).
 //constexpr float BLOOM_LINE_WIDTH_MULT = 3.5f;  
 //constexpr float BLOOM_LINE_ALPHA      = 0.75f;
 
-constexpr float BLOOM_LINE_WIDTH_MULT = 10.0f;  
+constexpr float BLOOM_LINE_WIDTH_MULT = 3.5f;  
 constexpr float BLOOM_LINE_ALPHA      = 0.75f;
 
 // --- Points (Stars / Shots / Explosions) ---
@@ -120,7 +131,7 @@ constexpr float BLOOM_OVERBRIGHT_POINT_MULT = 1.35f;
 //   -> 1.35f = Recommended (Arcade monitor running slightly overdriven).
 //   -> 1.8f+ = Extremely bright, almost everything will generate bloom.
 //constexpr float BLOOM_GLOBAL_DRIVE_MULTIPLIER = 1.35f;
-constexpr float BLOOM_GLOBAL_DRIVE_MULTIPLIER = 1.35f;//TODO AJUSTAR BIEN PARA QUE NO BRILLE TODO
+constexpr float BLOOM_GLOBAL_DRIVE_MULTIPLIER = 1.35f;
 
 
 // -----------------------------------------------------------------------
@@ -227,7 +238,7 @@ static const line_aa_step line_aa_4step[] = {
 	{ 0 }
 };
 
-using gles2_texture = gles2_renderer::gles2_texture;
+using gles_texture = gles3_renderer::gles_texture;
 
 static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_bounds& bounds, float width, float extension)
 {
@@ -259,9 +270,9 @@ static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_
 //Prototypes
 static HashT texture_compute_hash(const render_texinfo& texture, const u32 flags);
 static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 texformat);
-static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim);
+static bool compare_texture_primitive(const gles_texture& texture, const render_primitive& prim);
 
-void gles2_renderer::set_shader(const char* shader_name)
+void gles3_renderer::set_shader(const char* shader_name)
 {
     ANDROID_LOG("set_shader %s...", shader_name);
     if (shader_name)
@@ -291,7 +302,7 @@ void gles2_renderer::set_shader(const char* shader_name)
     }
 }
 
-std::vector<std::string> gles2_renderer::get_shaders_supported()
+std::vector<std::string> gles3_renderer::get_shaders_supported()
 {
     std::vector<std::string> key_list;
     for (const auto& [key, value] : s_filters)
@@ -300,7 +311,7 @@ std::vector<std::string> gles2_renderer::get_shaders_supported()
     return key_list;
 }
 
-gles2_renderer::gles2_renderer(int width, int height)
+gles3_renderer::gles3_renderer(int width, int height)
 {
 	//First and foremost, let's check whether a shader compiler is supported.
 	//Unfortunately, GLES 2 specification doesn't demand that every implementation bundle a shader compiler on the graphics driver
@@ -321,8 +332,24 @@ gles2_renderer::gles2_renderer(int width, int height)
 	/* Init quad shader program*/
 	GLuint quad_vertex_shader = gl_utils::load_shader(quad_vertex_shader_src, GL_VERTEX_SHADER);
 	GLuint quad_frag_shader   = gl_utils::load_shader(quad_frag_shader_src,   GL_FRAGMENT_SHADER);
-	m_quad_program = gl_utils::create_program(quad_vertex_shader, quad_frag_shader, {{ATTRIB_POSITION, "a_position"}, {ATTRIB_TEXUV, "a_texuv"}, {ATTRIB_COLOR, "a_color"}});
 
+	m_quad_program = gl_utils::create_program(quad_vertex_shader, quad_frag_shader, {
+        {0, "a_corner"}, {1, "i_p0p1"}, {2, "i_p2p3"}, 
+        {3, "i_uv0uv1"}, {4, "i_uv2uv3"}, {5, "i_color"}
+    });
+	
+	GLuint hdr_frag_shader = gl_utils::load_shader(hdr_frag_shader_src, GL_FRAGMENT_SHADER);
+	m_hdr_program = gl_utils::create_program(quad_vertex_shader, hdr_frag_shader, {
+        {0, "a_corner"}, {1, "i_p0p1"}, {2, "i_p2p3"}, 
+        {3, "i_uv0uv1"}, {4, "i_uv2uv3"}, {5, "i_color"}
+    });
+	glDeleteShader(hdr_frag_shader);
+	m_uniform_ortho_hdr = glGetUniformLocation(m_hdr_program, "u_ortho");
+	m_uniform_exposure_hdr = glGetUniformLocation(m_hdr_program, "u_exposure");
+	glUseProgram(m_hdr_program);
+	glUniform1i(glGetUniformLocation(m_hdr_program, "s_texture"), 0);
+	glUseProgram(0);	
+	
 	//Flag the shader objects for deletion, so they don't leak when the user is switching renderers
 	glDeleteShader(quad_vertex_shader);
 	glDeleteShader(quad_frag_shader);
@@ -377,20 +404,28 @@ gles2_renderer::gles2_renderer(int width, int height)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
-	m_batch_vertices.reserve(4096); 
-	m_batch_indices.reserve(6144);
+	// Static base geometry (6 indices to form 2 triangles)
+    glGenBuffers(1, &m_corner_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, m_corner_vbo);
+    float corners[6] = {0.0f, 1.0f, 2.0f, 0.0f, 2.0f, 3.0f};
+    glBufferData(GL_ARRAY_BUFFER, sizeof(corners), corners, GL_STATIC_DRAW);
+
+    // Dynamic buffer for instance data
+    glGenBuffers(1, &m_instance_vbo);
+
+    m_batch_instances.reserve(4096);
 	
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	on_emulatedsize_change(width, height);
 }
 
-void gles2_renderer::end_renderer()
+void gles3_renderer::end_renderer()
 {
     m_flush_textures = true;
 }
 
-void gles2_renderer::on_emulatedsize_change(int width, int height)
+void gles3_renderer::on_emulatedsize_change(int width, int height)
 {
     std::lock_guard<std::mutex> lock(m_render_mutex);	
 	
@@ -407,11 +442,19 @@ void gles2_renderer::on_emulatedsize_change(int width, int height)
 	m_init = true;
 }
 
-void gles2_renderer::create_fbo(int width, int height) {
-    delete_fbo();
+void gles3_renderer::create_fbo(int width, int height, bool is_hdr) {
+	delete_fbo();
     glGenTextures(1, &m_fbo_texture);
     glBindTexture(GL_TEXTURE_2D, m_fbo_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	
+    if (is_hdr) {
+        // --- TRUE HDR 16-BIT FLOAT FORMAT ---
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+    } else {
+        // --- STANDARD 8-BIT FORMAT (Shaders ) ---
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    }
+	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -424,14 +467,17 @@ void gles2_renderer::create_fbo(int width, int height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void gles2_renderer::delete_fbo() {
+
+
+
+void gles3_renderer::delete_fbo() {
     if (m_fbo) glDeleteFramebuffers(1, &m_fbo);
     if (m_fbo_texture) glDeleteTextures(1, &m_fbo_texture);
     m_fbo = 0; m_fbo_texture = 0;
 }
 
 
-void gles2_renderer::set_blendmode(int blendmode)
+void gles3_renderer::set_blendmode(int blendmode)
 {
 	// try to minimize texture state changes
 	if (blendmode != m_last_blendmode)
@@ -459,7 +505,7 @@ void gles2_renderer::set_blendmode(int blendmode)
 	}
 }
 
-void gles2_renderer::sync_state(const render_primitive_list* primlist)
+void gles3_renderer::sync_state(const render_primitive_list* primlist)
 {
 	//clean old textures
 	cleanup_texture_cache();
@@ -526,54 +572,77 @@ void gles2_renderer::sync_state(const render_primitive_list* primlist)
 
 }
 
-void gles2_renderer::push_quad(const float* verts, const float* uv, const render_color& color) 
+void gles3_renderer::push_quad(const float* verts, const float* uv, const render_color& color) 
 {
-	if (m_batch_vertices.size() >= 60000) {
+    // Flush if we reach a safe batch size (around 10k quads at once)
+    if (m_batch_instances.size() >= 10000) { 
         flush_batch();
     }
-	
-    GLushort base = m_batch_vertices.size();
     
     static const float default_uv[8] = {0.0f};
     const float* actual_uv = uv ? uv : default_uv;
     
-    m_batch_vertices.push_back({verts[0], verts[1], actual_uv[0], actual_uv[1], color.r, color.g, color.b, color.a});
-    m_batch_vertices.push_back({verts[2], verts[3], actual_uv[2], actual_uv[3], color.r, color.g, color.b, color.a});
-    m_batch_vertices.push_back({verts[4], verts[5], actual_uv[4], actual_uv[5], color.r, color.g, color.b, color.a});
-    m_batch_vertices.push_back({verts[6], verts[7], actual_uv[6], actual_uv[7], color.r, color.g, color.b, color.a});
-
-    m_batch_indices.push_back(base + 0); m_batch_indices.push_back(base + 1); m_batch_indices.push_back(base + 2);
-    m_batch_indices.push_back(base + 0); m_batch_indices.push_back(base + 2); m_batch_indices.push_back(base + 3);
+    // Pack everything into a single contiguous data block
+    m_batch_instances.push_back({
+        verts[0], verts[1], verts[2], verts[3],
+        verts[4], verts[5], verts[6], verts[7],
+        actual_uv[0], actual_uv[1], actual_uv[2], actual_uv[3],
+        actual_uv[4], actual_uv[5], actual_uv[6], actual_uv[7],
+        color.r, color.g, color.b, color.a
+    });
 }
 
-void gles2_renderer::flush_batch() 
+void gles3_renderer::flush_batch() 
 {
-    if (m_batch_indices.empty()) return;
+    if (m_batch_instances.empty()) return;
 	
+    // Explicitly protect external VAOs before binding our buffers
+    glBindVertexArray(0);	
+
+    // 1. Send the master block of instance data to the GPU
+    glBindBuffer(GL_ARRAY_BUFFER, m_instance_vbo);
+    glBufferData(GL_ARRAY_BUFFER, m_batch_instances.size() * sizeof(instance_data), m_batch_instances.data(), GL_DYNAMIC_DRAW);
+
+    // 2. Configure the corner buffer (Advances once per VERTEX)
+    glBindBuffer(GL_ARRAY_BUFFER, m_corner_vbo);
+    glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribDivisor(0, 0); 
+
+    // 3. Configure the instance buffer (Advances once per INSTANCE)
+    glBindBuffer(GL_ARRAY_BUFFER, m_instance_vbo);
+    int stride = sizeof(instance_data);
+    
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(4 * sizeof(float)));
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8 * sizeof(float)));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, (void*)(12 * sizeof(float)));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, (void*)(16 * sizeof(float)));
+
+    for (int i = 1; i <= 5; i++) {
+        glEnableVertexAttribArray(i);
+        glVertexAttribDivisor(i, 1); // THIS is the magic Instancing instruction
+    }
+
+    // 4. DRAW EVERYTHING AT ONCE! (6 corners per instance)
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, m_batch_instances.size());
+
+    // 5. CLEANUP: Absolute State Isolation
+    // Explicitly close all pipelines (Attributes 0 to 5)
+    for (int i = 0; i <= 5; i++) {
+        glDisableVertexAttribArray(i);
+    }
+    // Reset the instancing divisor
+    for (int i = 1; i <= 5; i++) {
+        glVertexAttribDivisor(i, 0); 
+    }
+    // Unbind the buffer so MAME doesn't read it by mistake
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    int stride = sizeof(vertex_data);
-    const void* pointer_pos = (const void*)offsetof(vertex_data, x);
-    const void* pointer_uv  = (const void*)offsetof(vertex_data, u);
-    const void* pointer_col = (const void*)offsetof(vertex_data, r);
-
-    glVertexAttribPointer(ATTRIB_POSITION, 2, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_pos);
-    glEnableVertexAttribArray(ATTRIB_POSITION);
-
-    glVertexAttribPointer(ATTRIB_TEXUV, 2, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_uv);
-    glEnableVertexAttribArray(ATTRIB_TEXUV);
-
-    glVertexAttribPointer(ATTRIB_COLOR, 4, GL_FLOAT, GL_FALSE, stride, (const uint8_t*)m_batch_vertices.data() + (size_t)pointer_col);
-    glEnableVertexAttribArray(ATTRIB_COLOR);
-
-    glDrawElements(GL_TRIANGLES, m_batch_indices.size(), GL_UNSIGNED_SHORT, m_batch_indices.data());
-
-    m_batch_vertices.clear();
-    m_batch_indices.clear();
+    m_batch_instances.clear();
 }
 
-void gles2_renderer::upload_pending_textures(std::vector<local_primitive>& draw_prims)
+void gles3_renderer::upload_pending_textures(std::vector<local_primitive>& draw_prims)
 {
 	for (local_primitive& prim : draw_prims) {
 		if (prim.texture && (prim.texture->needs_gl_init || prim.needs_texture_upload)) {
@@ -601,7 +670,7 @@ void gles2_renderer::upload_pending_textures(std::vector<local_primitive>& draw_
 	}
 }
 
-void gles2_renderer::calculate_vector_bounds(const std::vector<local_primitive>& draw_prims, render_bounds& out_bounds)
+void gles3_renderer::calculate_vector_bounds(const std::vector<local_primitive>& draw_prims, render_bounds& out_bounds)
 {
     out_bounds = { 99999.0f, 99999.0f, -99999.0f, -99999.0f };
     bool has_vectors = false;
@@ -623,8 +692,8 @@ void gles2_renderer::calculate_vector_bounds(const std::vector<local_primitive>&
     
 }
 
-
-void gles2_renderer::draw_vector_fbo(const render_bounds& v_bounds)
+/*
+void gles3_renderer::draw_vector_fbo(const render_bounds& v_bounds)
 {
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
@@ -646,8 +715,56 @@ void gles2_renderer::draw_vector_fbo(const render_bounds& v_bounds)
     glUseProgram(m_quad_program);
     m_current_texture = 0; m_last_blendmode = -1;
 }
+*/
 
-void gles2_renderer::process_dwell_point(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time, float& prev_x, float& prev_y, float& prev_dx_norm, float& prev_dy_norm)
+void gles3_renderer::draw_vector_fbo(const render_bounds& v_bounds)
+{
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    float u0 = v_bounds.x0 / m_width; float u1 = v_bounds.x1 / m_width;
+    float v0 = 1.0f - (v_bounds.y0 / m_height); float v1 = 1.0f - (v_bounds.y1 / m_height);
+
+    float fbo_verts[8] = { v_bounds.x0, v_bounds.y0, v_bounds.x0, v_bounds.y1, v_bounds.x1, v_bounds.y1, v_bounds.x1, v_bounds.y0 };
+    float fbo_uv[8] = { u0, v0, u0, v1, u1, v1, u1, v0 };
+
+    float view_w = v_bounds.x1 - v_bounds.x0; float view_h = v_bounds.y1 - v_bounds.y0;
+    if (view_h <= 0.1f) view_h = 1.0f;
+    
+    int tex_h = 480; 
+    int tex_w = (int)(tex_h * (view_w / view_h));		
+
+	if (m_usefilter) {
+        // With Shader (8-Bit FBO) ---
+        m_filter.draw_quad(m_fbo_texture, fbo_verts, fbo_uv, tex_w, tex_h, m_view_width, m_view_height);
+    } else {
+        //Pure FBO to Screen ---
+        GLuint program_to_use = m_fbo_is_hdr ? m_hdr_program : m_quad_program;
+        glUseProgram(program_to_use);
+        
+        if (m_fbo_is_hdr) {
+            glUniformMatrix4fv(m_uniform_ortho_hdr, 1, GL_FALSE, m_ortho.data());
+            // Pass our exposure to the final Tone Mapper			
+            // Strong photographic exposure so the light overexposes naturally.
+            //TODO: Revisar constante hardcodeada
+            glUniform1f(m_uniform_exposure_hdr, 1.5f);
+        } else {
+            glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
+        }
+        
+        m_current_texture = m_fbo_texture;
+        glBindTexture(GL_TEXTURE_2D, m_current_texture);
+
+        render_color color = { 1.0f, 1.0f, 1.0f, 1.0f }; 
+        push_quad(fbo_verts, fbo_uv, color);
+        flush_batch();
+    }
+    
+    glUseProgram(m_quad_program);
+    m_current_texture = 0; m_last_blendmode = -1;
+}
+
+void gles3_renderer::process_dwell_point(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time, float& prev_x, float& prev_y, float& prev_dx_norm, float& prev_dy_norm)
 {
     // Early exit if the effect is disabled globally or not applicable
     if (!BLOOM_CORNER_BURN_ENABLED || !is_vector || !enable_bloom) {
@@ -706,64 +823,34 @@ void gles2_renderer::process_dwell_point(const local_primitive& prim, bool is_ve
     }
 }
 
-
-void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time)
+void gles3_renderer::process_line_primitive(const local_primitive& prim, bool is_vector, bool enable_bloom, float current_time)
 {
     float effwidth = std::max(prim.width, 1.0f);
 
     // --- COHERENT MAGNETIC WOBBLE (Analog Jitter) ---
-    float px0 = prim.bounds.x0;
-    float py0 = prim.bounds.y0;
-    float px1 = prim.bounds.x1;
-    float py1 = prim.bounds.y1;
+    float px0 = prim.bounds.x0; float py0 = prim.bounds.y0;
+    float px1 = prim.bounds.x1; float py1 = prim.bounds.y1;
 	
     if (is_vector && enable_bloom) {
-        // Use the center of the line for spatial coherence
-        float center_x = (px0 + px1) * 0.5f;
-        float center_y = (py0 + py1) * 0.5f;
-
-        // Coupled wave formulas (Simulates electromagnetic interference)
-        // Multiplying coordinates by 0.05f ensures nearby lines move together.
+        float center_x = (px0 + px1) * 0.5f; float center_y = (py0 + py1) * 0.5f;
         float jx = std::sin(current_time * 13.2f + center_y * 0.05f) * BLOOM_BEAM_JITTER_AMOUNT;
         float jy = std::cos(current_time * 11.7f + center_x * 0.05f) * BLOOM_BEAM_JITTER_AMOUNT;
-
-        px0 += jx;
-        py0 += jy;
-        px1 += jx;
-        py1 += jy;
+        px0 += jx; py0 += jy; px1 += jx; py1 += jy;
     }
     
-    // Calculate distances using the new jittered coordinates (px, py)
-    float dx = px1 - px0;
-    float dy = py1 - py0;
+    float dx = px1 - px0; float dy = py1 - py0;
     bool is_point = (std::abs(dx) < 0.001f && std::abs(dy) < 0.001f);
-    
     float length = is_point ? 0.0f : std::sqrt(dx*dx + dy*dy);
     
 	// 1. Get raw MAME intensity (0.0 to 1.0)
     float base_intensity = prim.color.a; 
 
-    // --- HDR TONE MAPPING (Exposure) ---
-    // Dim the raw MAME RGB color if bloom is active to prevent 8-bit FBO clamping.
-    float exposure = (is_vector && enable_bloom) ? BLOOM_EXPOSURE_RGB : 1.0f;
-    float col_r = prim.color.r * exposure;
-    float col_g = prim.color.g * exposure;
-    float col_b = prim.color.b * exposure;
-    // -----------------------------------
-
     // --- PHOSPHOR COLOR RESPONSE (Luminance & Bleed) ---
     float phosphor_response = 1.0f;
-    
-    //float drive = enable_bloom ? BLOOM_GLOBAL_DRIVE_MULTIPLIER : 1.0; 
-	//float drive = BLOOM_GLOBAL_DRIVE_MULTIPLIER; 
-	float drive = enable_bloom ? BLOOM_GLOBAL_DRIVE_MULTIPLIER : 1.0; 
+	float drive = enable_bloom ? BLOOM_GLOBAL_DRIVE_MULTIPLIER : 1.0f; 
     
     if (enable_bloom && BLOOM_PHOSPHOR_RESPONSE_ENABLED) {
-        // Calculate perceptual color weight using the standard NTSC/Rec.601 formula.
-        float luminance = (prim.color.r * BLOOM_PHOSPHOR_WEIGHT_R) + 
-                          (prim.color.g * BLOOM_PHOSPHOR_WEIGHT_G) + 
-                          (prim.color.b * BLOOM_PHOSPHOR_WEIGHT_B);
-                          
+        float luminance = (prim.color.r * BLOOM_PHOSPHOR_WEIGHT_R) + (prim.color.g * BLOOM_PHOSPHOR_WEIGHT_G) + (prim.color.b * BLOOM_PHOSPHOR_WEIGHT_B);
         phosphor_response = BLOOM_PHOSPHOR_BASE_RESPONSE + (luminance * BLOOM_PHOSPHOR_LUMA_BOOST);
     }
 
@@ -773,41 +860,72 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
     // 3. BEAM SPEED DYNAMICS (Electron gun physics)
     if (is_vector && !is_point) {
         float threshold = m_height * BLOOM_SHORT_LINE_THRESHOLD_PCT; 
-        
         if (length < threshold && length > 0.1f) {
             float shortness = 1.0f - (length / threshold);
-            // Multiply simulated energy, not the base intensity
             simulated_energy *= (1.0f + shortness * BLOOM_SHORT_LINE_INTENSITY_BOOST);
             effwidth *= (1.0f + shortness * BLOOM_SHORT_LINE_WIDTH_BOOST);
         }
     }
 
-    // 4. Core saturates naturally (NON-LINEAR PHOSPHOR COMPRESSION)
-    float core_alpha;
-    if (enable_bloom) {
-        // Filmic curve for Bloom mode
-        core_alpha = 1.0f - std::exp(-simulated_energy * 1.5f);
-    } else {
-        // Strict digital clamp for "No Bloom" mode
-        core_alpha = std::min(simulated_energy, 1.0f);
-    }
-    
-    // 5. Excess energy feeds the Bloom
-    float overbright_raw = std::max(simulated_energy - 1.0f, 0.0f);
-    float overbright = std::min(std::pow(overbright_raw, 0.7f), BLOOM_OVERBRIGHT_MAX);
+    // ====================================================================
+    // 4 & 5. ROUTE ENERGY BASED ON FBO CAPABILITIES
+    // ====================================================================
+    float col_r, col_g, col_b;
+    float core_alpha, safe_bloom_alpha_point, safe_bloom_alpha_line;
+    float overbright = 0.0f;
 
-    // Desaturation (Whitewashing) ONLY applies when Bloom is active.
-    if (enable_bloom && overbright > 0.0f) {
-        float desaturation = std::min(overbright * 0.3f, 1.0f); // 30% white-washing
-        col_r = col_r + (1.0f - col_r) * desaturation;
-        col_g = col_g + (1.0f - col_g) * desaturation;
-        col_b = col_b + (1.0f - col_b) * desaturation;
+    if (m_fbo_is_hdr) {
+        // --- TRUE HDR PATH (16-Bit Float) ---
+        // FBO has no limits. Physical energy goes directly into RGB channels!
+        col_r = prim.color.r * simulated_energy;
+        col_g = prim.color.g * simulated_energy;
+        col_b = prim.color.b * simulated_energy;
+        
+        // Alpha acts strictly as a spatial mask for blending, not as a light cap.
+        core_alpha = 1.0f; 
+        safe_bloom_alpha_point = BLOOM_POINT_ALPHA;
+        safe_bloom_alpha_line  = BLOOM_LINE_ALPHA;
+        
+        // Calculate overbright for physical expansion (bloom radius)
+        float overbright_raw = std::max(simulated_energy - 1.0f, 0.0f);
+        overbright = std::pow(overbright_raw, 0.7f); // No strict cap needed
+        
+    } else {
+        // --- 8-BIT PATH (MAME Shaders) ---
+        // FBO clamps at 1.0. We use exposure and whitewashing to fake HDR.
+        float exposure = (is_vector && enable_bloom) ? BLOOM_EXPOSURE_RGB : 1.0f;
+        col_r = prim.color.r * exposure;
+        col_g = prim.color.g * exposure;
+        col_b = prim.color.b * exposure;
+
+        core_alpha = enable_bloom ? (1.0f - std::exp(-simulated_energy * 1.5f)) : std::min(simulated_energy, 1.0f);
+        
+        float overbright_raw = std::max(simulated_energy - 1.0f, 0.0f);
+        overbright = std::min(std::pow(overbright_raw, 0.7f), BLOOM_OVERBRIGHT_MAX);
+
+        if (enable_bloom && overbright > 0.0f) {
+            float desaturation = std::min(overbright * 0.3f, 1.0f);
+            col_r = col_r + (1.0f - col_r) * desaturation;
+            col_g = col_g + (1.0f - col_g) * desaturation;
+            col_b = col_b + (1.0f - col_b) * desaturation;
+        }
+
+        float max_alpha = 0.85f + (overbright * 0.1f);
+        safe_bloom_alpha_point = std::min(simulated_energy * BLOOM_POINT_ALPHA, max_alpha);
+        safe_bloom_alpha_line  = std::min(simulated_energy * BLOOM_LINE_ALPHA, max_alpha);
+        
+        if (simulated_energy > 0.01f) {
+            safe_bloom_alpha_point = std::max(0.08f, safe_bloom_alpha_point);
+            safe_bloom_alpha_line  = std::max(0.08f, safe_bloom_alpha_line);
+        }
     }
     
     float bloom_scale = 1.0f;
 
+    // ====================================================================
+    // 6. DRAW PRIMITIVES
+    // ====================================================================
     if (is_point) {
-        
         if (is_vector && enable_bloom) {
             float dynamic_width = BLOOM_POINT_WIDTH_MULT + (overbright * BLOOM_OVERBRIGHT_POINT_MULT);
             float bloom_w = effwidth * dynamic_width * bloom_scale;
@@ -816,20 +934,9 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
             m_quad_verts[2] = px0 - bloom_w; m_quad_verts[3] = py0 + bloom_w; 
             m_quad_verts[4] = px0 + bloom_w; m_quad_verts[5] = py0 + bloom_w; 
             m_quad_verts[6] = px0 + bloom_w; m_quad_verts[7] = py0 - bloom_w; 
-            
             float bloom_uv[8] = { 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f };
             
-            float max_alpha = 0.85f + (overbright * 0.1f);
-            float safe_bloom_alpha = std::min(simulated_energy * BLOOM_POINT_ALPHA, max_alpha);
-            
-            // Anti Black-Crush floor
-            if (simulated_energy > 0.01f) {
-                safe_bloom_alpha = std::max(0.08f, safe_bloom_alpha);
-            }			
-            
-            // USE EXPOSED COLORS
-            render_color c_bloom = { safe_bloom_alpha, col_r, col_g, col_b };
-            
+            render_color c_bloom = { safe_bloom_alpha_point, col_r, col_g, col_b };
             push_quad(m_quad_verts, bloom_uv, c_bloom);
         }
 
@@ -838,44 +945,27 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
         m_quad_verts[2] = px0 - half_w; m_quad_verts[3] = py0 + half_w; 
         m_quad_verts[4] = px0 + half_w; m_quad_verts[5] = py0 + half_w; 
         m_quad_verts[6] = px0 + half_w; m_quad_verts[7] = py0 - half_w; 
-        
         float core_uv[8] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
         
-        // USE EXPOSED COLORS
         render_color c_core = { core_alpha, col_r, col_g, col_b };
         push_quad(m_quad_verts, is_vector ? core_uv : nullptr, c_core);
         
     } else {
-
         if (is_vector && enable_bloom) {
             float length_factor = std::min(length / (0.15f * m_height), 1.0f); 
-            
             float dynamic_bloom_mult = (BLOOM_LINE_WIDTH_MULT * (0.5f + 0.5f * length_factor)) + (overbright * BLOOM_OVERBRIGHT_LINE_MULT);
             float bloom_width = effwidth * dynamic_bloom_mult * bloom_scale;
             float half_w = bloom_width * 0.5f;
 
-            // Calculate normal vectors (width) and directional vectors (length for caps)
-            float nx = (-dy / length) * half_w;
-            float ny = ( dx / length) * half_w;
-            float dx_ext = (dx / length) * half_w;
-            float dy_ext = (dy / length) * half_w;
+            float nx = (-dy / length) * half_w; float ny = ( dx / length) * half_w;
+            float dx_ext = (dx / length) * half_w; float dy_ext = (dy / length) * half_w;
 
-            // Base vertices of the line using Jitter
             float ax0 = px0 + nx; float ay0 = py0 + ny;
             float ax1 = px0 - nx; float ay1 = py0 - ny;
             float bx0 = px1 + nx; float by0 = py1 + ny;
             float bx1 = px1 - nx; float by1 = py1 - ny;
 
-            float max_alpha = 0.85f + (overbright * 0.1f);
-            
-            // Anti Black-Crush floor
-            float safe_bloom_alpha = std::min(simulated_energy * BLOOM_LINE_ALPHA, max_alpha);
-            if (simulated_energy > 0.01f) {
-                safe_bloom_alpha = std::max(0.08f, safe_bloom_alpha);
-            }
-            
-            // USE EXPOSED COLORS
-            render_color c_bloom = { safe_bloom_alpha, col_r, col_g, col_b };
+            render_color c_bloom = { safe_bloom_alpha_line, col_r, col_g, col_b };
 
             // 1. START CAP
             m_quad_verts[0] = ax0 - dx_ext; m_quad_verts[1] = ay0 - dy_ext; 
@@ -903,7 +993,6 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
         }
 
         // --- CORE ---
-        // Create a temporary render_bounds for the render_line_to_quad function
         render_bounds jittered_bounds = { px0, py0, px1, py1 };
         auto [b0, b1] = render_line_to_quad(jittered_bounds, effwidth, 0.0f);
         
@@ -913,8 +1002,6 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
         for (; step->weight != 0.0f; step++) {
             render_color c;
             c.a = core_alpha * step->weight; 
-            
-            // USE EXPOSED COLORS
             c.r = col_r;
             c.g = col_g;
             c.b = col_b;
@@ -929,7 +1016,8 @@ void gles2_renderer::process_line_primitive(const local_primitive& prim, bool is
         }
     }
 }
-void gles2_renderer::process_quad_primitive(const local_primitive& prim, bool is_screen, int needed_blend)
+
+void gles3_renderer::process_quad_primitive(const local_primitive& prim, bool is_screen, int needed_blend)
 {
     m_quad_verts[0] = prim.bounds.x0; m_quad_verts[1] = prim.bounds.y0; 
     m_quad_verts[2] = prim.bounds.x0; m_quad_verts[3] = prim.bounds.y1; 
@@ -960,11 +1048,11 @@ void gles2_renderer::process_quad_primitive(const local_primitive& prim, bool is
     }
 }
 
-void gles2_renderer::render()
+void gles3_renderer::render()
 {
 	float current_time = (float)osd_ticks() / (float)osd_ticks_per_second();	
 	
-	// --- ELECTRON GUN STATE (To calculate Dwell Time at the corners) ---
+	// ELECTRON GUN STATE (To calculate Dwell Time at the corners) ---
     float prev_x = -9999.0f;
     float prev_y = -9999.0f;
     float prev_dx_norm = 0.0f;
@@ -980,11 +1068,12 @@ void gles2_renderer::render()
         m_render_textures_to_delete.clear();
     }
 	
-	if (m_usefilter && m_fbo_dirty) {
-        create_fbo(m_width, m_height);
-        m_fbo_dirty = false;
-    }
-	
+	// Unbind any VAO or Buffer left open by the shader during screen rotation
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    // ------------------------------------
+		
     render_bounds v_bounds = { 99999.0f, 99999.0f, -99999.0f, -99999.0f };
     calculate_vector_bounds(draw_prims, v_bounds);
 	
@@ -1017,6 +1106,22 @@ void gles2_renderer::render()
     m_last_blendmode = -1; 
 	
     bool enable_bloom = myosd_get(MYOSD_VECTOR_BLOOM) ? true : false;
+	bool require_fbo = m_usefilter || (enable_bloom && BLOOM_FORCE_FBO);
+
+	// HDR CONDITION: We only enable 16-bit memory if the user enables bloom and there are no shaders active
+    bool require_hdr = (!m_usefilter && enable_bloom);
+
+	// If the FBO state has mutated (from 8-bit to 16-bit or vice versa), force its recreation
+    if (require_hdr != m_fbo_is_hdr) {
+        m_fbo_is_hdr = require_hdr;
+        m_fbo_dirty = true;
+    }
+
+    if (require_fbo && m_fbo_dirty) {
+        create_fbo(m_width, m_height, m_fbo_is_hdr);
+        m_fbo_dirty = false;
+    }	
+	
 	bool fbo_active = false;
 
 	for (const local_primitive& prim : draw_prims)
@@ -1024,7 +1129,7 @@ void gles2_renderer::render()
         bool is_screen = PRIMFLAG_GET_SCREENTEX(prim.flags);
 		bool is_vector = PRIMFLAG_GET_VECTOR(prim.flags);
         
-        if (m_usefilter && is_vector) {
+        if (require_fbo && is_vector) {
             if (!fbo_active) {
                 flush_batch(); 
                 glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
@@ -1077,7 +1182,7 @@ void gles2_renderer::render()
 
 	flush_batch();
 	
-	if (m_usefilter && fbo_active) {
+	if (require_fbo && fbo_active) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE); 
         glViewport(0, 0, m_view_width, m_view_height);
@@ -1108,9 +1213,9 @@ static void texture_copy_data(void* dest, const render_texinfo& texinfo, u32 tex
 	}
 }
 
-void gles2_renderer::update_texture_cache(const render_primitive& prim, std::shared_ptr<gles2_texture>& out_tex)
+void gles3_renderer::update_texture_cache(const render_primitive& prim, std::shared_ptr<gles_texture>& out_tex)
 {
-	std::shared_ptr<gles2_texture> texture = texture_find(prim, osd_ticks());
+	std::shared_ptr<gles_texture> texture = texture_find(prim, osd_ticks());
 
 	if (texture == nullptr) {
 		out_tex = texture_create(prim);
@@ -1130,10 +1235,10 @@ void gles2_renderer::update_texture_cache(const render_primitive& prim, std::sha
 	}
 }
 
-std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(const render_primitive& prim)
+std::shared_ptr<gles3_renderer::gles_texture> gles3_renderer::texture_create(const render_primitive& prim)
 {
 	const render_texinfo& texinfo = prim.texture;
-    std::shared_ptr<gles2_texture> texture = std::make_shared<gles2_texture>();
+    std::shared_ptr<gles_texture> texture = std::make_shared<gles_texture>();
 	m_texlist.push_front(texture);
 
 	texture->hash = texture_compute_hash(texinfo, prim.flags);
@@ -1151,7 +1256,7 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_create(co
 	return texture;
 }
 
-std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_find(const render_primitive& prim, osd_ticks_t now)
+std::shared_ptr<gles3_renderer::gles_texture> gles3_renderer::texture_find(const render_primitive& prim, osd_ticks_t now)
 {
 	for (auto& tex : m_texlist)
 	{
@@ -1164,7 +1269,7 @@ std::shared_ptr<gles2_renderer::gles2_texture> gles2_renderer::texture_find(cons
 	return nullptr;
 }
 
-void gles2_renderer::cleanup_texture_cache()
+void gles3_renderer::cleanup_texture_cache()
 {
     if (m_flush_textures || m_last_filter_mode != myosd_get(MYOSD_BITMAP_FILTERING))
 	{
@@ -1204,7 +1309,7 @@ static inline HashT texture_compute_hash(const render_texinfo &texture, const u3
 	return (HashT)texture.base ^ (flags & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK));
 }
 
-static bool compare_texture_primitive(const gles2_texture& texture, const render_primitive& prim)
+static bool compare_texture_primitive(const gles_texture& texture, const render_primitive& prim)
 {
 	//Just compare if the dimensions are the same, we can update the pixel data if they changed
 	return texture.texinfo.base == prim.texture.base
