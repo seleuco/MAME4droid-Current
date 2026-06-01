@@ -1203,8 +1203,8 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
         
         // Apply the HDR settings using the separated raster paper white uniform
-        glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);
-        glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+		glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);
+        glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
         glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
         glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
 		glUniform1f(m_loc_quad_device_peak, m_peak_nits);		
@@ -1267,14 +1267,14 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
             // Pass physical dimensions to ensure OutputSize is correct. 
             m_filter.draw_quad(m_fbo_texture_sdr, fbo_verts, fbo_uv, (int)layout_w, (int)layout_h, m_view_width, m_view_height);
             
-            // Resolve the FULL FBO to the screen using the HDR quad
+			// Resolve the FULL FBO to the screen using the HDR quad
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, m_view_width, m_view_height);
             glUseProgram(m_quad_program);
             
             glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
             glUniform1i(m_loc_quad_use_hdr, 1);
-            glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+            glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
             glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
             glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
             glUniform1i(m_uniform_is_vector_quad, 0); 
@@ -1345,16 +1345,16 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, vector_ortho.data());
         glUniform1i(m_loc_quad_use_hdr, 0);     
         glUniform1i(m_loc_quad_raster_fake_hdr, 0); 
-    } else if (target_fbo == 0) {
+	} else if (target_fbo == 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, m_view_width, m_view_height);
         glUseProgram(m_quad_program);
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
         glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);
-        glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+        glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
         glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
         glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
-		glUniform1f(m_loc_quad_device_peak, m_peak_nits);		
+        glUniform1f(m_loc_quad_device_peak, m_peak_nits);		
     }
 
     current_fbo = target_fbo;
@@ -1880,23 +1880,26 @@ void gles3_renderer::render()
 
 	upload_pending_textures(draw_prims);
 
+	// ------------------------------------------------------------------
+    // PRE-PASS: Fast check for vectors & SCENE ENERGY RADAR (Auto-Exposure)
+    // ------------------------------------------------------------------
+    bool has_vectors = calculate_auto_exposure(draw_prims);
+
 	glUseProgram(m_quad_program);
 	glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
 	
     // --- CACHED UNIFORMS & FAKE HDR ---
 	glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);	
-    glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
-    glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
+    
+	// Auto HDR MUST be disabled for backdrops/bezels in Vector games
+    glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
+    
+	glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
     glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
 	glUniform1f(m_loc_quad_device_peak, m_peak_nits);	
 
 	m_current_texture = 0;
     m_last_blendmode = -1;
-
-	// ------------------------------------------------------------------
-    // PRE-PASS: Fast check for vectors & SCENE ENERGY RADAR (Auto-Exposure)
-    // ------------------------------------------------------------------
-    bool has_vectors = calculate_auto_exposure(draw_prims);
 
 	int vectorbuf_count = 0;
     for (const auto& prim : draw_prims) {

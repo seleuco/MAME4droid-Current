@@ -422,7 +422,7 @@
 						android:title="Auto HDR Intensity"
 						android:summary="How aggressively highlights are expanded to peak luminance."
 						android:max="100"
-						android:defaultValue="37" />
+						android:defaultValue="35" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Defaults">
@@ -655,7 +655,7 @@
 						android:title="Voltage Flicker"
 						android:summary="Maximum intensity drop caused by random voltage fluctuation."
 						android:max="100"
-						android:defaultValue="30" />
+						android:defaultValue="20" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Global Exposure &amp; CRT Drive">
