@@ -66,7 +66,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	// =======================================================================
 	// CENTRALIZED VECTOR PHYSICS CONSTANTS
 	// =======================================================================
-	public static final String[] VECTOR_KEYS_BOOL = {
+	public static final String[] RENDER_KEYS_BOOL = {
 		"PREF_VECTOR_EFFECT_FBO_HALF_RES",
 		"PREF_VECTOR_EFFECT_BLOOM",
 		"PREF_VECTOR_EFFECT_AUTO_EXPOSURE",
@@ -76,7 +76,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		"PREF_VECTOR_EFFECT_PHOSPHOR_RESPONSE",
 		"PREF_VECTOR_EFFECT_PERSISTENCE",
 		"PREF_VECTOR_EFFECT_JITTER",
-		"PREF_VECTOR_EFFECT_LINEAR_GAMMA"
+		"PREF_VECTOR_EFFECT_LINEAR_GAMMA",
+		"PREF_HDR_RASTER_FAKE_HDR",
 	};
 
 	public static final boolean[] DEF_BOOL_VALUES = {
@@ -86,13 +87,14 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		true,  // OVERBRIGHT
 		true,  // BEAM_DYNAMICS
 		true,  // CORNER_BURN
-		false, // PHOSPHOR_RESPONSE (Desactivado por defecto para ahorrar CPU)
+		false, // PHOSPHOR_RESPONSE
 		true,  // PERSISTENCE
-		true,   // JITTER
-		true   // LINEAR_GAMMA
+		true,  // JITTER
+		true,  // LINEAR_GAMMA
+		false,  // RASTER_FAKE_HDR
 	};
 
-	public static final String[] VECTOR_KEYS_INT = {
+	public static final String[] RENDER_KEYS_INT = {
 		"PREF_BLOOM_LINE_WIDTH",
 		"PREF_BLOOM_LINE_ALPHA",
 		"PREF_BLOOM_POINT_WIDTH",
@@ -116,12 +118,14 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		"PREF_BLOOM_PHOSPHOR_LUMA_BOOST",
 		"PREF_BLOOM_PHOSPHOR_DECAY",
 		"PREF_BLOOM_BEAM_JITTER_AMOUNT",
-		"PREF_BLOOM_BEAM_FLICKER_AMOUNT"
+		"PREF_BLOOM_BEAM_FLICKER_AMOUNT",
+		"PREF_HDR_RASTER_HDR_MULTIPLIER",
+		"PREF_HDR_RASTER_PAPER_WHITE"
 	};
 
 	public static final int[] DEF_INT_VALUES = {
-		55, // LINE_WIDTH
-		15, // LINE_ALPHA
+		65, // LINE_WIDTH
+		20, // LINE_ALPHA
 		55, // POINT_WIDTH
 		15, // POINT_ALPHA
 		35, // GLOBAL_DRIVE
@@ -141,9 +145,11 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		20, // CORNER_BURN_WIDTH_MULT
 		40, // PHOSPHOR_BASE_RESPONSE
 		60, // PHOSPHOR_LUMA_BOOST
-		40, // PHOSPHOR_DECAY
-		30, // BEAM_JITTER_AMOUNT
-		30  // BEAM_FLICKER_AMOUNT
+		20, // PHOSPHOR_DECAY
+		20, // BEAM_JITTER_AMOUNT
+		30, // BEAM_FLICKER_AMOUNT
+		37, // RASTER_HDR_MULTIPLIER
+		25  // PREF_HDR_RASTER_PAPER_WHITE
 	};
 
 	private MAME4droid mm;
@@ -208,21 +214,21 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	 * Sends all current SharedPreferences to the C++ Renderer
 	 */
 	public static void syncRendererParameters(SharedPreferences prefs) {
-		int totalSize = VECTOR_KEYS_BOOL.length + VECTOR_KEYS_INT.length;
+		int totalSize = RENDER_KEYS_BOOL.length + RENDER_KEYS_INT.length;
 		String[] keys = new String[totalSize];
 		String[] values = new String[totalSize];
 
 		int idx = 0;
 
-		for (int i = 0; i < VECTOR_KEYS_BOOL.length; i++) {
-			keys[idx] = VECTOR_KEYS_BOOL[i];
-			values[idx] = prefs.getBoolean(VECTOR_KEYS_BOOL[i], DEF_BOOL_VALUES[i]) ? "1" : "0";
+		for (int i = 0; i < RENDER_KEYS_BOOL.length; i++) {
+			keys[idx] = RENDER_KEYS_BOOL[i];
+			values[idx] = prefs.getBoolean(RENDER_KEYS_BOOL[i], DEF_BOOL_VALUES[i]) ? "1" : "0";
 			idx++;
 		}
 
-		for (int i = 0; i < VECTOR_KEYS_INT.length; i++) {
-			keys[idx] = VECTOR_KEYS_INT[i];
-			values[idx] = String.valueOf(prefs.getInt(VECTOR_KEYS_INT[i], DEF_INT_VALUES[i]));
+		for (int i = 0; i < RENDER_KEYS_INT.length; i++) {
+			keys[idx] = RENDER_KEYS_INT[i];
+			values[idx] = String.valueOf(prefs.getInt(RENDER_KEYS_INT[i], DEF_INT_VALUES[i]));
 			idx++;
 		}
 
@@ -235,12 +241,12 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	public static void restoreVectorDefaults(SharedPreferences prefs) {
 		SharedPreferences.Editor editor = prefs.edit();
 
-		for (int i = 0; i < VECTOR_KEYS_BOOL.length; i++) {
-			editor.putBoolean(VECTOR_KEYS_BOOL[i], DEF_BOOL_VALUES[i]);
+		for (int i = 0; i < RENDER_KEYS_BOOL.length; i++) {
+			editor.putBoolean(RENDER_KEYS_BOOL[i], DEF_BOOL_VALUES[i]);
 		}
 
-		for (int i = 0; i < VECTOR_KEYS_INT.length; i++) {
-			editor.putInt(VECTOR_KEYS_INT[i], DEF_INT_VALUES[i]);
+		for (int i = 0; i < RENDER_KEYS_INT.length; i++) {
+			editor.putInt(RENDER_KEYS_INT[i], DEF_INT_VALUES[i]);
 		}
 		editor.commit();
 

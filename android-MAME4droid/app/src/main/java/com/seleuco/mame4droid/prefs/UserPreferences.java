@@ -330,7 +330,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 			{
 				mPrefNumProcessors.setSummary("Current value is '" + mPrefNumProcessors.getEntry()+"'");
 			}
-			else if (key.startsWith("PREF_VECTOR_EFFECT_") || key.startsWith("PREF_BLOOM_"))
+			else if (key.startsWith("PREF_VECTOR_EFFECT_") || key.startsWith("PREF_BLOOM_") || key.startsWith("PREF_HDR_"))
 			{
 				if (Emulator.isEmulating()) {
 					GLNativeRenderer.syncRendererParameters(sharedPreferences);
@@ -450,6 +450,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							GLNativeRenderer.restoreVectorDefaults(settings);
+							recreate();
 						}
 					})
 					.setNegativeButton("No", new DialogInterface.OnClickListener() {

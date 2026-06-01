@@ -158,8 +158,11 @@ private:
 	GLint m_uniform_peak_nits;
 	
 	GLint m_loc_quad_use_hdr = -1;
+	GLint m_loc_quad_raster_fake_hdr = -1;
+	GLint m_loc_quad_raster_hdr_mult = -1;
+	GLint m_loc_quad_paper_white = -1;
+	GLint m_loc_quad_device_peak = -1;
 	
-
 	GLuint m_white_texture = 0;
 	GLuint m_glow_texture = 0;
 	

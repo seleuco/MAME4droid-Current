@@ -369,24 +369,76 @@
 				android:title="Smooth scaling" android:summary="Select to turn bitmap filtering on"
 				android:defaultValue="true" />
 
-			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
-				android:key="PREF_HDR_DISPLAY"
+			<PreferenceScreen
+				android:key="PREFSCR_HDR_SETTINGS"
 				android:dependency="PREF_SHADERS_ENABLED"
-				android:title="True HDR Display"
-				android:summary="Unlocks peak panel brightness and Wide Color Gamut for vector games. Requires an HDR-capable screen."
-				android:defaultValue="false" />
+				android:title="HDR Settings"
+				android:summary="Configure True HDR for vector games and Auto HDR for raster games."
+				android:persistent="false">
+
+				<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
+					android:key="PREF_HDR"
+					android:title="Enable HDR Display"
+					android:summary="Unlocks peak panel brightness and Wide Color Gamut. Note: HDR experience will vary across devices due to poor implementations by many manufacturers (optimized for Google Pixel). Enabling this renders vector games in true HDR, realistically emulating the intense brightness of original CRT phosphors. It also unlocks Auto HDR enhancements for classic raster games."
+					android:defaultValue="false" />
+
+				<PreferenceCategory android:title="CRT / Vector HDR Calibration">
+					<SeekBarPreference
+						android:key="PREF_BLOOM_BASE_NITS"
+						android:dependency="PREF_HDR"
+						android:title="CRT Base Luminance (Nits)"
+						android:summary="The physical baseline light of a standard vector (Default: 300 nits)."
+						android:max="100"
+						android:defaultValue="20" />
+
+					<SeekBarPreference
+						android:key="PREF_BLOOM_MAX_NITS"
+						android:dependency="PREF_HDR"
+						android:title="CRT Max Luminance (Nits)"
+						android:summary="The absolute physical limit of the emulated arcade monitor (Default: 400 nits)."
+						android:max="100"
+						android:defaultValue="30" />
+				</PreferenceCategory>
+
+				<PreferenceCategory android:title="Raster / Auto HDR (SDR to HDR)">
+					<SeekBarPreference
+						android:key="PREF_HDR_RASTER_PAPER_WHITE"
+						android:dependency="PREF_HDR"
+						android:title="Raster Paper White Reference"
+						android:summary="Sets the baseline physical brightness strictly for standard games and artworks in HDR mode. Independent from Vector Nits. Adjust for visual comfort if it appears too bright."
+						android:max="100"
+						android:defaultValue="25" />
+
+					<CheckBoxPreference
+						android:key="PREF_HDR_RASTER_FAKE_HDR"
+						android:dependency="PREF_HDR"
+						android:title="Enable Auto HDR (Raster)"
+						android:summary="Upgrades standard SDR games and artworks to HDR luminance levels using Inverse Tone Mapping."
+						android:defaultValue="false" />
+
+					<SeekBarPreference
+						android:key="PREF_HDR_RASTER_HDR_MULTIPLIER"
+						android:dependency="PREF_HDR_RASTER_FAKE_HDR"
+						android:title="Auto HDR Intensity"
+						android:summary="How aggressively highlights are expanded to peak luminance."
+						android:max="100"
+						android:defaultValue="37" />
+				</PreferenceCategory>
+
+			</PreferenceScreen>
+
 
 			<CheckBoxPreference
 				android:key="PREF_VECTOR_IMPROVED"
 				android:dependency="PREF_SHADERS_ENABLED"
 				android:title="Vector Advanced Effects"
-				android:summary="TODO . (Only works with Native renderer)"
-				android:defaultValue="false" />
+				android:summary="Enables a highly accurate physical simulation of vector CRT monitors. Includes optical bloom, phosphor persistence, electron beam dynamics, corner burn, and magnetic jitter."
+				android:defaultValue="true" />
 
 			<PreferenceScreen
 				android:key="PREFSCR_VECTOR_SETTINGS"
 				android:dependency="PREF_VECTOR_IMPROVED"
-				android:title="Vector Calibration (Expert Mode)"
+				android:title="Vector Effects Calibration (Expert Mode)"
 				android:summary="Fine-tune optical bloom, exposure, electron beam physics and yoke voltage."
 				android:persistent="false">
 
@@ -398,59 +450,11 @@
 						android:defaultValue="true" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Global Exposure &amp; CRT Drive">
-					<SeekBarPreference
-						android:key="PREF_BLOOM_GLOBAL_DRIVE"
-						android:title="CRT Global Drive (Voltage)"
-						android:summary="Master brightness knob (Voltage overdrive)."
-						android:max="100"
-						android:defaultValue="35" />
-
-					<SeekBarPreference
-						android:key="PREF_BLOOM_BASE_NITS"
-						android:title="CRT Base Luminance (Nits)"
-						android:dependency="PREF_HDR_DISPLAY"
-						android:summary="The physical baseline light of a standard vector (Default: 300 nits). Note: Only applies when 'True HDR Display' is enabled."
-						android:max="100"
-						android:defaultValue="20" />
-
-					<SeekBarPreference
-						android:key="PREF_BLOOM_MAX_NITS"
-						android:title="CRT Max Luminance (Nits)"
-						android:dependency="PREF_HDR_DISPLAY"
-						android:summary="The absolute physical limit of the emulated arcade monitor (Default: 400 nits). Note: Only applies when 'True HDR Display' is enabled."
-						android:max="100"
-						android:defaultValue="30" />
-
-					<CheckBoxPreference
-						android:key="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Enable HDR Auto-Exposure"
-						android:summary="Camera eye-adaptation. Dims the screen dynamically during bright explosions."
-						android:defaultValue="true" />
-
-					<SeekBarPreference
-						android:key="PREF_BLOOM_FIXED_EXPOSURE"
-						android:title="Fixed Manual Exposure"
-						android:summary="Used only if Auto-Exposure is OFF. Adjusts the baseline brightness."
-						android:max="100"
-						android:defaultValue="35" />
-
-					<SeekBarPreference
-						android:key="PREF_BLOOM_AUTO_EXPOSURE_MULT"
-						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Auto-Exposure Multiplier"
-						android:summary="Boosts or dims the overall dynamic range of the adaptation."
-						android:max="100"
-						android:defaultValue="40" />
-
-					<SeekBarPreference
-						android:key="PREF_BLOOM_AUTO_EXPOSURE_THRESHOLD"
-						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Auto-Exposure Threshold"
-						android:summary="Screen area % that triggers maximum dimming (radar/explosions)."
-						android:max="100"
-						android:defaultValue="50" />
-				</PreferenceCategory>
+				<CheckBoxPreference
+					android:key="PREF_VECTOR_EFFECT_LINEAR_GAMMA"
+					android:title="Enable Linear Light Physics"
+					android:summary="Converts the raw electrical voltage into physical light energy using the CRT's natural Gamma curve (~2.5). Essential for accurate color mixing, though some games may appear less vivid as a result. Highly recommended when True HDR Display is enabled."
+					android:defaultValue="true" />
 
 				<PreferenceCategory android:title="Optical Bloom (Halo Scattering)">
 					<CheckBoxPreference
@@ -465,7 +469,7 @@
 						android:title="Line Bloom Spread"
 						android:summary="Physical thickness of the glowing halo around lines."
 						android:max="100"
-						android:defaultValue="55" />
+						android:defaultValue="65" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_LINE_ALPHA"
@@ -473,7 +477,7 @@
 						android:title="Line Bloom Intensity"
 						android:summary="Base opacity of the glowing halo around lines."
 						android:max="100"
-						android:defaultValue="55" />
+						android:defaultValue="20" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_POINT_WIDTH"
@@ -481,7 +485,7 @@
 						android:title="Point/Star Bloom Spread"
 						android:summary="Physical thickness of the glowing halo around isolated vertices."
 						android:max="100"
-						android:defaultValue="45" />
+						android:defaultValue="55" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_POINT_ALPHA"
@@ -489,7 +493,7 @@
 						android:title="Point/Star Bloom Intensity"
 						android:summary="Base opacity of the glowing halo around isolated vertices."
 						android:max="100"
-						android:defaultValue="85" />
+						android:defaultValue="15" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Excess Energy (HDR Overbright)">
@@ -537,12 +541,6 @@
 						android:key="PREF_VECTOR_EFFECT_BEAM_DYNAMICS"
 						android:title="Enable Beam Dynamics"
 						android:summary="Simulates the beam burning harder on short strokes (like text and ships)."
-						android:defaultValue="true" />
-
-					<CheckBoxPreference
-						android:key="PREF_VECTOR_EFFECT_LINEAR_GAMMA"
-						android:title="Enable Linear Light Physics"
-						android:summary="Converts the raw electrical voltage into physical light energy using the CRT's natural Gamma curve (~2.5). Essential for accurate color mixing."
 						android:defaultValue="true" />
 
 					<SeekBarPreference
@@ -627,7 +625,7 @@
 						android:title="Trail Decay Speed"
 						android:summary="Lower = Long Radar smear. Higher = Fast Arcade fade."
 						android:max="100"
-						android:defaultValue="40" />
+						android:defaultValue="20" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Analog Wear &amp; Tear (Yoke)">
@@ -643,7 +641,7 @@
 						android:title="Jitter Severity"
 						android:summary="Maximum physical deviation of the electron beam."
 						android:max="100"
-						android:defaultValue="30" />
+						android:defaultValue="20" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_BEAM_FLICKER_AMOUNT"
@@ -652,6 +650,44 @@
 						android:summary="Maximum intensity drop caused by random voltage fluctuation."
 						android:max="100"
 						android:defaultValue="30" />
+				</PreferenceCategory>
+
+				<PreferenceCategory android:title="Global Exposure &amp; CRT Drive">
+					<SeekBarPreference
+						android:key="PREF_BLOOM_GLOBAL_DRIVE"
+						android:title="CRT Global Drive (Voltage)"
+						android:summary="Master brightness knob (Voltage overdrive)."
+						android:max="100"
+						android:defaultValue="35" />
+
+					<CheckBoxPreference
+						android:key="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
+						android:title="Enable HDR Auto-Exposure"
+						android:summary="Camera eye-adaptation. Dims the screen dynamically during bright explosions."
+						android:defaultValue="true" />
+
+					<SeekBarPreference
+						android:key="PREF_BLOOM_FIXED_EXPOSURE"
+						android:title="Fixed Manual Exposure"
+						android:summary="Used only if Auto-Exposure is OFF. Adjusts the baseline brightness."
+						android:max="100"
+						android:defaultValue="35" />
+
+					<SeekBarPreference
+						android:key="PREF_BLOOM_AUTO_EXPOSURE_MULT"
+						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
+						android:title="Auto-Exposure Multiplier"
+						android:summary="Boosts or dims the overall dynamic range of the adaptation."
+						android:max="100"
+						android:defaultValue="40" />
+
+					<SeekBarPreference
+						android:key="PREF_BLOOM_AUTO_EXPOSURE_THRESHOLD"
+						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
+						android:title="Auto-Exposure Threshold"
+						android:summary="Screen area % that triggers maximum dimming (radar/explosions)."
+						android:max="100"
+						android:defaultValue="50" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Defaults">

@@ -93,7 +93,7 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_SCRAPE_RESIZE = "PREF_SCRAPE_RESIZE";
 	final static public String PREF_BITMAP_FILTERING = "PREF_BITMAP_FILTERING";
 	final static public String PREF_VECTOR_IMPROVED = "PREF_VECTOR_IMPROVED";
-	final static public String PREF_HDR_DISPLAY = "PREF_HDR_DISPLAY";
+	final static public String PREF_HDR_DISPLAY = "PREF_HDR";
 
 	final static public String PREF_PORTRAIT_SCALING_MODE = "PREF_PORTRAIT_SCALING_MODE";
 	final static public String PREF_PORTRAIT_TOUCH_CONTROLLER = "PREF_PORTRAIT_TOUCH_CONTROLLER";
@@ -245,7 +245,7 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	}
 
 	public boolean isVectorBloom() {
-		return getSharedPreferences().getBoolean(PREF_VECTOR_IMPROVED, false);
+		return getSharedPreferences().getBoolean(PREF_VECTOR_IMPROVED, true);
 	}
 
 	public boolean isHDRDisplayEnabled() {

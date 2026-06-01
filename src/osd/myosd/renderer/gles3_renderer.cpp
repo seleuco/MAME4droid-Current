@@ -105,6 +105,12 @@ static bool VECTOR_FBO_HALF_RES = true;
 // using the CRT's natural Gamma curve (~2.5). Essential for accurate color mixing in both HDR and SDR.
 static bool VECTOR_EFFECT_LINEAR_GAMMA = true;
 
+// 11. Raster Fake HDR
+// Upgrades standard 8-bit SDR games and artworks to HDR luminance levels using Inverse Tone Mapping.
+static bool HDR_RASTER_FAKE_HDR_ENABLED = false;
+static float HDR_RASTER_HDR_MULTIPLIER = 2.5f;
+static float HDR_RASTER_PAPER_WHITE = 200.0f; // Dedicated standard reference white for raster/artworks
+
 
 // -----------------------------------------------------------------------
 // RENDER TARGET OPTIMIZATION (FILLRATE SAVINGS)
@@ -468,7 +474,12 @@ gles3_renderer::gles3_renderer(int width, int height, bool use_hdr_display, floa
 	m_uniform_ortho_quad = glGetUniformLocation(m_quad_program, "u_ortho");
 	m_uniform_is_vector_quad = glGetUniformLocation(m_quad_program, "u_is_vector");
 	
+    // --- CACHE UNIFORM LOCATIONS ---
 	m_loc_quad_use_hdr = glGetUniformLocation(m_quad_program, "u_use_hdr_display");
+    m_loc_quad_raster_fake_hdr = glGetUniformLocation(m_quad_program, "u_raster_fake_hdr");
+    m_loc_quad_raster_hdr_mult = glGetUniformLocation(m_quad_program, "u_raster_hdr_mult");
+    m_loc_quad_paper_white = glGetUniformLocation(m_quad_program, "u_paper_white");
+	m_loc_quad_device_peak = glGetUniformLocation(m_quad_program, "u_device_peak_multiplier");	
 
 	auto sampler_uniform = glGetUniformLocation(m_quad_program, "s_texture");
 	glUseProgram(m_quad_program);
@@ -1191,8 +1202,12 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
         glUseProgram(m_quad_program);
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
         
-        // Apply the HDR Linear conversion to the filtered background using cached uniform
+        // Apply the HDR settings using the separated raster paper white uniform
         glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);
+        glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+        glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
+        glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
+		glUniform1f(m_loc_quad_device_peak, m_peak_nits);		
         glUniform1i(m_uniform_is_vector_quad, 0); 
         
         glActiveTexture(GL_TEXTURE0);
@@ -1259,6 +1274,9 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
             
             glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
             glUniform1i(m_loc_quad_use_hdr, 1);
+            glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+            glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
+            glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
             glUniform1i(m_uniform_is_vector_quad, 0); 
             
             glActiveTexture(GL_TEXTURE0);
@@ -1314,6 +1332,7 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
         glUseProgram(m_quad_program);
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
         glUniform1i(m_loc_quad_use_hdr, 0);
+        glUniform1i(m_loc_quad_raster_fake_hdr, 0); 
     } else if (target_fbo == 2) {
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo_hdr[m_current_hdr_fbo]);
         glViewport(0, 0, (GLsizei)layout_w, (GLsizei)layout_h);
@@ -1324,13 +1343,18 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
         glViewport(0, 0, (GLsizei)layout_w, (GLsizei)layout_h);
         glUseProgram(m_quad_program);
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, vector_ortho.data());
-        glUniform1i(m_loc_quad_use_hdr, 0);        
+        glUniform1i(m_loc_quad_use_hdr, 0);     
+        glUniform1i(m_loc_quad_raster_fake_hdr, 0); 
     } else if (target_fbo == 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, m_view_width, m_view_height);
         glUseProgram(m_quad_program);
         glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
         glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);
+        glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+        glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
+        glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
+		glUniform1f(m_loc_quad_device_peak, m_peak_nits);		
     }
 
     current_fbo = target_fbo;
@@ -1488,15 +1512,10 @@ void gles3_renderer::apply_magnetic_jitter(float& px0, float& py0, float& px1, f
     float final_jx = (drift_x * 0.40f) + (ac_x * 0.40f) + (noise_x * 0.20f);
     float final_jy = (drift_y * 0.40f) + (ac_y * 0.40f) + (noise_y * 0.20f);
 
-    // --- MASSIVE DPI OVERRIDE ---
-    // At 1080p+, a linear pixel displacement is absorbed by anti-aliasing.
-    // By raising the scale to the power of 2.5, we force the vertices to jump
-    // far enough to physically break through the high pixel density.
-    float linear_scale = (float)std::max(m_height, 1) / 480.0f;
-    float scale_factor = linear_scale;
-    if (linear_scale > 1.05f) {
-        scale_factor = std::pow(linear_scale, 2.5f);
-    }
+    // --- RESOLUTION SCALING (Strictly Linear) ---
+    // To keep the visual amplitude identical across any screen density,
+    // we scale the jitter directly relative to a 480p baseline.
+    float scale_factor = (float)std::max(m_height, 1) / 480.0f;
 
     float jx = final_jx * BLOOM_BEAM_JITTER_AMOUNT * scale_factor;
     float jy = final_jy * BLOOM_BEAM_JITTER_AMOUNT * scale_factor;
@@ -1864,7 +1883,12 @@ void gles3_renderer::render()
 	glUseProgram(m_quad_program);
 	glUniformMatrix4fv(m_uniform_ortho_quad, 1, GL_FALSE, m_ortho.data());
 	
-	glUniform1i(glGetUniformLocation(m_quad_program, "u_use_hdr_display"), m_use_hdr_display ? 1 : 0);	
+    // --- CACHED UNIFORMS & FAKE HDR ---
+	glUniform1i(m_loc_quad_use_hdr, m_use_hdr_display ? 1 : 0);	
+    glUniform1i(m_loc_quad_raster_fake_hdr, HDR_RASTER_FAKE_HDR_ENABLED ? 1 : 0);
+    glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
+    glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
+	glUniform1f(m_loc_quad_device_peak, m_peak_nits);	
 
 	m_current_texture = 0;
     m_last_blendmode = -1;
@@ -2313,10 +2337,15 @@ extern "C" {
 
             // --- 6. ANALOG WEAR & TEAR (JITTER) ---
             else if (key == "PREF_VECTOR_EFFECT_JITTER") VECTOR_EFFECT_BEAM_JITTER_ENABLED = parse_bool(key, val);
-            else if (key == "PREF_BLOOM_BEAM_JITTER_AMOUNT") BLOOM_BEAM_JITTER_AMOUNT = map_slider(key, std::stoi(val), 0.0f, 0.50f);
+			else if (key == "PREF_BLOOM_BEAM_JITTER_AMOUNT") BLOOM_BEAM_JITTER_AMOUNT = map_slider(key, std::stoi(val), 0.0f, 2.50f);
             else if (key == "PREF_BLOOM_BEAM_FLICKER_AMOUNT") BLOOM_BEAM_FLICKER_AMOUNT = map_slider(key, std::stoi(val), 0.0f, 0.50f);
 			
 			else if (key == "PREF_VECTOR_EFFECT_LINEAR_GAMMA") VECTOR_EFFECT_LINEAR_GAMMA = parse_bool(key, val);
+			
+			// --- 7. RASTER FAKE HDR ---
+			else if (key == "PREF_HDR_RASTER_FAKE_HDR") HDR_RASTER_FAKE_HDR_ENABLED = parse_bool(key, val);
+            else if (key == "PREF_HDR_RASTER_HDR_MULTIPLIER") HDR_RASTER_HDR_MULTIPLIER = map_slider(key, std::stoi(val), 1.0f, 5.0f);
+            else if (key == "PREF_HDR_RASTER_PAPER_WHITE") HDR_RASTER_PAPER_WHITE = map_slider(key, std::stoi(val), 100.0f, 500.0f);		
 
         }
     }
