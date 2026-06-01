@@ -387,17 +387,17 @@
 						android:key="PREF_BLOOM_BASE_NITS"
 						android:dependency="PREF_HDR"
 						android:title="CRT Base Luminance (Nits)"
-						android:summary="The physical baseline light of a standard vector (Default: 300 nits)."
+						android:summary="The physical baseline light of a standard vector (Default: 250 nits)."
 						android:max="100"
-						android:defaultValue="20" />
+						android:defaultValue="15" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_MAX_NITS"
 						android:dependency="PREF_HDR"
 						android:title="CRT Max Luminance (Nits)"
-						android:summary="The absolute physical limit of the emulated arcade monitor (Default: 400 nits)."
+						android:summary="The absolute physical limit of the emulated arcade monitor (Default: 600 nits)."
 						android:max="100"
-						android:defaultValue="30" />
+						android:defaultValue="50" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Raster / Auto HDR (SDR to HDR)">
@@ -423,6 +423,12 @@
 						android:summary="How aggressively highlights are expanded to peak luminance."
 						android:max="100"
 						android:defaultValue="37" />
+				</PreferenceCategory>
+
+				<PreferenceCategory android:title="Defaults">
+					<PreferenceScreen android:key="defaultHDRData"
+						android:title="Restore HDR Defaults"
+						android:summary="Reset all HDR and Auto HDR calibration values to defaults." />
 				</PreferenceCategory>
 
 			</PreferenceScreen>
@@ -641,7 +647,7 @@
 						android:title="Jitter Severity"
 						android:summary="Maximum physical deviation of the electron beam."
 						android:max="100"
-						android:defaultValue="20" />
+						android:defaultValue="10" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_BEAM_FLICKER_AMOUNT"

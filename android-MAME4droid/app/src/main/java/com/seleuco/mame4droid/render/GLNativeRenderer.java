@@ -129,8 +129,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		55, // POINT_WIDTH
 		15, // POINT_ALPHA
 		35, // GLOBAL_DRIVE
-		20, // BASE_NITS (300 nits)
-		30, // MAX_NITS (400 nits)
+		15, // BASE_NITS (250 nits)
+		50, // MAX_NITS (600 nits)
 		35, // FIXED_EXPOSURE (1.2f)
 		40, // AUTO_EXPOSURE_MULT
 		50, // AUTO_EXPOSURE_THRESHOLD
@@ -146,7 +146,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		40, // PHOSPHOR_BASE_RESPONSE
 		60, // PHOSPHOR_LUMA_BOOST
 		20, // PHOSPHOR_DECAY
-		20, // BEAM_JITTER_AMOUNT
+		10, // BEAM_JITTER_AMOUNT
 		30, // BEAM_FLICKER_AMOUNT
 		37, // RASTER_HDR_MULTIPLIER
 		25  // PREF_HDR_RASTER_PAPER_WHITE
@@ -242,15 +242,45 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		SharedPreferences.Editor editor = prefs.edit();
 
 		for (int i = 0; i < RENDER_KEYS_BOOL.length; i++) {
+			if (RENDER_KEYS_BOOL[i].startsWith("PREF_HDR_")) continue;
 			editor.putBoolean(RENDER_KEYS_BOOL[i], DEF_BOOL_VALUES[i]);
 		}
 
 		for (int i = 0; i < RENDER_KEYS_INT.length; i++) {
-			editor.putInt(RENDER_KEYS_INT[i], DEF_INT_VALUES[i]);
+			String key = RENDER_KEYS_INT[i];
+			if (key.equals("PREF_BLOOM_BASE_NITS") ||
+				key.equals("PREF_BLOOM_MAX_NITS") ||
+				key.startsWith("PREF_HDR_")) {
+				continue;
+			}
+			editor.putInt(key, DEF_INT_VALUES[i]);
 		}
 		editor.commit();
 
-		// Live-update C++ if a game is running
+		if (Emulator.isEmulating()) {
+			syncRendererParameters(prefs);
+		}
+	}
+
+	public static void restoreHDRDefaults(SharedPreferences prefs) {
+		SharedPreferences.Editor editor = prefs.edit();
+
+		for (int i = 0; i < RENDER_KEYS_BOOL.length; i++) {
+			if (RENDER_KEYS_BOOL[i].startsWith("PREF_HDR_")) {
+				editor.putBoolean(RENDER_KEYS_BOOL[i], DEF_BOOL_VALUES[i]);
+			}
+		}
+
+		for (int i = 0; i < RENDER_KEYS_INT.length; i++) {
+			String key = RENDER_KEYS_INT[i];
+			if (key.equals("PREF_BLOOM_BASE_NITS") ||
+				key.equals("PREF_BLOOM_MAX_NITS") ||
+				key.startsWith("PREF_HDR_")) {
+				editor.putInt(key, DEF_INT_VALUES[i]);
+			}
+		}
+		editor.commit();
+
 		if (Emulator.isEmulating()) {
 			syncRendererParameters(prefs);
 		}

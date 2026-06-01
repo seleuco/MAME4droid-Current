@@ -461,6 +461,24 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 				Dialog dialog = builder.create();
 				dialog.show();
 			}
+			else if (pref.getKey().equals("defaultHDRData")) {
+				AlertDialog.Builder builder = new AlertDialog.Builder(this);
+				builder.setMessage("Are you sure to restore HDR settings to defaults?")
+					.setCancelable(false)
+					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+						public void onClick(DialogInterface dialog, int id) {
+							GLNativeRenderer.restoreHDRDefaults(settings);
+							recreate();
+						}
+					})
+					.setNegativeButton("No", new DialogInterface.OnClickListener() {
+						public void onClick(DialogInterface dialog, int id) {
+							dialog.cancel();
+						}
+					});
+				Dialog dialog = builder.create();
+				dialog.show();
+			}
 
 			return super.onPreferenceTreeClick(preferenceScreen, pref);
 		}
