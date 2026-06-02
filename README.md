@@ -3,7 +3,7 @@
 ![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)
 ![Platform: Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
 
-**MAME4droid (Current)** is a powerful Android port of the **MAME 0.287** emulator (by MAMEDev and contributors), developed by **David Valdeita (Seleuco)**. It supports over 40,000 different ROMs and emulates classic arcade systems along with home computers like ZX Spectrum, Amstrad CPC, and MSX.
+**MAME4droid (Current)** is a powerful Android port of the **MAME 0.288** emulator (by MAMEDev and contributors), developed by **David Valdeita (Seleuco)**. It supports over 40,000 different ROMs and emulates classic arcade systems along with home computers like ZX Spectrum, Amstrad CPC, and MSX.
 
 ---
 
