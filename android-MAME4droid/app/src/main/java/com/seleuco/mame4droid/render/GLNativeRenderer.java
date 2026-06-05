@@ -78,6 +78,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		"PREF_VECTOR_EFFECT_JITTER",
 		"PREF_VECTOR_EFFECT_LINEAR_GAMMA",
 		"PREF_HDR_RASTER_FAKE_HDR",
+		"PREF_HDR_DIM_VECTOR_ARTWORKS"
 	};
 
 	public static final boolean[] DEF_BOOL_VALUES = {
@@ -92,6 +93,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		true,  // JITTER
 		true,  // LINEAR_GAMMA
 		false,  // RASTER_FAKE_HDR
+		true,   // DIM_VECTOR_ARTWORKS
 	};
 
 	public static final String[] RENDER_KEYS_INT = {
@@ -124,10 +126,16 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 	};
 
 	public static final int[] DEF_INT_VALUES = {
+		55, // LINE_WIDTH
+		35, // LINE_ALPHA
+		35, // POINT_WIDTH
+		30, // POINT_ALPHA
+/*
 		65, // LINE_WIDTH
 		20, // LINE_ALPHA
 		55, // POINT_WIDTH
 		15, // POINT_ALPHA
+*/
 		35, // GLOBAL_DRIVE
 		15, // BASE_NITS (250 nits)
 		50, // MAX_NITS (600 nits)

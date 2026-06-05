@@ -27,7 +27,7 @@ class gles1_renderer : public myosd_renderer
         public:
         gles1_renderer(int width, int height);
 
-        void sync_state(const render_primitive_list* primlist) override;
+        void sync_state(const render_primitive_list* primlist, bool in_menu = false) override;
         void render() override;
         void on_emulatedsize_change(int width, int height) override;
 

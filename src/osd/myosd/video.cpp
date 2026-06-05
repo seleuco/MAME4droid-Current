@@ -216,8 +216,8 @@ void my_osd_interface::update(bool skip_redraw)
 
 						my_renderer->on_emulatedsize_change(render_width, render_height);
 					}
-
-                    my_renderer->sync_state(local_primlist);
+										
+                    my_renderer->sync_state(local_primlist, in_menu);
                 }
 				rendering = true;
             }

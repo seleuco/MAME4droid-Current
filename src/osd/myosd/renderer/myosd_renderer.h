@@ -26,7 +26,7 @@ class myosd_renderer
 public:
 	virtual void init_renderer() {}
 	virtual void end_renderer() {}
-    virtual void sync_state(const render_primitive_list* primlist) = 0;
+    virtual void sync_state(const render_primitive_list* primlist, bool in_menu = false) = 0;
 	virtual void render() = 0;
 	virtual void on_emulatedsize_change(int width, int height) = 0;
 

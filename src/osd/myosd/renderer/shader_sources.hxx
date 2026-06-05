@@ -4,21 +4,9 @@
 
     shader_sources.hxx
 
-    Shader sources for GLES2 renderer
+    Shader sources for GLES 3.x renderer
 
 ***************************************************************************/
-
-
-// license:BSD-3-Clause
-// copyright-holders:David Valdeita (Seleuco) & Filipe Paulino (FlykeSpice)
-/***************************************************************************
-
-    shader_sources.hxx
-
-    Shader sources for GLES renderer
-
-***************************************************************************/
-
 
 //=================================================
 // Quad primitive program (TRUE HDR READY)
@@ -135,17 +123,15 @@ static const char* hdr_frag_shader_src =
     "\n"
     "out vec4 fragColor;\n"
     "\n"
-    "void main() {\n"
+	"void main() {\n"
     "    // 1. BEAM ENERGY FETCH (Linear Accumulation Buffer)\n"
-    "    // 'beam' represents the accumulated linear light from the rasterization phase.\n"
     "    vec3 beam = texture(s_texture, v_texuv).rgb * v_color.rgb;\n"
     "\n"
     "    vec3 mapped;\n"
+    "    float out_mask = 0.0;\n"
     "\n"
     "    if (u_use_hdr_display == 1) {\n"
     "        // --- HDR PATH (scRGB Linear Space) ---\n"
-    "        // In scRGB, a float value of 1.0 exactly equals 80 physical nits.\n"
-    "        // Java passes u_device_peak_nits divided by 100 (e.g., 10.0 = 1000 nits).\n"
     "        float hardware_peak_scRGB = (u_device_peak_nits * 100.0) / 80.0;\n"
     "        float max_nits_mult = min(u_max_nits / 80.0, hardware_peak_scRGB);\n"
     "        float base_mult = u_base_nits / 80.0;\n"
@@ -157,29 +143,36 @@ static const char* hdr_frag_shader_src =
     "        vec3 raw_hdr_nits = beam * u_exposure * base_mult;\n"
     "        float raw_hdr_luma = dot(raw_hdr_nits, vec3(0.2126, 0.7152, 0.0722));\n"
     "\n"
-    "        // 3. HIGHLIGHT COMPRESSION (Piecewise Reinhard with Shoulder)\n"
-    "        // By starting the compression at 75% of the base_nits (The Shoulder),\n"
-    "        // we smoothly compress the bloom halo before it washes out the core.\n"
-    "        // This restores the sharp, defined laser look of vectors like Asteroids.\n"
+    "        // 3. HIGHLIGHT COMPRESSION THRESHOLD (The Shoulder)\n"
     "        float threshold = base_mult * 0.75;\n"
+    "\n"
+    "        // 4. ANTI-FATTENING MASK (Symbiotic with Tone Mapper)\n"
+    "        // Tied directly to the shoulder threshold. Exactly when the core energy\n"
+    "        // reaches the point of needing compression, we carve out the background.\n"
+    "        // This guarantees stability no matter what base_nits the user selects.\n"
+    "        out_mask = smoothstep(threshold, threshold * 2.0, raw_hdr_luma) * 0.90;\n"
+    "\n"
+    "        // 5. HIGHLIGHT COMPRESSION (Piecewise Reinhard)\n"
     "        float range = max_nits_mult - threshold;\n"
     "        float excess = max(raw_hdr_luma - threshold, 0.0);\n"
     "        float mapped_excess = (excess / (excess + range)) * range;\n"
     "        float mapped_luma = min(raw_hdr_luma, threshold) + mapped_excess;\n"
     "\n"
-    "        // 4. SCALE RGB PROPORTIONALLY (Preserve Hue & Saturation)\n"
+    "        // 6. SCALE RGB PROPORTIONALLY (Preserve Hue & Saturation)\n"
     "        mapped = raw_hdr_nits * (mapped_luma / max(raw_hdr_luma, 0.0001));\n"
     "\n"
     "    } else {\n"
     "        // --- SDR PATH (8-bit Standard Displays) ---\n"
-    "        // Simple exponential tone mapping (keeps values strictly below 1.0)\n"
     "        vec3 raw = vec3(1.0) - exp(-beam * u_exposure);\n"
     "\n"
-    "        // 4. DISPLAY GAMMA CORRECTION (OETF)\n"
-    "        // Encodes the linear light into a Gamma 2.2 space so the SDR monitor displays it correctly.\n"
+    "        // DISPLAY GAMMA CORRECTION (OETF)\n"
     "        mapped = pow(clamp(raw, 0.0, 1.0), vec3(1.0 / 2.2));\n"
+    "\n"
+    "        // In SDR, raw is already exponentiated between 0 and 1.\n"
+    "        float sdr_luma = dot(raw, vec3(0.2126, 0.7152, 0.0722));\n"
+    "        out_mask = smoothstep(0.1, 0.8, sdr_luma) * 0.90;\n"
     "    }\n"
     "\n"
-    "    // Multiply the final mapped color by the alpha (which acts as a spatial mask/opacity)\n"
-    "    fragColor = vec4(mapped, texture(s_texture, v_texuv).a * v_color.a);\n"
+    "    // Output the mapped color and the carving mask in the alpha channel\n"
+    "    fragColor = vec4(mapped, out_mask);\n"
     "}\n";

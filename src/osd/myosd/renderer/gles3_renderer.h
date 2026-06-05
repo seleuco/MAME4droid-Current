@@ -39,7 +39,7 @@ public:
 
 	void end_renderer() override;
 
-	void sync_state(const render_primitive_list* primlist) override;
+	void sync_state(const render_primitive_list* primlist, bool in_menu = false) override;
 	void render() override;
 
 	void on_emulatedsize_change(int width, int height) override;
@@ -99,6 +99,7 @@ public:
 		bool needs_texture_upload = false;
 		std::shared_ptr<gles_texture> texture;
 		void* upload_ptr = nullptr;
+		bool is_artwork;		
     };
 	
 	struct instance_data {
@@ -232,6 +233,8 @@ private:
 	
 	bool m_use_hdr_display = false;
 	float m_peak_nits;
+	
+	bool m_in_menu = false;
 	
 	std::list<std::shared_ptr<gles_texture>> m_texlist; //Currently allocated textures
 };

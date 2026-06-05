@@ -400,6 +400,13 @@
 						android:defaultValue="50" />
 				</PreferenceCategory>
 
+				<CheckBoxPreference
+					android:key="PREF_HDR_DIM_VECTOR_ARTWORKS"
+					android:dependency="PREF_HDR"
+					android:title="Dim Vector Artworks"
+					android:summary="Darkens bezels and backgrounds in vector games to maximize the spectacular contrast of the phosphor lasers."
+					android:defaultValue="true" />
+
 				<PreferenceCategory android:title="Raster / Auto HDR (SDR to HDR)">
 					<SeekBarPreference
 						android:key="PREF_HDR_RASTER_PAPER_WHITE"
@@ -475,7 +482,7 @@
 						android:title="Line Bloom Spread"
 						android:summary="Physical thickness of the glowing halo around lines."
 						android:max="100"
-						android:defaultValue="65" />
+						android:defaultValue="55" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_LINE_ALPHA"
@@ -483,7 +490,7 @@
 						android:title="Line Bloom Intensity"
 						android:summary="Base opacity of the glowing halo around lines."
 						android:max="100"
-						android:defaultValue="20" />
+						android:defaultValue="35" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_POINT_WIDTH"
@@ -491,7 +498,7 @@
 						android:title="Point/Star Bloom Spread"
 						android:summary="Physical thickness of the glowing halo around isolated vertices."
 						android:max="100"
-						android:defaultValue="55" />
+						android:defaultValue="35" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_POINT_ALPHA"
@@ -499,7 +506,7 @@
 						android:title="Point/Star Bloom Intensity"
 						android:summary="Base opacity of the glowing halo around isolated vertices."
 						android:max="100"
-						android:defaultValue="15" />
+						android:defaultValue="30" />
 				</PreferenceCategory>
 
 				<PreferenceCategory android:title="Excess Energy (HDR Overbright)">

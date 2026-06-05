@@ -65,7 +65,7 @@ gles1_renderer::gles1_renderer(int width, int height)
     on_emulatedsize_change(width, height);
 }
 
-void gles1_renderer::sync_state(const render_primitive_list* primlist)
+void gles1_renderer::sync_state(const render_primitive_list* primlist, bool in_menu)
 {
     if (!m_screenbuff || !primlist) return;
 	

@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <EGL/egl.h>
 
 #define ANDROID_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "gles3_renderer", __VA_ARGS__)
 
@@ -110,6 +111,7 @@ static bool VECTOR_EFFECT_LINEAR_GAMMA = true;
 static bool HDR_RASTER_FAKE_HDR_ENABLED = false;
 static float HDR_RASTER_HDR_MULTIPLIER = 2.5f;
 static float HDR_RASTER_PAPER_WHITE = 200.0f; // Dedicated standard reference white for raster/artworks
+static bool HDR_DIM_VECTOR_ARTWORKS = true;
 
 
 // -----------------------------------------------------------------------
@@ -523,6 +525,7 @@ gles3_renderer::gles3_renderer(int width, int height, bool use_hdr_display, floa
 			// --- GAMMA EDGES (FADE TO BLACK) ---
 			// Force the intensity to drop to absolute 0.0 at the edge (dist >= 0.85)
 			// to prevent the Gamma correction from revealing the hard Quad borders.
+/*			
 			float fade = 1.0f;
 			if (dist > 0.6f) { // Start fading out past 60% of the radius
 				float t = (dist - 0.6f) / (0.85f - 0.6f);
@@ -531,6 +534,7 @@ gles3_renderer::gles3_renderer(int width, int height, bool use_hdr_display, floa
 				fade = 1.0f - (t * t * (3.0f - 2.0f * t)); 
 			}
 			intensity *= fade;
+*/			
 			// ---------------------------------------
 
 			// --- PRE-MULTIPLIED ALPHA FOR PURE ADDITIVE BLENDING ---
@@ -596,39 +600,48 @@ gles3_renderer::gles3_renderer(int width, int height, bool use_hdr_display, floa
 
 gles3_renderer::~gles3_renderer()
 {
-    if (g_current_renderer == this) g_current_renderer = nullptr;
+    std::lock_guard<std::mutex> lock(m_render_mutex);
+	
+    if (g_current_renderer == this) g_current_renderer = nullptr;	
+	
+	if (eglGetCurrentContext() == EGL_NO_CONTEXT) {
+        m_textures_to_delete.clear();
+        m_render_textures_to_delete.clear();
+        m_texlist.clear();        
+        return; 
+    }
 		
-	glDeleteProgram(m_quad_program);
+    if (m_quad_program) glDeleteProgram(m_quad_program);
+    if (m_hdr_program) glDeleteProgram(m_hdr_program);
 		
-	if (m_white_texture) glDeleteTextures(1, &m_white_texture);
-	if (m_glow_texture) glDeleteTextures(1, &m_glow_texture);
+    if (m_white_texture) glDeleteTextures(1, &m_white_texture);
+    if (m_glow_texture) glDeleteTextures(1, &m_glow_texture);
 	
-	if (m_corner_vbo) glDeleteBuffers(1, &m_corner_vbo);
-	if (m_instance_vbo) glDeleteBuffers(1, &m_instance_vbo);
+    if (m_corner_vbo) glDeleteBuffers(1, &m_corner_vbo);
+    if (m_instance_vbo) glDeleteBuffers(1, &m_instance_vbo);
 	
-	if (m_vao) glDeleteVertexArrays(1, &m_vao);
+    if (m_vao) glDeleteVertexArrays(1, &m_vao);
 	
-	delete_fbos();
+    delete_fbos();
 	
     if (!m_textures_to_delete.empty()) {
          glDeleteTextures(m_textures_to_delete.size(), m_textures_to_delete.data());
          m_textures_to_delete.clear();
     }
 		
-	if (!m_render_textures_to_delete.empty()) {
+    if (!m_render_textures_to_delete.empty()) {
          glDeleteTextures(m_render_textures_to_delete.size(), m_render_textures_to_delete.data());
          m_render_textures_to_delete.clear();
     }		
 
     for (auto& tex : m_texlist) {
-		if (tex->texture_id > 0) {
+        if (tex->texture_id > 0) {
               glDeleteTextures(1, &tex->texture_id);
          }
     }
 	
     m_texlist.clear();
 }
-
 void gles3_renderer::end_renderer()
 {
     m_flush_textures = true;
@@ -778,54 +791,63 @@ void gles3_renderer::set_blendmode(int blendmode)
 	}
 }
 
-void gles3_renderer::sync_state(const render_primitive_list* primlist)
+void gles3_renderer::sync_state(const render_primitive_list* primlist, bool in_menu)
 {
-	// clean old textures
-	cleanup_texture_cache();
+    //std::lock_guard<std::mutex> lock(m_render_mutex);
 
-	std::vector<local_primitive> temp_prims;
+    m_in_menu = in_menu;
+
+    // clean old textures
+    cleanup_texture_cache();
+
+    std::vector<local_primitive> temp_prims;
 
     // Deep copy
     for (const render_primitive& prim : *primlist)
-	{
+    {
         local_primitive lp;
         lp.type = prim.type;
-		lp.bounds = prim.bounds;
-		lp.color = prim.color;
+        lp.bounds = prim.bounds;
+        lp.color = prim.color;
         lp.texcoords = prim.texcoords;
-		lp.flags = prim.flags;
-		lp.width = prim.width;
-		lp.texture = nullptr;
+        lp.flags = prim.flags;
+        lp.width = prim.width;
+        lp.texture = nullptr;
+		
+		bool is_screen = PRIMFLAG_GET_SCREENTEX(prim.flags);
+        bool is_vector = PRIMFLAG_GET_VECTOR(prim.flags);
+        
+		lp.is_artwork = (!is_screen && !is_vector && prim.type == render_primitive::QUAD);	
 
         if (prim.type == render_primitive::QUAD && prim.texture.base != nullptr)
         {
             update_texture_cache(prim, lp.texture);
         }
-		temp_prims.push_back(lp);
+        temp_prims.push_back(lp);
     }
 
 	{
 		std::lock_guard<std::mutex> lock(m_render_mutex);
 
-		for (auto& lp : temp_prims) {
-			if (lp.texture) {
+    for (auto& lp : temp_prims) {
+        if (lp.texture) {
 
-				if (lp.texture->needs_gl_update) {
-					std::swap(lp.texture->base, lp.texture->base_back);
-					lp.needs_texture_upload = true;
-					lp.texture->needs_gl_update = false;
-				}
+            if (lp.texture->needs_gl_update) {
+                std::swap(lp.texture->base, lp.texture->base_back);
+                lp.needs_texture_upload = true;
+                lp.texture->needs_gl_update = false;
+            }
 
-				lp.upload_ptr = lp.texture->base;
-			}
+            lp.upload_ptr = lp.texture->base;
         }
+    }
 
-        m_render_prims = std::move(temp_prims);
+    m_render_prims = std::move(temp_prims);
 
-        m_render_textures_to_delete.insert(m_render_textures_to_delete.end(),
-                                           m_textures_to_delete.begin(),
-                                           m_textures_to_delete.end());
-        m_textures_to_delete.clear();
+    m_render_textures_to_delete.insert(m_render_textures_to_delete.end(),
+                                       m_textures_to_delete.begin(),
+                                       m_textures_to_delete.end());
+    m_textures_to_delete.clear();
 /*
 		std::string trace_info = "";
 		int static_count = 0, dynamic_count = 0;
@@ -840,9 +862,9 @@ void gles3_renderer::sync_state(const render_primitive_list* primlist)
 			trace_info += buf;
         }
 		ANDROID_LOG("TOTAL CACHE -> Elements: %zu (Static: %d | Dynamic: %d) Info: %s", m_texlist.size(), static_count, dynamic_count, trace_info.c_str());
-*/
+*/	
 	}
-
+	
 }
 
 void gles3_renderer::push_quad(const float* verts, const float* uv, const render_color& color)
@@ -1124,11 +1146,19 @@ void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout
     glUseProgram(m_hdr_program);
 
     glEnable(GL_BLEND);
+/*	
 	// --- ALPHA PROTECTION FIX ---
     // Use Blend Separate to add light to RGB, but protect the Screen's Alpha channel
     // (GL_ZERO, GL_ONE).
     glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE);
-
+*/	
+	
+	// --- ANTI-FATTENING BLEND MODE ---
+    // Instead of brutally adding light (GL_ONE, GL_ONE) which causes bright
+    // vectors to hard-clip against bright backgrounds, we use the vector's
+    // dynamic luminance mask (SRC_ALPHA) to gently carve out the background.
+    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+	
     glUniform1f(m_uniform_exposure_hdr, m_current_exposure); // Tone Mapping exposure
 	glUniform1f(m_uniform_base_nits, BLOOM_BASE_NITS);
     glUniform1f(m_uniform_max_nits,  BLOOM_MAX_NITS);	
@@ -1962,9 +1992,51 @@ void gles3_renderer::render()
     int current_fbo = 0;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, m_view_width, m_view_height);
+		
+	static osd_ticks_t last_layer_log_time = 0;
+    osd_ticks_t current_ticks = osd_ticks();
+    bool should_log_layers = false;	
+	
+	if (current_ticks - last_layer_log_time >= osd_ticks_per_second()) {
+        should_log_layers = true;
+        last_layer_log_time = current_ticks;
+        ANDROID_LOG("=== MAME Z-ORDER LAYER TRACE (Start) ===");
+    }
 
+    int line_counter = 0; 
+	
     for (const local_primitive& prim : draw_prims)
     {
+		if (should_log_layers) {
+            if (prim.type == render_primitive::LINE) {
+                line_counter++; 
+            } else if (prim.type == render_primitive::QUAD) {
+                if (line_counter > 0) {
+                    ANDROID_LOG("   [-> %d KKK VECTOR LINES DRAWN HERE <-]", line_counter);
+                    line_counter = 0;
+                }
+                
+                bool log_is_vector = PRIMFLAG_GET_VECTOR(prim.flags);
+                bool log_is_vectorbuf = PRIMFLAG_GET_VECTORBUF(prim.flags);
+                int log_blend_mode = PRIMFLAG_GET_BLENDMODE(prim.flags);
+                
+                std::string blend_str;
+                switch(log_blend_mode) {
+                    case BLENDMODE_NONE:         blend_str = "NONE"; break;
+                    case BLENDMODE_ALPHA:        blend_str = "ALPHA"; break;
+                    case BLENDMODE_RGB_MULTIPLY: blend_str = "MULTIPLY"; break;
+                    case BLENDMODE_ADD:          blend_str = "ADD"; break;
+                    default:                     blend_str = "UNKNOWN"; break;
+                }
+
+                ANDROID_LOG(" - QUAD | Blend: %-8s | isVector: %d | isVecBuf: %d | Tex: %s | Rect: [%.0f, %.0f, %.0f, %.0f]",
+                            blend_str.c_str(), log_is_vector, log_is_vectorbuf, 
+                            (prim.texture ? "YES" : "NO "),
+                            prim.bounds.x0, prim.bounds.y0, prim.bounds.x1, prim.bounds.y1);
+            }
+        }
+        // ------------------------------------------------------------------
+				
         // ==================================================================
         // MULTI-MONITOR / COCKTAIL HANDLING (VECTORBUF)
         // ==================================================================
@@ -2070,18 +2142,35 @@ void gles3_renderer::render()
         int needed_blend = PRIMFLAG_GET_BLENDMODE(prim.flags);
 		int needed_is_vector = is_vector ? 1 : 0;
 
-        if (m_current_texture != needed_tex || m_last_blendmode != needed_blend || m_last_is_vector != needed_is_vector) {
+		if (m_current_texture != needed_tex || m_last_blendmode != needed_blend || m_last_is_vector != needed_is_vector) {
             flush_batch();
             m_current_texture = needed_tex; set_blendmode(needed_blend);
 			
-			m_last_is_vector = needed_is_vector;
+            m_last_is_vector = needed_is_vector;
             
             // Upload the Linear vs sRGB Gamma flag to the active shader
-            glUseProgram(m_quad_program);glUniform1i(m_uniform_is_vector_quad, m_last_is_vector);
-			
+            glUseProgram(m_quad_program);
+            glUniform1i(m_uniform_is_vector_quad, m_last_is_vector);
+            					
+			if (needed_blend == BLENDMODE_RGB_MULTIPLY) {
+                // 1. OVERLAYS (Transparent cellophane/gels)
+                glUniform1f(m_loc_quad_paper_white, 80.0f);
+                glUniform1i(m_loc_quad_raster_fake_hdr, 0); 
+            } else if (has_vectors && prim.is_artwork) {
+                // 2. ARTWORKS IN VECTOR GAMES (Cardboard backgrounds, Bezels, Menus)
+                // THE LIGHTING TRICK: If you press TAB, the light turns on fully (standard Paper White).
+                // If the menu is closed, apply the darkness from the user's toggle.
+				float current_nits = (m_in_menu || !HDR_DIM_VECTOR_ARTWORKS) ? HDR_RASTER_PAPER_WHITE : 85.0f;
+                glUniform1f(m_loc_quad_paper_white, current_nits); 
+                glUniform1i(m_loc_quad_raster_fake_hdr, 0); 
+            } else {
+                // 3. STANDARD RASTER GAMES
+                glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
+                glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
+            }
+
             glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_current_texture);
         }
-
         switch (prim.type)
         {
             case render_primitive::LINE:
@@ -2093,6 +2182,13 @@ void gles3_renderer::render()
                 break;
             case render_primitive::INVALID: break;
         }
+    }
+	
+	if (should_log_layers) {
+        if (line_counter > 0) {
+             ANDROID_LOG("   [-> %d VECTOR LINES DRAWN HERE <-]", line_counter);
+        }
+        ANDROID_LOG("=== MAME Z-ORDER LAYER TRACE (End) ===");
     }
 
     flush_batch();
@@ -2347,6 +2443,7 @@ extern "C" {
 			
 			// --- 7. RASTER FAKE HDR ---
 			else if (key == "PREF_HDR_RASTER_FAKE_HDR") HDR_RASTER_FAKE_HDR_ENABLED = parse_bool(key, val);
+			else if (key == "PREF_HDR_DIM_VECTOR_ARTWORKS") HDR_DIM_VECTOR_ARTWORKS = parse_bool(key, val);			
             else if (key == "PREF_HDR_RASTER_HDR_MULTIPLIER") HDR_RASTER_HDR_MULTIPLIER = map_slider(key, std::stoi(val), 1.0f, 5.0f);
             else if (key == "PREF_HDR_RASTER_PAPER_WHITE") HDR_RASTER_PAPER_WHITE = map_slider(key, std::stoi(val), 100.0f, 500.0f);		
 
