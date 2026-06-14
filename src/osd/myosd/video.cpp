@@ -36,6 +36,8 @@
 int myosd_fps;
 int myosd_zoom_to_window;
 
+float g_hack_offscreen_overdrive = 0.0f;
+
 //GLES renderer related stuff
 enum
 {

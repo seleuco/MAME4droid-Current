@@ -158,6 +158,9 @@ private:
     GLint m_uniform_max_nits;	
 	GLint m_uniform_peak_nits;
 	
+	GLint m_uniform_offscreen_glow = -1;
+	float m_current_monitor_glow = 0.0f;	
+	
 	GLint m_loc_quad_use_hdr = -1;
 	GLint m_loc_quad_raster_fake_hdr = -1;
 	GLint m_loc_quad_raster_hdr_mult = -1;

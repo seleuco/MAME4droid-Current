@@ -78,7 +78,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		"PREF_VECTOR_EFFECT_JITTER",
 		"PREF_VECTOR_EFFECT_LINEAR_GAMMA",
 		"PREF_HDR_RASTER_FAKE_HDR",
-		"PREF_HDR_DIM_VECTOR_ARTWORKS"
+		"PREF_HDR_DIM_VECTOR_ARTWORKS",
+		"PREF_VECTOR_EFFECT_OFFSCREEN_GLOW"
 	};
 
 	public static final boolean[] DEF_BOOL_VALUES = {
@@ -93,7 +94,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		true,  // JITTER
 		true,  // LINEAR_GAMMA
 		false,  // RASTER_FAKE_HDR
-		true,   // DIM_VECTOR_ARTWORKS
+		true,  // DIM_VECTOR_ARTWORKS
+		true, // OFFSCREEN_GLOW
 	};
 
 	public static final String[] RENDER_KEYS_INT = {
@@ -125,7 +127,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		"PREF_VECTOR_EFFECT_BEAM_JITTER_AMOUNT",
 		"PREF_VECTOR_EFFECT_BEAM_FLICKER_AMOUNT",
 		"PREF_HDR_RASTER_HDR_MULTIPLIER",
-		"PREF_HDR_RASTER_PAPER_WHITE"
+		"PREF_HDR_RASTER_PAPER_WHITE",
+		"PREF_VECTOR_EFFECT_OFFSCREEN_GLOW_MULT"
 	};
 
 	public static final int[] DEF_INT_VALUES = {
@@ -157,7 +160,8 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 		10, // BEAM_JITTER_AMOUNT
 		20, // BEAM_FLICKER_AMOUNT
 		35, // RASTER_HDR_MULTIPLIER
-		25  // PREF_HDR_RASTER_PAPER_WHITE
+		25,  // PREF_HDR_RASTER_PAPER_WHITE
+		15,  // OFFSCREEN_GLOW_MULT
 	};
 
 	private MAME4droid mm;

@@ -518,6 +518,22 @@
 						android:defaultValue="44" />
 				</PreferenceCategory>
 
+				<PreferenceCategory android:title="Off-screen Monitor Glow">
+					<CheckBoxPreference
+						android:key="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW"
+						android:title="Enable Ambient Tube Glow"
+						android:summary="Simulates the whole CRT glass glowing when intense laser beams (like explosions in starwars) bounce off the interior walls of the monitor."
+						android:defaultValue="true" />
+
+					<SeekBarPreference
+						android:key="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW_MULT"
+						android:dependency="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW"
+						android:title="Ambient Glow Intensity"
+						android:summary="Multiplier for the off-screen energy. Turn it down if text or menus flash too brightly."
+						android:max="100"
+						android:defaultValue="15" />
+				</PreferenceCategory>
+
 				<PreferenceCategory android:title="Vector Core Geometry">
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORE_LINE_WIDTH"
