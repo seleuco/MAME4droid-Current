@@ -343,29 +343,25 @@ static const line_aa_step line_aa_4step[] = {
 
 using gles_texture = gles3_renderer::gles_texture;
 
-static std::pair<render_bounds, render_bounds> render_line_to_quad(const render_bounds& bounds, float width, float extension)
+static std::pair<render_bounds, render_bounds> render_line_to_quad(float x0, float y0, float x1, float y1, float dx, float dy, float length, float width)
 {
     render_bounds b0, b1;
-    float dx = bounds.x1 - bounds.x0;
-    float dy = bounds.y1 - bounds.y0;
-    float length = std::sqrt(dx * dx + dy * dy);
-
     if (length > 0.0001f)
     {
         float half_width = width * 0.5f;
         float nx = -dy / length * half_width;
         float ny =  dx / length * half_width;
 
-        b0.x0 = bounds.x0 + nx;  b0.y0 = bounds.y0 + ny;
-        b0.x1 = bounds.x0 - nx;  b0.y1 = bounds.y0 - ny;
+        b0.x0 = x0 + nx;  b0.y0 = y0 + ny;
+        b0.x1 = x0 - nx;  b0.y1 = y0 - ny;
 
-        b1.x0 = bounds.x1 + nx;  b1.y0 = bounds.y1 + ny;
-        b1.x1 = bounds.x1 - nx;  b1.y1 = bounds.y1 - ny;
+        b1.x0 = x1 + nx;  b1.y0 = y1 + ny;
+        b1.x1 = x1 - nx;  b1.y1 = y1 - ny;
     }
     else
     {
-        b0.x0 = b0.x1 = bounds.x0; b0.y0 = b0.y1 = bounds.y0;
-        b1.x0 = b1.x1 = bounds.x1; b1.y0 = b1.y1 = bounds.y1;
+        b0.x0 = b0.x1 = x0; b0.y0 = b0.y1 = y0;
+        b1.x0 = b1.x1 = x1; b1.y0 = b1.y1 = y1;
     }
     return std::make_pair(b0, b1);
 }
@@ -836,7 +832,7 @@ void gles3_renderer::sync_state(const render_primitive_list* primlist, bool in_m
     // clean old textures
     cleanup_texture_cache();
 
-    std::vector<local_primitive> temp_prims;
+    static std::vector<local_primitive> temp_prims;
 
     // Deep copy
     for (const render_primitive& prim : *primlist)
@@ -983,22 +979,29 @@ void gles3_renderer::upload_pending_textures(std::vector<local_primitive>& draw_
 	}
 }
 
+
+// #define DEBUG_VECTOR_PHYSICS
+
 bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>& draw_prims)
 {
-
     bool has_vectors = false;
     float scene_energy = 0.0f;
+    
+    // max_final must remain outside the macro because 
+    // it is actively used in the Highlight Preservation logic.
+    float max_final = 0.0f; 
 
+#ifdef DEBUG_VECTOR_PHYSICS
     // --- Detailed Energy Tracking Metrics ---
     float min_base = 9999.0f, max_base = 0.0f, sum_base = 0.0f;
-    float min_final = 9999.0f, max_final = 0.0f, sum_final = 0.0f;
+    float min_final = 9999.0f, sum_final = 0.0f;
     float min_ob = 9999.0f, max_ob = 0.0f, sum_ob = 0.0f;
     
     // --- Telemetry Accumulators ---
     float sum_dyn_added = 0.0f;   // Tracks pure energy added by Beam Dynamics
-    
     float total_weight_area = 0.0f;
     int vector_count = 0;
+#endif
 
     // Convert logical MAME layout units to physical screen pixels.
     // This prevents the Pythagorean theorem from stretching/distorting line lengths
@@ -1012,7 +1015,10 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
     for (const auto& prim : draw_prims) {
         if (PRIMFLAG_GET_VECTOR(prim.flags)) {
             has_vectors = true;
+
+#ifdef DEBUG_VECTOR_PHYSICS
             vector_count++;
+#endif
 
             // Map logical distances to physical screen pixels BEFORE calculating length
             float phys_dx = (prim.bounds.x1 - prim.bounds.x0) * scale_x;
@@ -1024,17 +1030,17 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
             // Scale the geometric width to physical pixels as well
             float phys_width = std::max(prim.width * scale_avg, 0.01f);
 
-			// 1. Raw MAME intensity (Voltage from 0.0 to 1.0)
+            // 1. Raw MAME intensity (Voltage from 0.0 to 1.0)
             float base_intensity = prim.color.a;
 
             // --- CRT ELECTRON GUN PHYSICS (Voltage to Linear Light) ---
             if (VECTOR_EFFECT_AUTO_EXPOSURE_ENABLED && VECTOR_EFFECT_LINEAR_GAMMA) {
-                // For the radar to measure real accumulated photons and output a correct average,
-                // we must translate the initial voltage to linear light energy.
-                base_intensity = std::pow(base_intensity, 2.5f);
+                // OPTIMIZATION: std::pow(x, 2.5f) is brutally slow on CPU.
+                // We use the hardware-accelerated mathematical equivalence x^2.5 = x^2 * sqrt(x).
+                base_intensity = (base_intensity * base_intensity) * std::sqrt(base_intensity);
             }
 
-			// --- FAITHFUL PHYSICS PRE-CALCULATION ---
+            // --- FAITHFUL PHYSICS PRE-CALCULATION ---
             float phosphor_response = 1.0f;
             if (VECTOR_EFFECT_PHOSPHOR_RESPONSE_ENABLED) {
                 float luminance = (prim.color.r * VECTOR_EFFECT_PHOSPHOR_WEIGHT_R) + (prim.color.g * VECTOR_EFFECT_PHOSPHOR_WEIGHT_G) + (prim.color.b * VECTOR_EFFECT_PHOSPHOR_WEIGHT_B);
@@ -1043,9 +1049,14 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
 
             float simulated_energy = base_intensity * VECTOR_EFFECT_GLOBAL_DRIVE_MULTIPLIER * phosphor_response;
 
+            // Essential for Highlight Preservation below
+            max_final = std::max(max_final, simulated_energy);
+
+#ifdef DEBUG_VECTOR_PHYSICS
             // --- TRACK PRE-DYNAMICS STATE ---
             float pre_dyn_energy = simulated_energy;
             float pre_dyn_width = phys_width;
+#endif
 
             // 2. Beam Dynamics (Short Line Boost)
             if (VECTOR_EFFECT_BEAM_DYNAMICS_ENABLED) {
@@ -1058,32 +1069,32 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
                 }
             }
 
+#ifdef DEBUG_VECTOR_PHYSICS
             // --- CALCULATE BEAM DYNAMICS CONTRIBUTION ---
             float dyn_energy_delta = (simulated_energy * phys_width) - (pre_dyn_energy * pre_dyn_width);
             sum_dyn_added += dyn_energy_delta * phys_len; 
 
-            // 3. Overbright Physical Expansion
+            // 3. Overbright Physical Expansion (Telemetry Only)
+            // OPTIMIZATION: Calculating this std::pow inside the loop without the #ifdef 
+            // caused massive CPU overhead, as it wasn't even being added to scene_energy.
             float overbright_raw = std::max(simulated_energy - 1.0f, 0.0f);
             float overbright = std::min(std::pow(overbright_raw, 0.7f), VECTOR_EFFECT_OVERBRIGHT_MAX);
-
+#endif
 
             // 4. PRECISE OPTICAL ENERGY INTEGRAL ---
             // A. Core Energy (The physical laser beam)
             float core_area = phys_len * phys_width;
             float core_energy_total = core_area * simulated_energy;
             
-            float total_vector_energy = core_energy_total;
+            scene_energy += core_energy_total;
 
-
-            scene_energy += total_vector_energy;
-
+#ifdef DEBUG_VECTOR_PHYSICS
             // --- METRICS COLLECTION ---
             min_base = std::min(min_base, base_intensity);
             max_base = std::max(max_base, base_intensity);
             sum_base += base_intensity * core_area;
 
             min_final = std::min(min_final, simulated_energy);
-            max_final = std::max(max_final, simulated_energy);
             sum_final += simulated_energy * core_area;
 
             min_ob = std::min(min_ob, overbright);
@@ -1091,18 +1102,13 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
             sum_ob += overbright * core_area;
 
             total_weight_area += core_area;
+#endif
         }
     }
 
     if (has_vectors) {
-        
-        // Calculate weighted averages safely
-        float avg_base = (total_weight_area > 0.0f) ? (sum_base / total_weight_area) : 0.0f;
-        float avg_final = (total_weight_area > 0.0f) ? (sum_final / total_weight_area) : 0.0f;
-        float avg_ob = (total_weight_area > 0.0f) ? (sum_ob / total_weight_area) : 0.0f;
-
         // 5. RESOLUTION-INDEPENDENT 2D NORMALIZATION
-		// USE PHYSICAL VIEWPORT AREA ---
+        // USE PHYSICAL VIEWPORT AREA ---
         float screen_area = (float)(std::max(m_view_width, 1) * std::max(m_view_height, 1));
         float safe_threshold = std::max(VECTOR_EFFECT_AUTO_EXPOSURE_THRESHOLD, 0.001f);
         float normalized_energy = scene_energy / (screen_area * safe_threshold);
@@ -1125,11 +1131,18 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
             m_current_exposure = VECTOR_EFFECT_FIXED_EXPOSURE;
         }
 
+#ifdef DEBUG_VECTOR_PHYSICS
         // --- DEBUG LOGGING (Trace every 1 second) ---
         static osd_ticks_t last_log_time = 0;
         osd_ticks_t current_ticks = osd_ticks();
 
         if (current_ticks - last_log_time >= osd_ticks_per_second()) {
+            
+            // Calculate weighted averages safely
+            float avg_base = (total_weight_area > 0.0f) ? (sum_base / total_weight_area) : 0.0f;
+            float avg_final = (total_weight_area > 0.0f) ? (sum_final / total_weight_area) : 0.0f;
+            float avg_ob = (total_weight_area > 0.0f) ? (sum_ob / total_weight_area) : 0.0f;
+
             // Safety check to avoid division by zero
             float safe_scene_energy = std::max(scene_energy, 0.0001f);
             float pct_dyn = (sum_dyn_added / safe_scene_energy) * 100.0f;
@@ -1150,10 +1163,12 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
             ANDROID_LOG("===========================================");
             last_log_time = current_ticks;
         }
+#endif
     }
 
     return has_vectors;
 }
+
 
 void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout_h,
 	const render_bounds& layout_bounds, const std::array<float, 16>& vector_ortho)
@@ -1285,11 +1300,14 @@ void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout
     if (VECTOR_EFFECT_BLOOM_ENABLED && passes > 0 && m_bloom_tex[0] != 0) {
         glBindTexture(GL_TEXTURE_2D, m_bloom_tex[0]);
         
-        // --- ENERGY NORMALIZATION ---
+		// --- ENERGY NORMALIZATION (Perceptual Spatial Diffusion) ---
         // Additive Kawase upsampling accumulates energy with every pass. 
-        // If we added an extra pass to match the physical spread of Full-Res,
-        // it gathered more light. We normalize the final intensity to maintain visual parity.
-        float intensity_comp = (float)base_passes / (float)passes;
+        // We normalize the final intensity, but since spatial light diffusion 
+        // covers a 2D area (quadratic), a linear division dims the core too much.
+        // We use a square root curve to preserve the punchy hot-spot of the laser.
+        float ratio = (float)base_passes / (float)passes;
+        //float intensity_comp = std::sqrt(ratio);
+		float intensity_comp = std::pow(ratio, 0.75f);
         glUniform1f(m_uniform_bloom_intensity_hdr, BLOOM_KAWASE_INTENSITY * intensity_comp);
     } else {
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -1644,10 +1662,18 @@ void gles3_renderer::apply_phosphor_persistence(float fbo_w, float fbo_h)
     m_current_hdr_fbo = next_hdr_fbo;
 }
 
+
+// Eliminates the massive CPU bottleneck caused by using std::sin() thousands of times per frame.
+inline float fast_noise(float x, float y, float t) {
+    int n = (int)(x * 10000.0f) + (int)(y * 30000.0f) + (int)(t * 10000.0f);
+    n = (n << 13) ^ n;
+    return (1.0f - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0f);
+}
+
 void gles3_renderer::apply_magnetic_jitter(float& px0, float& py0, float& px1, float& py1, bool is_vector, bool enable_advanced_effects, float current_time)
 {
     // Early exit if the effect is disabled globally or not applicable
-	if (!VECTOR_EFFECT_BEAM_JITTER_ENABLED || !is_vector || !enable_advanced_effects || VECTOR_EFFECT_BEAM_JITTER_AMOUNT <= 0.0f) {
+    if (!VECTOR_EFFECT_BEAM_JITTER_ENABLED || !is_vector || !enable_advanced_effects || VECTOR_EFFECT_BEAM_JITTER_AMOUNT <= 0.0f) {
         return;
     }
 
@@ -1667,8 +1693,9 @@ void gles3_renderer::apply_magnetic_jitter(float& px0, float& py0, float& px1, f
     float ac_y = std::cos(current_time * 55.0f + nx * 15.0f);
 
     // 4. THERMAL HASH (Approximate blue noise)
-    float noise_x = std::sin((nx * 12.989f + ny * 78.233f + current_time) * 437.58f);
-    float noise_y = std::cos((nx * 39.346f + ny * 11.135f + current_time) * 437.58f);
+    // OPTIMIZATION Replaced the slow std::sin/cos with the Fast Noise hash
+    float noise_x = fast_noise(nx, ny, current_time);
+    float noise_y = fast_noise(ny, nx, current_time);
 
     // FINAL MIX: 40% Slow Drift | 40% AC Hum | 20% Thermal Noise
     float final_jx = (drift_x * 0.40f) + (ac_x * 0.40f) + (noise_x * 0.20f);
@@ -1679,7 +1706,7 @@ void gles3_renderer::apply_magnetic_jitter(float& px0, float& py0, float& px1, f
     // we scale the jitter directly relative to a 480p baseline.
     float scale_factor = (float)std::max(m_height, 1) / 480.0f;
 
-	float jx = final_jx * VECTOR_EFFECT_BEAM_JITTER_AMOUNT * scale_factor;
+    float jx = final_jx * VECTOR_EFFECT_BEAM_JITTER_AMOUNT * scale_factor;
     float jy = final_jy * VECTOR_EFFECT_BEAM_JITTER_AMOUNT * scale_factor;
 
     // Apply the offset to the vertices
@@ -1713,12 +1740,13 @@ void gles3_renderer::process_line_primitive(const local_primitive& prim, bool is
 	// 1. Get raw MAME intensity (VOLTAGE from 0.0 to 1.0)
     float voltage = prim.color.a;
 
-    // --- VOLTAGE FLICKER (The ultimate anti-AA jitter) ---
+	// --- VOLTAGE FLICKER (The ultimate anti-AA jitter) ---
     // High DPI screens hide positional jumps with anti-aliasing.
     // By injecting high-frequency noise directly into the brightness of the beam,
     // we guarantee the "electric buzz" is visible at ANY resolution.
-	if (is_vector && enable_advanced_effects && VECTOR_EFFECT_BEAM_JITTER_ENABLED) {
-        float hash = std::sin((px0 * 12.989f + py0 * 78.233f + current_time) * 437.58f);
+    if (is_vector && enable_advanced_effects && VECTOR_EFFECT_BEAM_JITTER_ENABLED) {
+        // OPTIMIZATION: Replaced the per-primitive std::sin with the Fast Noise hash
+        float hash = fast_noise(px0, py0, current_time * 10.0f);
 
         // Flicker simulates a voltage drop, so it multiplies the voltage directly
         float flicker = 1.0f - (std::abs(hash) * VECTOR_EFFECT_BEAM_FLICKER_AMOUNT);
@@ -1731,7 +1759,8 @@ void gles3_renderer::process_line_primitive(const local_primitive& prim, bool is
     if (enable_advanced_effects && VECTOR_EFFECT_LINEAR_GAMMA) {
         // Convert electrical voltage into physical light energy (photons)
         // using the characteristic Gamma curve of a CRT tube (~2.5).
-        base_intensity = std::pow(voltage, 2.5f);
+        //base_intensity = std::pow(voltage, 2.5f);
+		base_intensity = (voltage * voltage) * std::sqrt(voltage);
     }
 
 	// --- PHOSPHOR COLOR RESPONSE (Luminance & Bleed) ---
@@ -1751,11 +1780,20 @@ void gles3_renderer::process_line_primitive(const local_primitive& prim, bool is
         simulated_energy *= VECTOR_EFFECT_POINT_ENERGY_BOOST;
     }
 
-    // 3. BEAM SPEED DYNAMICS (Electron gun physics)
+	// 3. BEAM SPEED DYNAMICS (Electron gun physics)
     float dynamic_width_boost = 1.0f;
     if (enable_advanced_effects && is_vector && !is_point && VECTOR_EFFECT_BEAM_DYNAMICS_ENABLED) {
-        float layout_diagonal = std::sqrt((m_width * m_width) + (m_height * m_height));
-        float threshold = layout_diagonal * VECTOR_EFFECT_SHORT_LINE_THRESHOLD_PCT; 
+        
+        static int last_w = 0, last_h = 0;
+        static float cached_diagonal = 0.0f;
+        
+        if (m_width != last_w || m_height != last_h) {
+            cached_diagonal = std::sqrt((m_width * m_width) + (m_height * m_height));
+            last_w = m_width;
+            last_h = m_height;
+        }
+        
+        float threshold = cached_diagonal * VECTOR_EFFECT_SHORT_LINE_THRESHOLD_PCT; 
         if (length < threshold && length > 0.1f) {
             float shortness = 1.0f - (length / threshold);
             simulated_energy *= (1.0f + shortness * VECTOR_EFFECT_SHORT_LINE_INTENSITY_BOOST);
@@ -1836,9 +1874,9 @@ void gles3_renderer::process_line_primitive(const local_primitive& prim, bool is
             
         push_quad(m_quad_verts, nullptr, c_core);
     } else {
-        render_bounds jittered_bounds = { px0, py0, px1, py1 };
-        auto [b0, b1] = render_line_to_quad(jittered_bounds, safe_core_w, 0.0f);
-        bool use_aa = PRIMFLAG_GET_ANTIALIAS(prim.flags);
+		auto [b0, b1] = render_line_to_quad(px0, py0, px1, py1, dx, dy, length, safe_core_w);
+        //bool use_aa = PRIMFLAG_GET_ANTIALIAS(prim.flags);
+		bool use_aa = PRIMFLAG_GET_ANTIALIAS(prim.flags) && !enable_advanced_effects;
         const line_aa_step* step = use_aa ? line_aa_4step : line_aa_1step;
 
         for (; step->weight != 0.0f; step++) {
@@ -1933,8 +1971,8 @@ void gles3_renderer::render()
     float prev_dx_norm = 0.0f;
     float prev_dy_norm = 0.0f;
 
-	std::vector<local_primitive> draw_prims;
-    std::vector<GLuint> delete_texs;
+	static std::vector<local_primitive> draw_prims;
+    static std::vector<GLuint> delete_texs;
 
     {
         std::lock_guard<std::mutex> lock(m_render_mutex);

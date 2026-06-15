@@ -28,15 +28,17 @@ static const char* quad_vertex_shader_src =
     "out vec4 v_color;\n"
     "uniform mat4 u_ortho;\n"
     "void main() {\n"
-    "    vec2 pos;\n"
-    "    vec2 uv;\n"
-    "    int corner = int(a_corner);\n"
-    "    if (corner == 0)      { pos = i_p0p1.xy; uv = i_uv0uv1.xy; }\n"
-    "    else if (corner == 1) { pos = i_p0p1.zw; uv = i_uv0uv1.zw; }\n"
-    "    else if (corner == 2) { pos = i_p2p3.xy; uv = i_uv2uv3.xy; }\n"
-    "    else                  { pos = i_p2p3.zw; uv = i_uv2uv3.zw; }\n"
-    "    gl_Position = u_ortho * vec4(pos, 0.0, 1.0);\n"
-    "    v_texuv = uv;\n"
+    "    vec2 pos_arr[4];\n"
+    "    pos_arr[0] = i_p0p1.xy; pos_arr[1] = i_p0p1.zw;\n"
+    "    pos_arr[2] = i_p2p3.xy; pos_arr[3] = i_p2p3.zw;\n"
+    "    \n"
+    "    vec2 uv_arr[4];\n"
+    "    uv_arr[0] = i_uv0uv1.xy; uv_arr[1] = i_uv0uv1.zw;\n"
+    "    uv_arr[2] = i_uv2uv3.xy; uv_arr[3] = i_uv2uv3.zw;\n"
+    "    \n"
+    "    int idx = int(a_corner);\n"
+    "    gl_Position = u_ortho * vec4(pos_arr[idx], 0.0, 1.0);\n"
+    "    v_texuv = uv_arr[idx];\n"
     "    v_color = i_color;\n"
     "}\n";
 
@@ -86,22 +88,29 @@ static const char* quad_frag_shader_src =
     "            if (u_raster_fake_hdr == 1) {\n"
     "                // --- FAKE HDR UPGRADE (Inverse Tone Mapping) ---\n"
     "                float luma = dot(final_sdr, vec3(0.2126, 0.7152, 0.0722));\n"
-    "                float hdr_weight = pow(smoothstep(0.25, 1.0, luma), 2.0);\n"
+    "                \n"
+    "                // OPTIMIZATION 1: pow(x, 2.0) is slower than x * x\n"
+    "                float st = smoothstep(0.25, 1.0, luma);\n"
+    "                float hdr_weight = st * st;\n"
+    "                \n"
     "                float current_boost = mix(1.0, u_raster_hdr_mult, hdr_weight);\n"
     "                vec3 fake_hdr = final_sdr * current_boost;\n"
     "\n"
     "                // Dynamic HDR Desaturation (Highlight Roll-off)\n"
-    "                float boosted_luma = dot(fake_hdr, vec3(0.2126, 0.7152, 0.0722));\n"
+    "                // OPTIMIZATION 2: Luminance scales linearly. No need for a 2nd dot product!\n"
+    "                float boosted_luma = luma * current_boost;\n"
     "                vec3 white_mix = vec3(boosted_luma);\n"
     "                float desat_amount = clamp(hdr_weight * (current_boost - 1.0) * 0.10, 0.0, 1.0);\n"
     "                fake_hdr = mix(fake_hdr, white_mix, desat_amount);\n"
     "\n"
     "                // --- HARDWARE DYNAMIC TONE MAPPING (Piecewise Reinhard) ---\n"
-    "                // Convert Android's dynamic display capabilities to scRGB limits.\n"
     "                float hardware_peak_scRGB = u_device_peak_nits / 80.0;\n"
     "                float max_nits_mult = max(hardware_peak_scRGB, paper_white_mult + 1.0);\n"
     "                vec3 raw_hdr_nits = fake_hdr * paper_white_mult;\n"
-    "                float raw_hdr_luma = dot(raw_hdr_nits, vec3(0.2126, 0.7152, 0.0722));\n"
+    "                \n"
+    "                // OPTIMIZATION 3: Mixing with pure white of the same luma doesn't change overall luma. \n"
+    "                // No need for a 3rd dot product!\n"
+    "                float raw_hdr_luma = boosted_luma * paper_white_mult;\n"
     "\n"
     "                // 1. Keep colors strictly linear up to Paper White (protects SDR pixel art)\n"
     "                float threshold = paper_white_mult;\n"
@@ -127,32 +136,32 @@ static const char* quad_frag_shader_src =
     "    }\n"
     "}\n";
 	
+
 /* ========================================================================================
- * OPTICAL BLOOM: DOWNSAMPLE & CRT PHOSPHOR EXTRACTION (JIMENEZ 13-TAP) (DUAL KAWASE)
+ * OPTICAL BLOOM: DOWNSAMPLE & ENERGY EXTRACTION (JIMENEZ 13-TAP)
  * ========================================================================================
- * The first half of the Dual-Filter spatial convolution chain. Replaces standard Kawase 
- * with a 13-tap filter to eliminate temporal aliasing and macro-blocking on downsamples.
- * * CRT Phosphor Emulation Features:
- * - Dominant Color Extraction: Bypasses standard perceptual luma to ensure pure, highly 
- * saturated vector colors (e.g., pure P31 green in Star Wars or pure blue in Tempest) 
- * are not crushed by the extraction threshold.
- * - Anti-Popping Knee: Uses a raised knee threshold to ensure moving lines fade smoothly 
- * into the bloom rather than flickering on/off.
- * - Phosphor Saturation Curve: Applies a hybrid quadratic falloff (0.5x + 0.5x^2) to 
- * model how CRT glass diffuses light, retaining blinding core energy while gracefully 
- * rolling off mid-tones.
+ * The first half of the Dual-Filter spatial convolution chain.
+ * * Energy Extraction Features:
+ * - Continuous Hybrid Luminance: Combines standard Rec.709 perceptual luma with the 
+ * dominant phosphor excitation (max RGB channel) using a smooth mix() interpolation. 
+ * This solves the "pure blue" threshold crushing issue without introducing mathematical 
+ * discontinuities. We use max(RGB) instead of average pixel energy because in a vector 
+ * CRT, an intense colored beam is driven entirely by the peak voltage of that specific 
+ * phosphor type.
+ * - Anti-Popping Knee: Uses a raised knee threshold to ensure moving lines fade smoothly.
+ * - Phosphor Saturation Curve: Applies a hybrid quadratic falloff (0.5x + 0.5x^2).
  * ======================================================================================== */
  
 static const char* kawase_down_frag_shader_src = 
-    "precision highp float;\n"
-    "in vec2 v_texuv;\n"
+    "precision mediump float;\n"
+    "in highp vec2 v_texuv;\n"
     "in vec4 v_color;\n"
     "uniform sampler2D s_texture;\n"
     "uniform vec2 u_texel_size;\n"
     "uniform float u_threshold;\n"
     "out vec4 fragColor;\n"
     "void main() {\n"
-    "    vec2 uv = v_texuv;\n"
+    "    highp vec2 uv = v_texuv;\n"
     "    vec2 texel = u_texel_size;\n"
     "\n"
     "    // 13-Tap Downsample Spatial Dispersion Filter\n"
@@ -178,70 +187,63 @@ static const char* kawase_down_frag_shader_src =
     "    color += (J + K + L + M) * 0.085;\n"
     "\n"
     "    if (u_threshold > 0.0) {\n"
-    "        // High-Persistence Phosphor Weights (Green-biased for Atari Vectors)\n"
-    "        float perceptual_luma = dot(color, vec3(0.25, 0.70, 0.05));\n"
-    "        float max_channel = max(color.r, max(color.g, color.b));\n"
+    "        // --- SMOOTH HYBRID ENERGY EXTRACTION --- \n"
+    "        // 1. Calculate standard physical luminance (Rec.709)\n"
+    "        float perceptual_luma = dot(color, vec3(0.2126, 0.7152, 0.0722));\n"
     "        \n"
-    "        // True Dominant Color Extraction\n"
-    "        float avg_color = (color.r + color.g + color.b) / 3.0;\n"
-    "        float dominant = max_channel - avg_color;\n"
+    "        // 2. Calculate the dominant phosphor excitation (peak channel amplitude)\n"
+    "        float dominant_phosphor = max(color.r, max(color.g, color.b));\n"
     "        \n"
-    "        // Gradual Extraction Ceiling (Fixed scaling)\n"
-    "        // A pure color yields a dominant value of ~0.667. \n"
-    "        // 0.667 * 0.55 = ~0.36, perfectly hitting the 0.35 ceiling without crushing mid-tones.\n"
-    "        float factor = clamp(dominant * 0.55, 0.0, 0.35);\n"
-    "        float luma = mix(perceptual_luma, max_channel, factor);\n"
+    "        // 3. Smooth blend. The 0.35 bias towards the dominant phosphor rescues \n"
+    "        // inefficient colors (like pure blue) from being crushed by perceptual luma, \n"
+    "        // ensuring they still trigger optical blooms like real vector hardware.\n"
+    "        float luma = mix(perceptual_luma, dominant_phosphor, 0.35);\n"
     "        \n"
     "        // Anti-Popping Knee\n"
     "        float knee = max(0.04, u_threshold * 0.15);\n"
     "        \n"
     "        // Linear mapping -> Hybrid S-Curve for phosphor saturation\n"
     "        float linear_weight = clamp((luma - (u_threshold - knee)) / (2.0 * knee), 0.0, 1.0);\n"
+    "        \n"
     "        color *= linear_weight * (0.5 + 0.5 * linear_weight);\n"
     "    }\n"
     "    fragColor = vec4(color, 1.0);\n"
     "}\n";
 	
 /* ========================================================================================
- * OPTICAL BLOOM: UPSAMPLE & CRT ASTIGMATISM (9-TAP TENT)
+ * OPTICAL BLOOM: UPSAMPLE & CRT ASTIGMATISM (OPTIMIZED 4-TAP BILINEAR)
  * ========================================================================================
- * The second half of the Dual-Filter chain. Uses a 9-tap tent filter to smoothly 
- * expand the downsampled light buffers back up without introducing grid artifacts.
+ * The second half of the Dual-Filter chain. Implements a 9-tap tent filter mathematically 
+ * optimized into just 4 hardware bilinear fetches. This smoothly expands the downsampled 
+ * light buffers back up without introducing grid artifacts, while drastically reducing GPU 
+ * texture bandwidth.
  * * Includes an anisotropic scaling factor (e.g., stretching the X-axis) to emulate 
  * the imperfect magnetic deflection yoke of vintage CRT monitors, creating a classic 
  * horizontal optical flare.
- * ======================================================================================== */	
+ * ======================================================================================== */
 	
 static const char* kawase_up_frag_shader_src = 
-    "precision highp float;\n"
-    "in vec2 v_texuv;\n"
+    "precision mediump float;\n"
+    "in highp vec2 v_texuv;\n"
     "in vec4 v_color;\n"
     "uniform sampler2D s_texture;\n"
     "uniform vec2 u_texel_size;\n"
     "uniform float u_radius;\n"
     "out vec4 fragColor;\n"
     "void main() {\n"
-    "    vec2 uv = v_texuv;\n"
+    "    highp vec2 uv = v_texuv;\n"
     "    \n"
-    "    // Anisotropy (CRT Astigmatism emulation).\n"
-    "    // A real CRT yoke deflects electrons imperfectly, widening the beam horizontally.\n"
-    "    // Multiplying x by 1.2 and y by 0.9 gives it that classic optical 'Star Wars' anamorphic flare.\n"
+    "    // CRT Astigmatism emulation (Anisotropy).\n"
     "    vec2 texel = u_texel_size * vec2(u_radius * 1.2, u_radius * 0.9);\n"
+    "    vec2 half_texel = texel * 0.5;\n"
     "\n"
-    "    // 9-Tap Tent Upsample - Perfect mathematical smoothing without grid/block artifacts\n"
-    "    vec3 color = texture(s_texture, uv).rgb * 4.0;\n"
-    "    color += texture(s_texture, uv + vec2(-texel.x, 0.0)).rgb * 2.0;\n"
-    "    color += texture(s_texture, uv + vec2( texel.x, 0.0)).rgb * 2.0;\n"
-    "    color += texture(s_texture, uv + vec2(0.0,  texel.y)).rgb * 2.0;\n"
-    "    color += texture(s_texture, uv + vec2(0.0, -texel.y)).rgb * 2.0;\n"
+    "    vec3 color = texture(s_texture, uv + vec2(-half_texel.x,  half_texel.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2( half_texel.x,  half_texel.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(-half_texel.x, -half_texel.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2( half_texel.x, -half_texel.y)).rgb;\n"
     "\n"
-    "    color += texture(s_texture, uv + vec2(-texel.x, -texel.y)).rgb * 1.0;\n"
-    "    color += texture(s_texture, uv + vec2( texel.x, -texel.y)).rgb * 1.0;\n"
-    "    color += texture(s_texture, uv + vec2(-texel.x,  texel.y)).rgb * 1.0;\n"
-    "    color += texture(s_texture, uv + vec2( texel.x,  texel.y)).rgb * 1.0;\n"
-    "\n"
-    "    // Divide by the sum of weights (4 + 8 + 4 = 16)\n"
-    "    fragColor = vec4(color / 16.0, 1.0);\n"
+    "    // Promediamos las 4 lecturas bilineales (que ya incluyen los 16 pesos matemáticos)\n"
+    "    fragColor = vec4(color * 0.25, 1.0);\n"
     "}\n";
 	
 /* ========================================================================================
@@ -281,13 +283,26 @@ static const char* hdr_frag_shader_src =
     "\n"
     "void main() {\n"
     "    // 1. OFF-SCREEN TUBE GLOW CALCULATION\n"
-    "    // Center is (0.5, 0.5). Max distance to corners is approx 0.707. Multiply by 1.414 to normalize to 1.0.\n"
-    "    float dist = clamp(length(v_texuv - vec2(0.5, 0.5)) * 1.41421356, 0.0, 1.0);\n"
-    "    // 1.0 brightness at center, falling off to 0.2 at the edges\n"
-    "    float monitor_glow_shape = mix(1.0, 0.2, dist);\n"
-    "    // Vintage CRT phosphor tint (slightly blue/cyan/white) for the ambient tube glow\n"
-    "    vec3 glow_tint = vec3(0.85, 0.95, 1.0);\n"
-    "    vec3 offscreen_ambient_light = glow_tint * u_offscreen_glow * monitor_glow_shape;\n"
+    "    vec3 offscreen_ambient_light = vec3(0.0);\n"
+    "    float monitor_glow_shape = 0.0;\n"
+    "\n"
+    "    if (u_offscreen_glow > 0.0) {\n"
+    "        // GPU OPTIMIZATION: Quadratic falloff (Avoids the expensive sqrt() from length())\n"
+    "        // Besides massively saving ALU per pixel, the parabolic curve of the \n"
+    "        // square is optically more correct for diffuse light than a linear cone.\n"
+    "        vec2 delta = v_texuv - vec2(0.5);\n"
+    "        \n"
+    "        // The maximum dist^2 at the corners is 0.5^2 + 0.5^2 = 0.5. \n"
+    "        // Multiplying by 2.0 perfectly normalizes it from 0.0 to 1.0.\n"
+    "        float dist_sq = clamp(dot(delta, delta) * 2.0, 0.0, 1.0);\n"
+    "        \n"
+    "        // 1.0 brightness at the center, falling off smoothly to 0.2 at the edges\n"
+    "        monitor_glow_shape = mix(1.0, 0.2, dist_sq);\n"
+    "        \n"
+    "        // Vintage CRT phosphor tint (slightly blue/cyan/white)\n"
+    "        vec3 glow_tint = vec3(0.85, 0.95, 1.0);\n"
+    "        offscreen_ambient_light = glow_tint * u_offscreen_glow * monitor_glow_shape;\n"
+    "    }\n"
     "\n"
     "    // 2. BEAM ENERGY FETCH (Core + Optical Bloom + Ambient Tube Glow)\n"
     "    vec3 core_beam = texture(s_texture, v_texuv).rgb * v_color.rgb;\n"
@@ -336,10 +351,12 @@ static const char* hdr_frag_shader_src =
     "    }\n"
     "\n"
     "    // --- SAFEGUARD THE COMPOSITOR MASK ---\n"
-    "    // Make sure the glow actually overrides the alpha mask so the OS \n"
-    "    // doesn't blend the Android desktop through our flash effect.\n"
-    "    out_mask = max(out_mask, clamp(u_offscreen_glow * monitor_glow_shape, 0.0, 1.0));\n"
+    "    if (u_offscreen_glow > 0.0) {\n"
+    "        out_mask = max(out_mask, clamp(u_offscreen_glow * monitor_glow_shape, 0.0, 1.0));\n"
+    "    }\n"
     "\n"
     "    // Output the mapped color and the carving mask in the alpha channel\n"
     "    fragColor = vec4(mapped, out_mask);\n"
     "}\n";
+
+	
