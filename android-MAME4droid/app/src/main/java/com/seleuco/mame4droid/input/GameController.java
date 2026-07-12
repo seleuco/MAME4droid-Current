@@ -58,6 +58,7 @@ import android.util.Log;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
+import com.seleuco.mame4droid.R;
 import com.seleuco.mame4droid.helpers.DialogHelper;
 import com.seleuco.mame4droid.helpers.MainHelper;
 import com.seleuco.mame4droid.helpers.PrefsHelper;
@@ -168,7 +169,7 @@ public class GameController implements IController {
 							mm.runOnUiThread(new Runnable() {
 								@Override
 								public void run() {
-									String msg = "Disconnected controller (P" + playerNum + ")";
+									String msg = mm.getString(R.string.controller_disconnected, playerNum);
 									new WarnWidget.WarnWidgetHelper(mm, msg, 3, Color.YELLOW, true);
 									mm.getMainHelper().updateMAME4droid();
 								}
@@ -449,14 +450,14 @@ public class GameController implements IController {
 				}
 			}
 
-			String slotName = (activeSlot != -1) ? "P" + (activeSlot + 1) : "Unassigned (Max 4)";
+			String slotName = (activeSlot != -1) ? "P" + (activeSlot + 1) : mm.getString(R.string.controller_unassigned);
 			String text;
 
 			if (hasCustomProfile) {
-				text = "Detected controller as " + slotName + "\n (Custom Mapping)";
+				text = mm.getString(R.string.controller_detected_custom, slotName);
 				new WarnWidget.WarnWidgetHelper(mm, text, 3, Color.GREEN, true);
 			} else {
-				text = "Detected controller as " + slotName + "\n(Defaults applied) Please map the buttons in Settings";
+				text = mm.getString(R.string.controller_detected_defaults, slotName);
 				new WarnWidget.WarnWidgetHelper(mm, text, 3, Color.YELLOW, true);
 			}
 
@@ -907,7 +908,7 @@ public class GameController implements IController {
 		final String name = device.getName();
 
 		if (Emulator.isDebug()) {
-			String msg = "Detected input device: " + name;
+			String msg = mm.getString(R.string.input_device_detected, name);
 			new WarnWidget.WarnWidgetHelper(mm, msg, 3, Color.GREEN, true);
 		}
 
@@ -1406,7 +1407,7 @@ public class GameController implements IController {
 
 			if (id == 1) mm.getMainHelper().updateMAME4droid();
 
-			CharSequence text = "Detected " + desc + " controller as P" + id;
+			CharSequence text = mm.getString(R.string.controller_detected_as, desc, id);
 			new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
 
 			return id - 1;

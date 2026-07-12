@@ -212,7 +212,7 @@ public final class GLNativeRenderer implements Renderer, IGLRenderer {
 				ret = Emulator.setShader(effect);
 
 			if (!ret) {
-				mm.runOnUiThread(() -> new WarnWidget.WarnWidgetHelper(mm, "Error creating effect shader... reverting to stock!", 3, Color.RED, false));
+				mm.runOnUiThread(() -> new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.shader_error), 3, Color.RED, false));
 
 				//Reverted to no shaders
 				SharedPreferences.Editor editor = prefsHelper.getSharedPreferences().edit();

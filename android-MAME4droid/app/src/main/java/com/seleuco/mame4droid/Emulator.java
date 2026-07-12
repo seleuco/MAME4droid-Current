@@ -138,6 +138,7 @@ public class Emulator {
 
 	final static public int BITMAP_FILTERING = 74;
 	final static public int VECTOR_IMPROVED = 75;
+	final static public int FORCE_UNIFONT = 76;
 
 	final static public int NETPLAY_HAS_CONNECTION = 53;
 	final static public int NETPLAY_HAS_JOINED = 54;
@@ -151,6 +152,7 @@ public class Emulator {
 	final static public int OVERLAY_EFECT = 4;
 	final static public int CLI_PARAMS = 5;
 	final static public int GAME_SELECTED = 6;
+	final static public int LANGUAGE = 7;
 
 	//get str
 	final static public int MAME_VERSION = 1;
@@ -430,18 +432,18 @@ public class Emulator {
 
 					CharSequence text = "";
 					if (mm.getPrefsHelper().isTiltSensorEnabled())
-						text = "Tilt sensor is enabled!";
+						text = mm.getString(R.string.tilt_sensor_enabled);
 					else if (mm.getPrefsHelper().isTouchLightgun()) {
 						if(mm.getPrefsHelper().isTouchLightgunForced())
-							text = "Touch lightgun is always enabled!";
+							text = mm.getString(R.string.touch_lightgun_always);
 							else
-							text = "Touch lightgun is auto enabled!";
+							text = mm.getString(R.string.touch_lightgun_auto);
 					}
 					else if (mm.getPrefsHelper().isTouchGameMouse()) {
 						if(mm.getPrefsHelper().isTouchGameMouseForced())
-							text = "Touch mouse is always enabled!";
+							text = mm.getString(R.string.touch_mouse_always);
 							else
-						    text = "Touch mouse is auto enabled!";
+						    text = mm.getString(R.string.touch_mouse_auto);
 					}
 
 					new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.YELLOW, true);
@@ -753,6 +755,15 @@ public class Emulator {
 				final String versionName = mm.getMainHelper().getVersion();
 				Emulator.setValueStr(Emulator.VERSION, versionName);
 
+				/* Start MAME's own UI in the app language (loads the matching
+				 * language/<name>/strings.mo shipped in the assets bundle), unless
+				 * the user chose to keep MAME's core in English (its own
+				 * translations are patchy). The Android app UI is unaffected. */
+				String mameLanguage = mm.getPrefsHelper().isMameCoreTranslated()
+						? com.seleuco.mame4droid.helpers.LocaleHelper.getMameLanguage(mm)
+						: "English";
+				Emulator.setValueStr(Emulator.LANGUAGE, mameLanguage);
+
 				boolean isUsingSaf = mm.getPrefsHelper().getROMsDIR() != null && mm.getPrefsHelper().getROMsDIR().length() != 0;
 				if (isUsingSaf) {
 					Emulator.setValue(Emulator.USING_SAF, 1);
@@ -817,7 +828,7 @@ public class Emulator {
 					if (error) {
 						mm.runOnUiThread(new Runnable() {
 							public void run() {
-								mm.getDialogHelper().setInfoMsg("Error opening file...");
+								mm.getDialogHelper().setInfoMsg(mm.getString(R.string.error_opening_file));
 								mm.showDialog(DialogHelper.DIALOG_INFO);
 							}
 						});
@@ -842,7 +853,7 @@ public class Emulator {
 						Log.d("ACTION_VIEW","XX name: " + fileName);
 						Log.d("ACTION_VIEW","XX path: " + path);
 						extROM = true;
-						String msg = "Launching: " + fileName + "\nMAME4droid (Current) " + versionName + " by D.Valdeita (Seleuco)";
+						String msg = mm.getString(R.string.launching_rom, fileName, versionName);
 						new WarnWidget.WarnWidgetHelper(mm, msg, 3, Color.GREEN, true);
 					}
 				}
@@ -998,21 +1009,65 @@ public class Emulator {
 	 *  {@link #netplayGetPublicAddr}. */
 	public static native String netplayGetDiagnostics();
 
+	/** One-shot STUN to learn OUR public IP before joining (same-router vs
+	 *  192.168.x collision).  BLOCKS up to ~1.5s: call off the UI thread.
+	 *  Returns the IP, or "" when offline / STUN blocked. */
+	public static native String netplayProbePublicIp();
+
 	/** Latch a mid-game state resync (rollback sessions only).
 	 *  The host recaptures its live state and streams it to the client, which
 	 *  adopts it -- both machines freeze briefly and resume bit-identical.
 	 *  @return 1 if the resync was latched, 0 if not applicable. */
 	public static native int netplayResync();
 
+	/* Native netplay toasts arrive as "@key|arg1|arg2": the key maps to a
+	 * localized string resource and the args fill its placeholders, so the
+	 * message shows in the user's language.  Plain text (no leading '@') is
+	 * passed through unchanged for forward/backward compatibility. */
+	private static String resolveNpMsg(String body) {
+		if (body == null || !body.startsWith("@"))
+			return body;
+		String[] parts = body.substring(1).split("\\|", -1);
+		String key = parts[0];
+		Object[] args = new Object[parts.length - 1];
+		System.arraycopy(parts, 1, args, 0, args.length);
+		int resId = 0;
+		switch (key) {
+			case "peer_paused":            resId = R.string.np_msg_peer_paused; break;
+			case "incompatible":           resId = R.string.np_msg_incompatible; break;
+			case "desync_rollback":        resId = R.string.np_msg_desync_rollback; break;
+			case "desync":                 resId = R.string.np_msg_desync; break;
+			case "state_sync_failed":      resId = R.string.np_msg_state_sync_failed; break;
+			case "host_running":           resId = R.string.np_msg_host_running; break;
+			case "peer_resync":            resId = R.string.np_msg_peer_resync; break;
+			case "not_rollback_compatible":resId = R.string.np_msg_not_rollback_compatible; break;
+			case "sync_timeout":           resId = R.string.np_msg_sync_timeout; break;
+			case "resyncing":              resId = R.string.np_msg_resyncing; break;
+			case "state_too_large":        resId = R.string.np_msg_state_too_large; break;
+			case "disconnected":           resId = R.string.np_msg_disconnected; break;
+			case "rom_error":              resId = R.string.np_msg_rom_error; break;
+			case "connection_lost":        resId = R.string.np_msg_connection_lost; break;
+			case "peer_disconnected":      resId = R.string.np_msg_peer_disconnected; break;
+			case "send_failed":            resId = R.string.np_msg_send_failed; break;
+			case "bind_failed":            resId = R.string.np_msg_bind_failed; break;
+			default: return body;
+		}
+		try {
+			return mm.getString(resId, args);
+		} catch (Exception e) {
+			return body;
+		}
+	}
+
 	static void netplayWarn(final String msg) {
 		mm.runOnUiThread(new Runnable() {
 			public void run() {
 				if (msg != null && msg.startsWith("TOASTERR:")) {
-					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, msg.substring(9), 4, android.graphics.Color.RED, false);
+					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, resolveNpMsg(msg.substring(9)), 4, android.graphics.Color.RED, false);
 				} else if (msg != null && msg.startsWith("TOASTOK:")) {
-					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, msg.substring(8), 3, android.graphics.Color.GREEN, false);
+					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, resolveNpMsg(msg.substring(8)), 3, android.graphics.Color.GREEN, false);
 				} else if (msg != null && msg.startsWith("TOAST:")) {
-					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, msg.substring(6), 3, android.graphics.Color.YELLOW, false);
+					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, resolveNpMsg(msg.substring(6)), 3, android.graphics.Color.YELLOW, false);
 				} else if (msg != null && msg.startsWith("STATS:")) {
 					/* Re-check the connection live (not just at push time): a
 					 * STATS push and the disconnect notification can both be
@@ -1023,7 +1078,11 @@ public class Emulator {
 					else
 						com.seleuco.mame4droid.widgets.StatsWidget.hide(mm);
 				} else {
-					mm.getDialogHelper().setInfoMsg(msg);
+					/* Unprefixed native warnings (disconnect, hangup, socket
+					 * errors) that are shown as a MODAL dialog.  Still resolve a
+					 * leading "@key" so the modal text is localized; plain text
+					 * passes through unchanged.                                  */
+					mm.getDialogHelper().setInfoMsg(resolveNpMsg(msg));
 					mm.showDialog(DialogHelper.DIALOG_INFO);
 				}
 				/* Native netplay notifications (hangup, peer timeout,

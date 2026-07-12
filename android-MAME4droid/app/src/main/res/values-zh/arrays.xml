@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="pref_scaleMode_options">
+		<item>缩放（保持宽高比）</item>
+		<item>拉伸以适应屏幕</item>
+		<item>原始大小</item>
+		<item>缩放（整数缩放适应屏幕）</item>
+		<item>缩放（整数缩放超出边界）</item>
+		<item>1.5X</item>
+		<item>2X</item>
+	</string-array>
+
+	<string-array name="pref_controller_type_options">
+		<item>数字方向键</item>
+		<item>数字摇杆</item>
+		<item>模拟摇杆</item>
+	</string-array>
+
+	<string-array name="pref_dz_options">
+		<item>无</item>
+		<item>低</item>
+		<item>正常</item>
+		<item>高</item>
+		<item>非常高</item>
+	</string-array>
+
+	<string-array name="pref_sound_options">
+		<item>关闭</item>
+		<item>开启（11 KHz）</item>
+		<item>开启（22 KHz）</item>
+		<item>开启（33 KHz）</item>
+		<item>开启（44 KHz）</item>
+		<item>开启（48 KHz）</item>
+	</string-array>
+
+	<string-array name="pref_stick_options">
+		<item>自动</item>
+		<item>2 方向</item>
+		<item>4 方向</item>
+		<item>8 方向</item>
+	</string-array>
+
+	<string-array name="pref_numbuttons_options">
+		<item>自动（启发式）</item>
+		<item>0 个按钮</item>
+		<item>1 个按钮</item>
+		<item>2 个按钮</item>
+		<item>3 个按钮（C=A+B）</item>
+		<item>3 个按钮</item>
+		<item>4 个按钮</item>
+		<item>所有按钮</item>
+	</string-array>
+
+	<string-array name="pref_resolution_options">
+		<item>自动（机器原始 / 最佳性能）</item>
+		<item>640x480（性能均衡）</item>
+		<item>设备原生（适合 artworks 和边框）</item>
+	</string-array>
+
+	<string-array name="pref_osd_resolution_options">
+		<item>400x300（复古像素艺术）</item>
+		<item>640x480（标准）</item>
+		<item>设备原生（4:3 原始）</item>
+		<item>设备原生（填满屏幕）</item>
+	</string-array>
+
+	<string-array name="pref_buttons_size_options">
+		<item>更小</item>
+		<item>小</item>
+		<item>正常</item>
+		<item>大</item>
+		<item>更大</item>
+	</string-array>
+
+	<string-array name="pref_low_norm_or_hight_options">
+		<item>低</item>
+		<item>正常</item>
+		<item>高</item>
+	</string-array>
+
+	<string-array name="pref_tilt_neutralz_options">
+		<item>90 度</item>
+		<item>80 度</item>
+		<item>70 度</item>
+		<item>60 度</item>
+		<item>50 度</item>
+		<item>45 度</item>
+		<item>40 度</item>
+		<item>30 度</item>
+		<item>20 度</item>
+		<item>10 度</item>
+	</string-array>
+
+	<string-array name="pref_navbar_options">
+		<item>可见</item>
+		<item>沉浸模式</item>
+	</string-array>
+
+	<string-array name="pref_input_modes_options">
+		<item>已禁用</item>
+		<item>自动</item>
+		<item>已启用</item>
+	</string-array>
+
+	<string-array name="pref_orientation_options">
+		<item>自动</item>
+		<item>横屏（传感器）</item>
+		<item>横屏</item>
+		<item>横屏反向</item>
+		<item>竖屏（传感器）</item>
+		<item>竖屏</item>
+		<item>竖屏反向</item>
+	</string-array>
+
+	<string-array name="pref_netplay_delay_options">
+		<item>自动</item>
+		<item>1 帧延迟</item>
+		<item>2 帧延迟</item>
+		<item>3 帧延迟</item>
+		<item>4 帧延迟</item>
+		<item>5 帧延迟</item>
+		<item>6 帧延迟</item>
+	</string-array>
+
+	<string-array name="input_labels">
+		<item>上</item>
+		<item>下</item>
+		<item>左</item>
+		<item>右</item>
+		<item>按键 A</item>
+		<item>按键 B</item>
+		<item>按键 C</item>
+		<item>按键 D</item>
+		<item>按键 E</item>
+		<item>按键 F</item>
+		<item>按键 G</item>
+		<item>按键 H</item>
+		<item>投币</item>
+		<item>开始</item>
+		<item>退出</item>
+		<item>选项</item>
+	</string-array>
+
+</resources>

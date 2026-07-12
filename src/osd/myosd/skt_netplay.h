@@ -41,6 +41,7 @@
     void skt_netplay_set_local_port(uint16_t port);                    /* pre-init: client's local bind port (its OWN settings port) */
     const char *skt_netplay_get_public_addr(void);                     /* "ip:port|pp=0/1|sym=0/1" or "" -- valid only after init returns */
     const char *skt_netplay_get_diagnostics(void);                     /* multi-line connection diagnostics block, same validity */
+    int skt_netplay_probe_public_ip(char *out_ip, size_t ip_len);      /* throwaway one-shot STUN: learn our public IP BEFORE init (LAN-vs-internet decision); 1=ok, 0=offline/blocked */
 
 
 

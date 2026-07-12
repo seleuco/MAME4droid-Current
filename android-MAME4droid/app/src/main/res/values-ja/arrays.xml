@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="pref_scaleMode_options">
+		<item>スケール（アスペクト比を維持）</item>
+		<item>画面に合わせて引き伸ばし</item>
+		<item>原寸大</item>
+		<item>スケール（整数スケールで画面に合わせる）</item>
+		<item>スケール（整数スケールで境界を超える）</item>
+		<item>1.5X</item>
+		<item>2X</item>
+	</string-array>
+
+	<string-array name="pref_controller_type_options">
+		<item>デジタル方向キー</item>
+		<item>デジタルスティック</item>
+		<item>アナログスティック</item>
+	</string-array>
+
+	<string-array name="pref_dz_options">
+		<item>なし</item>
+		<item>低</item>
+		<item>標準</item>
+		<item>高</item>
+		<item>非常に高い</item>
+	</string-array>
+
+	<string-array name="pref_sound_options">
+		<item>オフ</item>
+		<item>オン（11 KHz）</item>
+		<item>オン（22 KHz）</item>
+		<item>オン（33 KHz）</item>
+		<item>オン（44 KHz）</item>
+		<item>オン（48 KHz）</item>
+	</string-array>
+
+	<string-array name="pref_stick_options">
+		<item>自動</item>
+		<item>2 方向</item>
+		<item>4 方向</item>
+		<item>8 方向</item>
+	</string-array>
+
+	<string-array name="pref_numbuttons_options">
+		<item>自動（ヒューリスティック）</item>
+		<item>0 ボタン</item>
+		<item>1 ボタン</item>
+		<item>2 ボタン</item>
+		<item>3 ボタン（C=A+B）</item>
+		<item>3 ボタン</item>
+		<item>4 ボタン</item>
+		<item>すべてのボタン</item>
+	</string-array>
+
+	<string-array name="pref_resolution_options">
+		<item>自動（マシン原寸 / 最高性能）</item>
+		<item>640x480（性能バランス）</item>
+		<item>デバイスネイティブ（artworks とベゼルに最適）</item>
+	</string-array>
+
+	<string-array name="pref_osd_resolution_options">
+		<item>400x300（レトロピクセルアート）</item>
+		<item>640x480（標準）</item>
+		<item>デバイスネイティブ（4:3 原寸）</item>
+		<item>デバイスネイティブ（画面を埋める）</item>
+	</string-array>
+
+	<string-array name="pref_buttons_size_options">
+		<item>より小さい</item>
+		<item>小</item>
+		<item>標準</item>
+		<item>大</item>
+		<item>より大きい</item>
+	</string-array>
+
+	<string-array name="pref_low_norm_or_hight_options">
+		<item>低</item>
+		<item>標準</item>
+		<item>高</item>
+	</string-array>
+
+	<string-array name="pref_tilt_neutralz_options">
+		<item>90 度</item>
+		<item>80 度</item>
+		<item>70 度</item>
+		<item>60 度</item>
+		<item>50 度</item>
+		<item>45 度</item>
+		<item>40 度</item>
+		<item>30 度</item>
+		<item>20 度</item>
+		<item>10 度</item>
+	</string-array>
+
+	<string-array name="pref_navbar_options">
+		<item>表示</item>
+		<item>没入モード</item>
+	</string-array>
+
+	<string-array name="pref_input_modes_options">
+		<item>無効</item>
+		<item>自動</item>
+		<item>有効</item>
+	</string-array>
+
+	<string-array name="pref_orientation_options">
+		<item>自動</item>
+		<item>横向き（センサー）</item>
+		<item>横向き</item>
+		<item>横向き反転</item>
+		<item>縦向き（センサー）</item>
+		<item>縦向き</item>
+		<item>縦向き反転</item>
+	</string-array>
+
+	<string-array name="pref_netplay_delay_options">
+		<item>自動</item>
+		<item>1 フレーム遅延</item>
+		<item>2 フレーム遅延</item>
+		<item>3 フレーム遅延</item>
+		<item>4 フレーム遅延</item>
+		<item>5 フレーム遅延</item>
+		<item>6 フレーム遅延</item>
+	</string-array>
+
+	<string-array name="input_labels">
+		<item>上</item>
+		<item>下</item>
+		<item>左</item>
+		<item>右</item>
+		<item>ボタン A</item>
+		<item>ボタン B</item>
+		<item>ボタン C</item>
+		<item>ボタン D</item>
+		<item>ボタン E</item>
+		<item>ボタン F</item>
+		<item>ボタン G</item>
+		<item>ボタン H</item>
+		<item>コイン</item>
+		<item>スタート</item>
+		<item>終了</item>
+		<item>オプション</item>
+	</string-array>
+
+</resources>

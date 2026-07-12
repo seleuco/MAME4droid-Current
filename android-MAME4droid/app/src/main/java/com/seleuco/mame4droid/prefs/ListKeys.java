@@ -61,6 +61,12 @@ import com.seleuco.mame4droid.input.GameController;
 
 public class ListKeys extends ListActivity {
 
+	@Override
+	protected void attachBaseContext(Context newBase) {
+		com.seleuco.mame4droid.helpers.LocaleHelper.applyLocale(this, newBase);
+		super.attachBaseContext(newBase);
+	}
+
 	public static final String[] androidKeysLabels = {
 		/* 0 - 9*/
 		"UNKNOWN", "SOFT_LEFT","SOFT_RIGHT", "HOME", "BACK", "CALL", "ENDCALL", "0", "1", "2",
@@ -106,12 +112,21 @@ public class ListKeys extends ListActivity {
 		"BUTTON_13","BUTTON_14","BUTTON_15","BUTTON_16"
 	};
 
+	/* Internal, non-localized labels: some callers persist/compare these by
+	 * value, so they must stay stable. For anything the user sees, resolve
+	 * getInputLabel() against the localized @array/input_labels instead. */
 	public static final String[] emulatorInputLabels = {
 		"Up", "Down", "Left", "Right",
 		"Button A", "Button B", "Button C", "Button D",
 		"Button E", "Button F", "Button G", "Button H",
 		"Coin", "Start", "Exit", "Option",
 	};
+
+	/** Localized display label for the arcade input at the given index. */
+	public static String getInputLabel(Context ctx, int index) {
+		String[] labels = ctx.getResources().getStringArray(com.seleuco.mame4droid.R.array.input_labels);
+		return (index >= 0 && index < labels.length) ? labels[index] : "";
+	}
 
 	protected int emulatorInputIndex = 0;
 	protected int controllerIndex = 0;
@@ -126,7 +141,7 @@ public class ListKeys extends ListActivity {
 			WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
 
 		controllerIndex = getIntent().getIntExtra("controllerIndex", 0);
-		setTitle("MAME4droid Controller " + (controllerIndex + 1) + " buttons");
+		setTitle(getString(com.seleuco.mame4droid.R.string.controller_buttons_title, controllerIndex + 1));
 
 		drawListAdapter();
 	}
@@ -135,7 +150,8 @@ public class ListKeys extends ListActivity {
 		if (keyLabelsAdapter == null) {
 			final Context context = this;
 
-			keyLabelsAdapter = new ArrayAdapter<String>(this, 0, emulatorInputLabels) {
+			keyLabelsAdapter = new ArrayAdapter<String>(this, 0,
+					getResources().getStringArray(com.seleuco.mame4droid.R.array.input_labels)) {
 				@Override
 				public View getView(int position, View convertView, ViewGroup parent) {
 					LinearLayout layout;
@@ -192,7 +208,7 @@ public class ListKeys extends ListActivity {
 							label
 						));
 					} else {
-						rightText.setText("Not mapped");
+						rightText.setText(getString(com.seleuco.mame4droid.R.string.not_mapped));
 					}
 
 					return layout;

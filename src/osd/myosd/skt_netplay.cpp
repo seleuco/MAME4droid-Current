@@ -466,7 +466,9 @@ static int skt_send_pkt_data(netplay_t *handle,netplay_msg_t *msg)
 
             NLOG("sendto failed. l=%d, expected=%zu, error=%s", l, wire_size, l<0 ? strerror(errno) : "size mismatch");
             char buf[256];
-            sprintf(buf,"Failed to send data.\nError: %s\n",strerror(errno));
+            /* No TOAST* prefix -> Java shows it as a MODAL dialog (original
+             * behavior); resolveNpMsg localizes "@key|arg" (the system error). */
+            snprintf(buf, sizeof(buf), "@send_failed|%s", strerror(errno));
             handle->netplay_warn(buf);
             handle->has_connection = 0;
             return 0;
@@ -529,7 +531,9 @@ static int skt_init_udp_socket(netplay_t *handle, const char *server, uint16_t p
         if (bind(impl->fd, impl->addr->ai_addr, impl->addr->ai_addrlen) < 0)
         {
             char buf[256];
-            sprintf(buf,"Failed to bind socket.\nError: %s\n",strerror(errno));
+            /* No TOAST* prefix -> Java shows it as a MODAL dialog (original
+             * behavior); resolveNpMsg localizes "@key|arg" (the system error). */
+            snprintf(buf, sizeof(buf), "@bind_failed|%s", strerror(errno));
             NLOG("bind() failed: %s", strerror(errno));
             handle->netplay_warn(buf);
             close(impl->fd);
@@ -705,6 +709,40 @@ static void skt_run_stun(skt_netplay_t *impl, uint16_t local_port)
     } else {
         NLOG("STUN: all servers failed");
     }
+}
+
+/* Throwaway one-shot STUN on a FRESH UDP socket to learn just our public IP
+ * (same on every socket behind the NAT).  Lets Java tell same-router (LAN)
+ * from a 192.168.x collision.  Bounded <=1.5s; 1=ok, 0=offline/blocked.      */
+int skt_netplay_probe_public_ip(char *out_ip, size_t ip_len)
+{
+    if (!out_ip || ip_len == 0) return 0;
+    out_ip[0] = 0;
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        NLOG("STUN probe: socket() failed: %s", strerror(errno));
+        return 0;
+    }
+
+    struct timeval tmo; tmo.tv_sec = 0; tmo.tv_usec = 500 * 1000;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tmo, sizeof(tmo));
+
+    char ip[64]; uint16_t port = 0; int ok = 0;
+    for (int i = 0; i < STUN_SERVER_COUNT && !ok; i++)
+        ok = skt_stun_query(fd, s_stun_servers[i].host, s_stun_servers[i].port,
+                            ip, sizeof(ip), &port);
+
+    close(fd);
+
+    if (ok) {
+        strncpy(out_ip, ip, ip_len - 1);
+        out_ip[ip_len - 1] = 0;
+        NLOG("STUN probe: our public IP = %s", out_ip);
+    } else {
+        NLOG("STUN probe: failed (offline or STUN blocked)");
+    }
+    return ok;
 }
 
 /* Resolve host:port into impl->punch_addr.  numeric_only (AI_NUMERICHOST)

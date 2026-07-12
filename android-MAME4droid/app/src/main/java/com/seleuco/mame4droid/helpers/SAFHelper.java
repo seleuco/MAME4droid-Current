@@ -351,7 +351,7 @@ public class SAFHelper {
 		}
 
 		//Direct call. WarnWidget handles the UI thread internally.
-		pw = new WarnWidget(mm, "Caching SAF files.", "Reading, please wait...", Color.WHITE, false, false);
+		pw = new WarnWidget(mm, mm.getString(com.seleuco.mame4droid.R.string.saf_caching_title), mm.getString(com.seleuco.mame4droid.R.string.saf_caching_wait), Color.WHITE, false, false);
 		pw.init();
 
 		fileIDs = new HashMap<>();
@@ -452,10 +452,9 @@ public class SAFHelper {
 	 */
 	private void showPermissionsErrorDialog() {
 		mm.runOnUiThread(() -> {
-			String romsDir = (mm.getPrefsHelper() != null) ? mm.getPrefsHelper().getROMsDIR() : "the selected folder";
+			String romsDir = (mm.getPrefsHelper() != null) ? mm.getPrefsHelper().getROMsDIR() : mm.getString(com.seleuco.mame4droid.R.string.saf_selected_folder);
 			mm.getDialogHelper().setInfoMsg(
-				"MAME4droid doesn't have permission to read the roms files on " + romsDir +
-					".\n\nPlease grant permissions again or select another ROMs folder, both in MAME4droid menu 'Options -> Settings -> General -> Change ROMs path'.");
+				mm.getString(com.seleuco.mame4droid.R.string.saf_no_permission, romsDir));
 			mm.showDialog(DialogHelper.DIALOG_INFO);
 		});
 	}

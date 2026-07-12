@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid (Current) 帮助</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">简介</h1>
+  </div><!-- /header -->
+	<div class="content">
+<p><strong>欢迎使用 MAME4droid (Current) </strong></p>
+    <p>MAME4droid (Current) 由 David Valdeita (Seleuco) 开发，是 MAMEDev 及贡献者的最新桌面版 MAME 模拟器的移植版。它模拟本版本 MAME 支持的街机游戏和系统，涵盖超过 40000 种不同的系统。</p>
+    <p>此版本的 MAME4droid 专为高端 Android 设备设计，因为它基于 PC 版 MAME，比旧版本需要更高的规格。</p>
+    <p>即使使用高端设备，也不要指望 90 年代及以后的「现代」街机游戏一定能全速运行或完全兼容。</p>
+    <p>由于支持超过 40000 种系统，有些游戏运行得比其他游戏好；有些游戏可能根本无法运行。支持如此庞大数量的游戏是不可能的，因此请不要发邮件给开发者请求支持某个特定游戏。</p>
+    <p>如果您使用的是低端 Android 设备，您会发现 <a class="link"  href="https://play.google.com/store/apps/details?id=com.seleuco.mame4droid" target="new"><em>MAME4droid (0.139u1)</em></a> 快得多——但它支持较少、较旧的 ROM，且更多游戏需要声音采样才能获得完整的音频体验。</p>
+    <p>没有至少一个兼容的 ROM 可供模拟，MAME4droid 将无法运行。您的第一步应是获取兼容的 ROM 文件并将其放入指定的 ROMs 文件夹（更多信息请参阅 <a class="link"  href="installation.htm" rel="external">安装</a> 和 <a class="link"  href="games.htm" rel="external">支持的游戏</a>）。新闻、源代码和更多信息的官方网页：<a class="link" href="https://github.com/seleuco" target="new">MAME4droid 官方网站</a>。</p>
+    <p><strong>技术说明</strong>：此版本包含 MAME 基于 UML 的 ARM64 动态重编译器 (DRC)，在 v1.21 中重新加入。DRC 不是逐条解释游戏的 CPU 指令（对高规格街机 CPU 极其缓慢），而是即时将它们翻译成原生 ARM64 机器码，直接在您设备自己的 CPU 上运行。这就是让基于 MIPS/ARM/SH2/PowerPC 的游戏（在 v1.21 之前无法游玩，或只能以实际速度的一小部分运行）现在真正可玩的原因——<strong>Killer Instinct</strong>（运行于 MIPS R4600 主 CPU）就是一个很好的例子，没有重编译器时卡顿/无法游玩，有了它则全速运行。这是此版本相对于上文提到的旧版 <em>MAME4droid (0.139u1)</em> 的最大优势之一，后者从未有过动态重编译器。</p>
+    <p>MAME 和 MAME4droid 的许可证可在 <a class="link" href="license.htm" rel="external">许可证</a> 部分找到。</p>
+    <p></p>
+
+    </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">返回</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

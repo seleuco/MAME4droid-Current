@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid (Current) 帮助</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">支持的游戏</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <h3>支持的游戏<br>
+      </h3>
+      <p>MAME4droid (Current) 使用当前桌面版 MAME 的游戏 ROM。注意：这与 <em>MAME4droid (0.139u1)</em> 使用的 ROM 不同。这些 ROM 不能互换使用。</p>
+      <h3>ROM 位置和命名约定</h3>
+      <p>ROM 放在 MAME4droid 安装的「roms」文件夹中。默认情况下（首次运行时选择的内部存储），那是应用自己的
+        私有文件夹，通常为 <em>/storage/emulated/0/Android/data/com.seleuco.mame4d2024/files/roms</em>，您使用
+        Android 调试桥 (ADB) 工具从电脑将 ROM 复制到那里。</p>
+
+	  <p>或者，您可以在首次运行时（或稍后，见下文）选择<strong>外部存储</strong>，使用 Android 自己的文件夹
+        选择器选择设备上的任意文件夹。从那里读取会稍慢，但卸载应用时不会删除任何内容，您可以用任意普通的
+        Android 文件管理器移入移出 ROM，无需电脑。有关两个选项的完整细节，请参阅
+        <a class="link" href="installation.htm" rel="external">安装</a>部分。</p>
+	  <p>此外，您可以通过自行创建 <em>artwork</em>/<em>samples</em>/<em>software</em> 子文件夹来添加其他选定的
+        资源，如 artwork/采样（有关具体位置，请参阅<a class="link" href="installation.htm" rel="external">安装</a>）。
+        如果您是高级用户，还可以编辑主安装文件夹中的 .ini 文件以完全自定义每个路径。</p>
+
+	  <p>您不会被首次选择锁定：可随时在<em>选项-&gt;设置-&gt;常规-&gt;更改 ROM 路径</em>中重新定位 ROM。</p>
+
+	  <p><strong>注意：</strong>文件和目录名区分大小写。MRDO.ZIP 与 mrdo.zip 不同。请始终使用文件名为小写的 ZIP 压缩 ROM。</p>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">返回</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

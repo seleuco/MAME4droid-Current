@@ -456,4 +456,46 @@
 		<item>6</item>
 	</string-array>
 
+	<!-- Language names are endonyms on purpose: every user must be able to
+	     find their own language; only the "system default" entry localizes. -->
+	<string-array name="pref_language_options">
+		<item>@string/lang_system_default</item>
+		<item>English</item>
+		<item>Español</item>
+		<item>中文（简体）</item>
+		<item>日本語</item>
+		<item>한국어</item>
+		<item>Português (Brasil)</item>
+	</string-array>
+	<string-array name="pref_language_values">
+		<item></item>
+		<item>en</item>
+		<item>es</item>
+		<item>zh</item>
+		<item>ja</item>
+		<item>ko</item>
+		<item>pt</item>
+	</string-array>
+
+	<!-- Display labels for the button-mapping UI; order MUST match
+	     ListKeys.emulatorInputLabels (the internal mapping table). -->
+	<string-array name="input_labels">
+		<item>Up</item>
+		<item>Down</item>
+		<item>Left</item>
+		<item>Right</item>
+		<item>Button A</item>
+		<item>Button B</item>
+		<item>Button C</item>
+		<item>Button D</item>
+		<item>Button E</item>
+		<item>Button F</item>
+		<item>Button G</item>
+		<item>Button H</item>
+		<item>Coin</item>
+		<item>Start</item>
+		<item>Exit</item>
+		<item>Option</item>
+	</string-array>
+
 </resources>

@@ -63,6 +63,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import com.seleuco.mame4droid.helpers.DialogHelper;
+import com.seleuco.mame4droid.helpers.LocaleHelper;
 import com.seleuco.mame4droid.helpers.MainHelper;
 import com.seleuco.mame4droid.helpers.NetPlayHelper;
 import com.seleuco.mame4droid.helpers.PrefsHelper;
@@ -125,6 +126,12 @@ public class MAME4droid extends Activity {
 
 	public InputHandler getInputHandler() {
 		return inputHandler;
+	}
+
+	@Override
+	protected void attachBaseContext(android.content.Context newBase) {
+		LocaleHelper.applyLocale(this, newBase);
+		super.attachBaseContext(newBase);
 	}
 
 	/**

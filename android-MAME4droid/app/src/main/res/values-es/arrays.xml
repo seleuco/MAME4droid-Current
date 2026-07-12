@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="pref_scaleMode_options">
+		<item>Escalar (mantener relación de aspecto)</item>
+		<item>Estirar para ajustar a la pantalla</item>
+		<item>Tamaño original</item>
+		<item>Escalar (escala entera ajustada a la pantalla)</item>
+		<item>Escalar (escala entera más allá de los límites)</item>
+		<item>1.5X</item>
+		<item>2X</item>
+	</string-array>
+
+	<string-array name="pref_controller_type_options">
+		<item>DPAD digital</item>
+		<item>Stick digital</item>
+		<item>Stick analógico</item>
+	</string-array>
+
+	<string-array name="pref_dz_options">
+		<item>Ninguna</item>
+		<item>Baja</item>
+		<item>Normal</item>
+		<item>Alta</item>
+		<item>Muy alta</item>
+	</string-array>
+
+	<string-array name="pref_sound_options">
+		<item>Apagado</item>
+		<item>Encendido (11 KHz)</item>
+		<item>Encendido (22 KHz)</item>
+		<item>Encendido (33 KHz)</item>
+		<item>Encendido (44 KHz)</item>
+		<item>Encendido (48 KHz)</item>
+	</string-array>
+
+	<string-array name="pref_stick_options">
+		<item>Auto</item>
+		<item>2 direcciones</item>
+		<item>4 direcciones</item>
+		<item>8 direcciones</item>
+	</string-array>
+
+	<string-array name="pref_numbuttons_options">
+		<item>Auto (heurístico)</item>
+		<item>0 botones</item>
+		<item>1 botón</item>
+		<item>2 botones</item>
+		<item>3 botones (C=A+B)</item>
+		<item>3 botones</item>
+		<item>4 botones</item>
+		<item>Todos los botones</item>
+	</string-array>
+
+	<string-array name="pref_resolution_options">
+		<item>Auto (original de la máquina / mejor rendimiento)</item>
+		<item>640x480 (rendimiento equilibrado)</item>
+		<item>Nativa del dispositivo (ideal para artworks y marcos)</item>
+	</string-array>
+
+	<string-array name="pref_osd_resolution_options">
+		<item>400x300 (pixel art retro)</item>
+		<item>640x480 (estándar)</item>
+		<item>Nativa del dispositivo (4:3 original)</item>
+		<item>Nativa del dispositivo (llenar pantalla)</item>
+	</string-array>
+
+	<string-array name="pref_buttons_size_options">
+		<item>Más pequeño</item>
+		<item>Pequeño</item>
+		<item>Normal</item>
+		<item>Grande</item>
+		<item>Más grande</item>
+	</string-array>
+
+	<string-array name="pref_low_norm_or_hight_options">
+		<item>Baja</item>
+		<item>Normal</item>
+		<item>Alta</item>
+	</string-array>
+
+	<string-array name="pref_tilt_neutralz_options">
+		<item>90 grados</item>
+		<item>80 grados</item>
+		<item>70 grados</item>
+		<item>60 grados</item>
+		<item>50 grados</item>
+		<item>45 grados</item>
+		<item>40 grados</item>
+		<item>30 grados</item>
+		<item>20 grados</item>
+		<item>10 grados</item>
+	</string-array>
+
+	<string-array name="pref_navbar_options">
+		<item>Visible</item>
+		<item>Modo inmersivo</item>
+	</string-array>
+
+	<string-array name="pref_input_modes_options">
+		<item>Desactivado</item>
+		<item>Auto</item>
+		<item>Activado</item>
+	</string-array>
+
+	<string-array name="pref_orientation_options">
+		<item>Auto</item>
+		<item>Horizontal (sensor)</item>
+		<item>Horizontal</item>
+		<item>Horizontal invertido</item>
+		<item>Vertical (sensor)</item>
+		<item>Vertical</item>
+		<item>Vertical invertido</item>
+	</string-array>
+
+	<string-array name="pref_netplay_delay_options">
+		<item>Auto</item>
+		<item>1 fotograma de retardo</item>
+		<item>2 fotogramas de retardo</item>
+		<item>3 fotogramas de retardo</item>
+		<item>4 fotogramas de retardo</item>
+		<item>5 fotogramas de retardo</item>
+		<item>6 fotogramas de retardo</item>
+	</string-array>
+
+	<string-array name="input_labels">
+		<item>Arriba</item>
+		<item>Abajo</item>
+		<item>Izquierda</item>
+		<item>Derecha</item>
+		<item>Botón A</item>
+		<item>Botón B</item>
+		<item>Botón C</item>
+		<item>Botón D</item>
+		<item>Botón E</item>
+		<item>Botón F</item>
+		<item>Botón G</item>
+		<item>Botón H</item>
+		<item>Moneda</item>
+		<item>Start</item>
+		<item>Salir</item>
+		<item>Opción</item>
+	</string-array>
+
+</resources>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Ayuda de MAME4Droid Reloaded</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">Instalación</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <h3>Primer arranque: dónde guardar tus ROMs</h3>
+        <p>La primera vez que inicias MAME4droid, te pregunta dónde quieres guardar tus archivos de
+            ROM (y el resto de datos de MAME: artwork, muestras, estados guardados, etc.). Tienes dos
+            opciones:</p>
+        <ul>
+            <li><strong>Interno:</strong> MAME4droid crea una carpeta vacía dentro de su propio
+                almacenamiento privado y la usa. Luego copias tú mismo tus ROMs allí, ya sea desde un
+                PC por USB/ADB, o con una app de gestor de archivos que pueda explorar la carpeta
+                privada de la app. Estos datos se eliminan automáticamente al desinstalar la app.
+            </li>
+            <li><strong>Almacenamiento externo:</strong> eliges una carpeta existente en cualquier
+                lugar de tu dispositivo (una tarjeta SD, una carpeta que ya uses para ROMs, una
+                carpeta sincronizada con la nube, etc.) usando el selector de carpetas estándar de
+                Android. MAME4droid pide permiso a Android para leer/escribir esa carpeta concreta y
+                la recuerda para la próxima vez. Estos datos sobreviven a la desinstalación de la app
+                y puedes mover archivos libremente dentro y fuera de ella con cualquier gestor de
+                archivos normal, sin necesidad de un PC.
+            </li>
+        </ul>
+        <p><strong>Importante:</strong> con <em>Almacenamiento externo</em>, la carpeta que eliges
+            <em>es</em> tu propia carpeta de ROMs &mdash; MAME4droid <em>no</em> crea una subcarpeta
+            <em>roms</em> dentro. Coloca tus archivos de ROM comprimidos en ZIP directamente en la
+            carpeta que elegiste. Dentro de esa misma carpeta puedes crear tú mismo, opcionalmente,
+            estas subcarpetas:</p>
+        <p><em>artwork/</em> para tus conjuntos de artwork de marcos/marquesinas<br>
+            <em>samples/</em> para las muestras de sonido<br>
+            <em>software/</em> para el contenido de las listas de software (imágenes de casete/disco
+            usadas por sistemas no arcade con software extraíble, como ordenadores domésticos de 8
+            bits)<br>
+            <em>sta/</em> para los estados guardados, solo si además activas <em>Estados en la ruta de
+            ROMs</em> (ver más abajo)</p>
+        <p>Todo lo demás (configuración de MAME, récords, NVRAM, capturas) siempre permanece en los
+            propios datos internos de MAME4droid, independientemente de dónde residan tus ROMs.</p>
+        <p>Con el almacenamiento <em>Interno</em>, MAME4droid crea en cambio todo el árbol de carpetas
+            de más abajo (incluida una subcarpeta <em>roms/</em>) dentro de su propio almacenamiento
+            privado.</p>
+
+        <h3>Sobre el selector de carpetas (Storage Access Framework)</h3>
+        <p>Desde Android 10, las apps ya no pueden leer y escribir libremente en cualquier parte del
+            almacenamiento compartido &mdash; solo obtienen acceso a las carpetas que el usuario
+            concede explícitamente a través del propio selector de Android (esto se llama Storage
+            Access Framework, o SAF). Es el selector que se abre al elegir <em>Almacenamiento
+            externo</em> arriba, o al cambiar tu carpeta de ROMs más adelante. Es un poco más lento
+            que el acceso directo a archivos, pero MAME4droid cachea los listados de archivos para que
+            siga siendo rápido en el uso diario una vez indexadas tus ROMs.</p>
+        <p><strong>Consejo:</strong> mantén tu carpeta de ROMs plana (sin ROMs enterradas en
+            subcarpetas) y no mezcles archivos no relacionados ni sin comprimir &mdash; la carpeta
+            debería contener realmente solo tus conjuntos de ROMs de MAME comprimidos en ZIP.</p>
+
+        <h3>Cambiar la ubicación de tus ROMs más adelante</h3>
+        <p>No tienes que acertar a la primera. Ve a <em>Opciones-&gt;Ajustes-&gt;General-&gt;Cambiar
+            ruta de ROMs</em> para ejecutar de nuevo esa misma elección Interno/Almacenamiento externo
+            (la app se reinicia después). Si cambias a una carpeta externa nueva, recuerda mover o
+            copiar realmente tus archivos de ROM allí primero.</p>
+        <p>Si quieres que tus estados guardados residan junto a tus ROMs en el almacenamiento externo
+            (para que Android no los elimine cuando acabes desinstalando), activa
+            <em>Opciones-&gt;Ajustes-&gt;General-&gt;Estados en la ruta de ROMs</em>.</p>
+
+        <h3>Avanzado: reubicar toda la instalación</h3>
+        <p>Aparte de tu carpeta de ROMs, los usuarios experimentados pueden reubicar toda la carpeta
+            de datos de MAME4droid (no solo las ROMs, sino cada carpeta de configuración/soporte
+            listada abajo) a una ruta concreta en <em>Opciones-&gt;Ajustes-&gt;Avanzado-&gt;Ruta de
+            instalación</em>. Esta se escribe a mano en lugar de elegirse, y está pensada solo para uso
+            avanzado: introducir una ruta válida pero no deseada hará que MAME4droid la trate como una
+            instalación nueva y vacía. Déjalo como está a menos que lo necesites específicamente.</p>
+
+        <h3>Estructura de carpetas</h3>
+        <p>Este es el árbol de la carpeta de datos interna de MAME4droid (usado tal cual con
+            almacenamiento <em>Interno</em>; con <em>Almacenamiento externo</em> solo
+            <em>roms/artwork/samples/software</em> de abajo residen realmente en tu carpeta elegida,
+            como se explicó arriba, y allí los nombres de carpeta no llevan la barra final). Es la
+            misma estructura que usa el MAME de escritorio, así que puedes reutilizar colecciones
+            existentes de artwork/muestras. Consulta la sección <a class="link" href="external.htm"
+            rel="external">Recursos y contenido</a> para saber dónde encontrar estos recursos, y
+            <a class="link" href="games.htm" rel="external">Juegos compatibles</a> para las reglas de
+            nomenclatura de las ROMs.</p>
+        <p>artwork/ -&gt; Directorio de artwork<br>
+            cfg/ -&gt; Directorio de archivos de configuración de MAME<br>
+            hi/ -&gt; Directorio de récords<br>
+            nvram/ -&gt; Directorio de archivos NVRAM<br>
+            roms/ -&gt; Directorio de ROMs<br>
+            samples/ -&gt; Directorio de muestras<br>
+            snap/ -&gt; Directorio de capturas de pantalla<br>
+            sta/ -&gt; Directorio de estados guardados</p>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Volver</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

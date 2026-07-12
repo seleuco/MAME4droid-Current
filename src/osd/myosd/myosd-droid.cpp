@@ -117,6 +117,8 @@ static std::string myosd_droid_selected_game;
 static std::string myosd_droid_rom_name;
 static std::string myosd_droid_cli_params;
 static std::string myosd_droid_overlay_effect;
+static std::string myosd_droid_language;
+static int myosd_droid_force_unifont = 0;
 static int myosd_droid_auto_frameskip = 0;
 static int myosd_droid_cheats = 0;
 static int myosd_droid_skip_gameinfo = 0;
@@ -339,6 +341,9 @@ void myosd_droid_setMyValue(int key, int i, int value) {
         case com_seleuco_mame4droid_Emulator_VECTOR_IMPROVED:
             myosd_droid_vector_improved = value;;
             break;
+        case com_seleuco_mame4droid_Emulator_FORCE_UNIFONT:
+            myosd_droid_force_unifont = value;
+            break;
         case com_seleuco_mame4droid_Emulator_SHOW_FPS:
             myosd_droid_show_fps = value;
             break;
@@ -518,6 +523,10 @@ void myosd_droid_setMyValueStr(int key, int i, const char *value) {
         }
         case com_seleuco_mame4droid_Emulator_CLI_PARAMS: {
             myosd_droid_cli_params = std::string(value);
+            break;
+        }
+        case com_seleuco_mame4droid_Emulator_LANGUAGE: {
+            myosd_droid_language = std::string(value);
             break;
         }
         case com_seleuco_mame4droid_Emulator_GAME_SELECTED:
@@ -1159,8 +1168,8 @@ static void myosd_droid_netplay_force_disconnect(const char* context_msg) {
          * overlay, and Activity.runOnUiThread can run synchronously, so
          * warning earlier could see a stale has_connection==1 and skip it. */
         if (handle->netplay_warn) {
-            char msg[] = "TOASTOK:Netplay: Disconnected.";
-            char err_msg[] = "TOAST:Netplay: Error loading ROM. Disconnected.";
+            char msg[] = "TOASTOK:@disconnected";
+            char err_msg[] = "TOAST:@rom_error";
             handle->netplay_warn(failed_to_start ? err_msg : msg);
         }
     }
@@ -1480,6 +1489,15 @@ int myosd_droid_main(int argc, char **argv) {
         n++;
     }
 
+    /* Localize the native MAME UI to match the app language (Java passes the
+     * MAME language folder name, e.g. "Spanish"; "English" is the default). */
+    if(!myosd_droid_language.empty() && myosd_droid_language != "English") {
+        args[n] = "-language";
+        n++;
+        args[n] = myosd_droid_language.c_str();
+        n++;
+    }
+
 
     if(myosd_num_processors!=-1) {
         __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "Num processors: %d",myosd_num_processors);
@@ -1571,7 +1589,18 @@ int myosd_droid_main(int argc, char **argv) {
         args[n] = "1.0";n++;
     }
 
-    if(myosd_droid_resolution==0 || myosd_droid_resolution_osd==0)
+    /* CJK languages need a Unicode UI font: the default MAME font and
+     * uismall.bdf are Latin-only and would show CJK menus as blank boxes.
+     * The user can also force this font for any language via a preference. */
+    bool cjk_ui = myosd_droid_language.rfind("Chinese", 0) == 0
+               || myosd_droid_language == "Japanese"
+               || myosd_droid_language == "Korean";
+    if(cjk_ui || myosd_droid_force_unifont)
+    {
+        args[n] = "-uifont";n++;
+        args[n] = "unifont.bdf";n++;
+    }
+    else if(myosd_droid_resolution==0 || myosd_droid_resolution_osd==0)
     {
         args[n] = "-uifont";n++;
         args[n] = "uismall.bdf";n++;
@@ -1725,6 +1754,16 @@ extern "C" const char *netplayGetPublicAddr(void) {
 /* Multi-line connection diagnostics block, same validity as above. */
 extern "C" const char *netplayGetDiagnostics(void) {
     return skt_netplay_get_diagnostics();
+}
+
+/* One-shot STUN on a throwaway socket to learn OUR public IP before joining,
+ * so Java can tell same-router (LAN) from a 192.168.x collision.  Blocking
+ * (<=1.5s): call from a worker.  Returns the IP or "" (offline / STUN blocked). */
+extern "C" const char *netplayProbePublicIp(void) {
+    static char s_probe_ip[64];
+    s_probe_ip[0] = 0;
+    skt_netplay_probe_public_ip(s_probe_ip, sizeof(s_probe_ip));
+    return s_probe_ip;
 }
 
 /* User-triggered mid-game state resync (rollback only), from the Java

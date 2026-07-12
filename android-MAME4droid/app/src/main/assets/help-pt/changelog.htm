@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+
+
+<html>
+<head>
+<title>Ajuda do MAME4Droid (Current)</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title"> Registro de alterações</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <h3>REGISTRO DE ALTERAÇÕES DO MAME4droid<br>
+      </h3>
+DESENVOLVIMENTO:
+<ul>
+	<li><b>2026-07-08 Versão 1.37 </b>
+		Adicionado NetPlay ponto a ponto:<br/>
+		- <b>Dois modos:</b> Lockstep (perfeitamente sincronizado, maior atraso de entrada) e Rollback (baixa latência, ideal para jogos de reflexos rápidos).<br/>
+		- <b>Mudança automática:</b> sessões de Rollback que não cabem no orçamento de tamanho de estado/RAM, ou que detectam uma incompatibilidade de layout de estado entre dispositivos, mudam automaticamente para Lockstep.<br/>
+		- <b>Ressincronização no jogo:</b> força ambos os dispositivos de volta à sincronia perfeita a partir do diálogo do NetPlay se uma sessão de Rollback chegar a divergir visivelmente.<br/>
+		- Apenas o Anfitrião escolhe o modo da sessão; o Cliente apenas entra e o adota automaticamente.<br/>
+		Renovada e ampliada a Ajuda do app: novas páginas de NetPlay e Renderizador e shaders, e um guia de Instalação atualizado cobrindo o seletor de pastas do Storage Access Framework (SAF) usado desde o Android 10.
+	</li>
+	<li><b>2026-24-4 Versão 1.35 </b>
+		Adicionado um novo Renderizador de Vídeo Nativo com melhorias significativas:<br/>
+		- <b>Jogos vetoriais:</b> qualidade de renderização muito melhorada para uma aparência mais nítida e autêntica.<br/>
+		- <b>Shaders:</b> shaders personalizados agora são aplicados apenas à tela de jogo, mantendo a interface/OSD do MAME limpa e intocada.<br/>
+		- <b>Desempenho:</b> pipeline otimizado que é muito mais rápido ao usar artworks e molduras de alta resolução.<br/>
+		- <b>Resolução nativa:</b> suporte total à resolução nativa do dispositivo, oferecendo a melhor clareza visual possível e eficiência de GPU.<br/>
+	</li>
+<li><b>2026-06-01 Versão 1.35</b><br/>Adicionado suporte a tela True HDR. Adicionada física CRT avançada altamente precisa para jogos vetoriais. Revisado e melhorado o suporte a entrada e multi-controle. Atualizado para MAME 0.288.</li>
+<li><b>2026-10-4 Versão 1.34 </b><br/>Atualizado para MAME 0.287.</li>
+<li><b>2026-1-3 Versão 1.33 </b><br/>Atualizado para MAME 0.286.</li>
+<li><b>2026-1-2 Versão 1.32 </b><br/>Atualizado para MAME 0.285.</li>
+<li><b>2026-5-1 Versão 1.31 </b><br/>Atualizado para MAME 0.284.</li>
+<li><b>2025-1-12 Versão 1.30 </b><br/>Atualizado para MAME 0.283. Otimizações de build.</li>
+<li><b>2025-1-11 Versão 1.29 </b><br/>Atualizado para MAME 0.282</li>
+<li><b>2025-17-10 Versão 1.28.1 </b><br/>Atualizado para MAME 0.281.  GLRenderer ES32 melhorado. Corrigidos problemas de teclado virtual e personalização de controle no Android 16.</li>
+<li><b>2025-08-09 Versão 1.27 </b><br/>Atualizado para MAME 0.280</li>
+<li><b>2025-04-08 Versão 1.26 </b><br/>Atualizado para Android 16. Atualizado para MAME 0.279</li>
+<li><b>2025-01-07 Versão 1.25 </b><br/>Atualizado para MAME 0.278</li>
+<li><b>2025-01-05 Versão 1.24 </b><br/>Atualizado para MAME 0.277</li>
+<li><b>2025-01-04 Versão 1.23 </b><br/>Atualizado para MAME 0.276</li>
+<li><b>2025-01-03 Versão 1.22 </b><br/>Atualizado para MAME 0.275</li>
+<li><b>2025-01-02 Versão 1.21 </b><br/>Atualizado para MAME 0.274, que adiciona um recompilador (DRC) ARMv8 de 64 bits. Suporte a tamanhos de página de 16 KB para que novos dispositivos Android funcionem. Corrigido um problema em que o entalhe era sempre usado no Android 15.</li>
+<li><b>2025-02-01 Versão 1.20 </b><br/>Atualizado para Android 15. Atualizado para MAME 0.273. Renomeado para MAME4droid (Current)</li>
+<li><b>2024-02-12 Versão 1.19 </b><br/>Atualizado para MAME 0.272. </li>
+<li><b>2024-04-11 Versão 1.18 </b><br/>Atualizado para MAME 0.271. </li>
+<li><b>2024-27-09 Versão 1.17 </b><br/>Atualizado para MAME 0.270. </li>
+<li><b>2024-09-09 Versão 1.16 </b><br/>Atualizado para MAME 0.269. </li>
+<li><b>2024-08-05 Versão 1.15 </b><br/>Atualizado para MAME 0.268. </li>
+<li><b>2024-07-03 Versão 1.14 </b><br/>Atualizado para MAME 0.267. </li>
+<li><b>2024-05-30 Versão 1.13 </b><br/>Atualizado para MAME 0.266. </li>
+<li><b>2024-04-26 Versão 1.12 </b><br/>Atualizado para MAME 0.265. Interface de toque do MAME melhorada. Alguns ajustes de fonte e aumento da resolução do frontend.</li>
+<li><b>2024-03-26 Versão 1.11 </b><br/>Atualizado para MAME 0.264. Vibração melhorada. Adicionado suporte ao controle BSP-D8. Adicionados alguns novos shaders de neogeo.</li>
+<li><b>2024-02-28 Versão 1.10 </b><br/>Atualizado para MAME 0.263. Melhorado o suporte SAF para mídia de software do MESS. Adicionado suporte a stick direito e gatilhos analógicos aos controles genéricos</li>
+<li><b>2024-02-09 Versão 1.9 </b><br/>Adicionada coleta de mídia graças ao Arcade Database de motoschifo. Adicionados recursos de metadados do MAME graças ao Arcade History, MAME info e progetto-SNAPS</li>
+<li><b>2024-01-31 Versão 1.8 </b><br/>Atualizado para MAME 0.262. Adicionados dois pequenos botões extras para que possam ser configurados através do plugin de macro de entrada para jogos de luta. Adicionada transparência selecionável do controle de toque</li>
+<li><b>2024-01-19 Versão 1.7 </b><br/>Implementado um novo renderizador OpenGLES 3.2 mais rápido com efeitos avançados de pós-processamento usando shaders. Adicionados hacks de velocidade para melhorar o desempenho em jogos como K.Instinct. Corrigida a trepidação de vídeo em algumas ocasiões. Melhorada a latência de áudio.</li>
+<li><b>2024-01-03 Versão 1.6 </b><br/>Corrigidas as falhas gráficas do driver N.System22 no ARM64. Resolução emulada e do frontend selecionáveis independentemente. Melhorado o desempenho no AndroidTV. </li>
+<li><b>2023-12-29 Versão 1.5 </b><br/>Adicionada a opção de fixar todo o app em uma orientação fixa (como paisagem). Correção de bugs. </li>
+<li><b>2023-12-27 Versão 1.4 </b><br/>Corrigidos os botões E,F não atribuídos. Adicionado o combo cima/baixo+a para rolagem rápida na lista de jogos. Melhorias de desempenho.</li>
+<li><b>2023-12-21 Versão 1.3 </b><br/>Melhorada a pistola de luz por toque para eu poder jogar t.crisis :). Correção de bugs</li>
+<li><b>2023-12-20 Versão 1.2 </b><br/>Corrigido o botão de ficha não funcionando em vários jogos. Adicionada uma opção no menu para melhorar o desempenho em alguns jogos 3D como o System 22.</li>
+<li><b>2023-12-19 Versão 1.1 </b><br/>Correção de bugs. Adicionado o combo start+a+b como modo de serviço e ficha+a+b como reinício suave.</li>
+<li><b>2023-12-17 Versão 1.0 </b><br/>Primeira versão.</li>
+          </ul>
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Voltar</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

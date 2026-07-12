@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>MAME4Droid Reloaded ヘルプ</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">インストール</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <h3>初回起動：ROM の保存場所</h3>
+        <p>MAME4droid を初めて起動すると、ROM ファイル（および artwork、サンプル、ステートセーブなど、MAME の
+            その他のデータ）をどこに保存したいか尋ねられます。2 つの選択肢があります：</p>
+        <ul>
+            <li><strong>内部：</strong>MAME4droid は自身のプライベートなアプリストレージ内に空のフォルダを作成し、
+                それを使用します。その後、PC から USB/ADB で、またはアプリのプライベートフォルダを閲覧できる
+                ファイルマネージャーアプリで、ROM を自分でコピーします。このデータはアプリをアンインストール
+                すると自動的に削除されます。
+            </li>
+            <li><strong>外部ストレージ：</strong>Android 標準のフォルダピッカーを使って、デバイス上の任意の場所
+                （SD カード、すでに ROM に使っているフォルダ、クラウド同期フォルダなど）の既存フォルダを選びます。
+                MAME4droid はそのフォルダの読み書き権限を Android に要求し、次回のために記憶します。このデータは
+                アプリのアンインストール後も残り、PC なしで通常のファイルマネージャーでファイルを自由に出し入れ
+                できます。
+            </li>
+        </ul>
+        <p><strong>重要：</strong><em>外部ストレージ</em>では、選んだフォルダが <em>そのまま</em> あなたの ROM
+            フォルダになります &mdash; MAME4droid はその中に <em>roms</em> サブフォルダを <em>作成しません</em>。
+            ZIP 圧縮した ROM ファイルを、選んだフォルダに直接入れてください。同じフォルダ内に、以下の任意の
+            サブフォルダを自分で作成することもできます：</p>
+        <p><em>artwork/</em> ベゼル/マーキー artwork セット用<br>
+            <em>samples/</em> サウンドサンプル用<br>
+            <em>software/</em> ソフトウェアリストメディア用（8 ビットホームコンピュータなど、取り外し可能な
+            ソフトウェアを持つ非アーケードシステムで使われるカセット/ディスクイメージ）<br>
+            <em>sta/</em> ステートセーブ用。<em>ROM パスにステートを保存</em>も有効にした場合のみ（下記参照）</p>
+        <p>それ以外のすべて（MAME 設定、ハイスコア、NVRAM、スナップショット）は、ROM がどこにあるかに関わらず、
+            常に MAME4droid 自身の内部データに保存されます。</p>
+        <p><em>内部</em>ストレージの場合、MAME4droid は代わりに自身のプライベートなアプリストレージ内に、下記の
+            完全なフォルダツリー（<em>roms/</em> サブフォルダを含む）を作成します。</p>
+
+        <h3>フォルダピッカーについて（Storage Access Framework）</h3>
+        <p>Android 10 以降、アプリは共有ストレージのどこでも自由に読み書きすることが許可されなくなりました
+            &mdash; Android 自身のピッカーを通じてユーザーが明示的に許可したフォルダにのみアクセスできます
+            （これを Storage Access Framework、略して SAF と呼びます）。上で<em>外部ストレージ</em>を選んだとき、
+            または後で ROM フォルダを変更するときに開くのがそのピッカーです。直接ファイルアクセスより少し遅い
+            ですが、MAME4droid はファイル一覧をキャッシュするので、ROM がインデックス化されれば日常使用では
+            高速に保たれます。</p>
+        <p><strong>ヒント：</strong>ROM フォルダはフラットに保ち（ROM をサブフォルダに埋めない）、無関係な非圧縮
+            ファイルを混ぜないでください &mdash; フォルダには本当に ZIP 圧縮した MAME ROM セットだけを入れる
+            べきです。</p>
+
+        <h3>後で ROM の場所を変更する</h3>
+        <p>初回で正しく選ぶ必要はありません。<em>オプション-&gt;設定-&gt;一般-&gt;ROM パスを変更</em>で、同じ
+            内部/外部ストレージの選択を再度実行できます（その後アプリが再起動します）。新しい外部フォルダに
+            切り替える場合は、先に ROM ファイルを実際にそこへ移動またはコピーするのを忘れないでください。</p>
+        <p>ステートセーブを外部ストレージの ROM と一緒に保存したい場合（最終的にアンインストールしたときに
+            Android がそれらを削除しないように）、<em>オプション-&gt;設定-&gt;一般-&gt;ROM パスにステートを
+            保存</em>を有効にしてください。</p>
+
+        <h3>上級：インストール全体の再配置</h3>
+        <p>ROM フォルダとは別に、上級ユーザーは MAME4droid のデータフォルダ全体（ROM だけでなく、下記に記載の
+            すべての設定/サポートフォルダ）を <em>オプション-&gt;設定-&gt;詳細-&gt;インストールパス</em> で特定の
+            パスに再配置できます。これは選択ではなく手動入力で、上級用途専用です：有効だが意図しないパスを入力
+            すると、MAME4droid はそれを真新しい空のインストールとして扱います。特に必要でない限り、これはそのまま
+            にしておいてください。</p>
+
+        <h3>フォルダ構成</h3>
+        <p>これは MAME4droid の内部データフォルダツリーです（<em>内部</em>ストレージではそのまま使用されます。
+            <em>外部ストレージ</em>では、上で説明したとおり、下記の <em>roms/artwork/samples/software</em> のみが
+            実際に選んだフォルダに存在し、そこではフォルダ名に末尾のスラッシュが付きません）。デスクトップ MAME
+            が使うのと同じ構成なので、既存の artwork/サンプルのコレクションを再利用できます。これらのアセットの
+            入手先については<a class="link" href="external.htm" rel="external">リソースとアセット</a>を、ROM の命名
+            規則については<a class="link" href="games.htm" rel="external">対応ゲーム</a>を確認してください。</p>
+        <p>artwork/ -&gt; Artwork ディレクトリ<br>
+            cfg/ -&gt; MAME 設定ファイルディレクトリ<br>
+            hi/ -&gt; ハイスコアディレクトリ<br>
+            nvram/ -&gt; NVRAM ファイルディレクトリ<br>
+            roms/ -&gt; ROM ディレクトリ<br>
+            samples/ -&gt; サンプルディレクトリ<br>
+            snap/ -&gt; スクリーンスナップショットディレクトリ<br>
+            sta/ -&gt; ステートセーブディレクトリ</p>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">戻る</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

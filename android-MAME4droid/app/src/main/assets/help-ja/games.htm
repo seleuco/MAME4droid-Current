@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid (Current) ヘルプ</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">対応ゲーム</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <h3>対応ゲーム<br>
+      </h3>
+      <p>MAME4droid (Current) は現在のデスクトップ MAME のゲーム ROM を使用します。注意：これは <em>MAME4droid (0.139u1)</em> で使われる ROM とは異なります。これらの ROM は互換的に使用できません。</p>
+      <h3>ROM の場所と命名規則</h3>
+      <p>ROM は MAME4droid インストールの「roms」フォルダに入れます。デフォルト（初回起動時に選ぶ内部
+        ストレージ）ではそれはアプリ自身のプライベートフォルダで、通常
+        <em>/storage/emulated/0/Android/data/com.seleuco.mame4d2024/files/roms</em> であり、Android Debug
+        Bridge (ADB) ツールを使って PC からそこへ ROM をコピーします。</p>
+
+	  <p>あるいは、初回起動時（または後で、下記参照）に<strong>外部ストレージ</strong>を選び、Android 自身の
+        フォルダピッカーを使ってデバイス上の任意のフォルダを選ぶこともできます。そこからの読み込みは少し
+        遅いですが、アプリをアンインストールしても何も削除されず、通常の Android ファイルマネージャーで
+        ROM を出し入れでき、PC は不要です。両方のオプションの詳細は
+        <a class="link" href="installation.htm" rel="external">インストール</a>セクションを参照してください。</p>
+	  <p>さらに、<em>artwork</em>/<em>samples</em>/<em>software</em> サブフォルダを自分で作成することで、
+        artwork/サンプルなどの他の選択したリソースを追加できます（正確な場所は
+        <a class="link" href="installation.htm" rel="external">インストール</a>を参照）。上級ユーザーなら、
+        メインのインストールフォルダ内の .ini ファイルを編集して、すべてのパスを完全にカスタマイズすることも
+        できます。</p>
+
+	  <p>最初の選択に縛られることはありません：ROM は
+        <em>オプション-&gt;設定-&gt;一般-&gt;ROM パスを変更</em>でいつでも移動できます。</p>
+
+	  <p><strong>注意：</strong>ファイル名とディレクトリ名は大文字小文字を区別します。MRDO.ZIP は mrdo.zip と同じではありません。ファイル名を小文字にした ZIP 圧縮 ROM を常に使用してください。</p>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">戻る</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

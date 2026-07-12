@@ -2,194 +2,194 @@
 
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory android:title="Configuration">
+    <PreferenceCategory android:title="@string/cat_configuration">
 
     <PreferenceScreen
             android:key="PREFSCR_EMU"
-            android:title="Emulation"
-            android:summary="Select it to open emulation options"
+            android:title="@string/prefscr_emu_title"
+            android:summary="@string/prefscr_emu_summary"
             android:persistent="false">
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_resolution_options"
-			android:title='Emulated resolution'
+			android:title="@string/pref_emu_res_title"
 			android:key="PREF_EMU_RESOLUTION_3"
 			android:entryValues="@array/pref_resolution_values"
 			android:defaultValue="1" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_osd_resolution_options"
-			android:title='Frontend resolution'
+			android:title="@string/pref_osd_res_title"
 			android:key="PREF_EMU_RESOLUTION_OSD_3"
 			android:entryValues="@array/pref_osd_resolution_values"
 			android:defaultValue="9" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_SPEED_HACKS"
-			android:title="Speed hacks" android:summary="Enable it to get better performance in games like K.Instinct, M.Kombat or CPS3. You should only enable it to play those games because other games may work poorly or not work."
+			android:title="@string/pref_speed_hacks_title" android:summary="@string/pref_speed_hacks_summary"
 			android:defaultValue="False" />
 
 	    <com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_sound_options"
-			android:title='Sound'
+			android:title="@string/pref_sound_title"
 			android:key="PREF_EMU_SOUND"
 			android:entryValues="@array/pref_sound_values"
 			android:defaultValue="44100" />
 
 	   	<CheckBoxPreference android:key="PREF_EMU_SHOW_FPS"
-			android:title="Show FPS" android:summary="Enable it to turn FPS display on"
+			android:title="@string/pref_show_fps_title" android:summary="@string/pref_show_fps_summary"
 			android:defaultValue="false" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_EMU_AUTO_FRAMESKIP"
-			android:title="Auto frameskip" android:summary="Enable it to turn auto frameskip on"
+			android:title="@string/pref_auto_frameskip_title" android:summary="@string/pref_auto_frameskip_summary"
 			android:defaultValue="false" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="CHEATS"
-			android:title="Cheats" android:summary="Enables the reading of the cheat database"
+			android:title="@string/pref_cheats_title" android:summary="@string/pref_cheats_summary"
 			android:defaultValue="false" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_HISCORE"
-			android:title="Hiscore" android:summary="Enable it to activate hiscore MAME plugin to save and restores high scores for games that did not originally save high scores in non-volatile memory"
+			android:title="@string/pref_hiscore_title" android:summary="@string/pref_hiscore_summary"
 			android:defaultValue="False" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_INPUTMACRO"
-			android:title="Input macro" android:summary="Enable it to allows you to trigger a sequence of emulated input actions with a key or button combination. Note: The plugin is available from MAME UI plugin options"
+			android:title="@string/pref_inputmacro_title" android:summary="@string/pref_inputmacro_summary"
 			android:defaultValue="False" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_AUTOFIRE"
-			android:title="Autofire" android:summary="Enable it to allows you to simulate repeatedly pressing an emulated button by holding down a key or button combination. Note: The plugin is available from MAME UI plugin options"
+			android:title="@string/pref_autofire_title" android:summary="@string/pref_autofire_summary"
 			android:defaultValue="False" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="SKIP_GAMEINFO"
-			android:title="Skip game info " android:summary="Forces to skip displaying the system info screen"
+			android:title="@string/pref_skip_gameinfo_title" android:summary="@string/pref_skip_gameinfo_summary"
 			android:defaultValue="false" />
 
 		<CheckBoxPreference android:key="PREF_ZOOM_TO_WINDOW"
-			android:title="Zoom to window" android:summary="Automatically zooms the emulated display so that portrait and landscape games use the entire device window. Disable if you use artwork to zoom into the screen area in MAME video options using fixed orientation and wide resolutions"
+			android:title="@string/pref_zoom_to_window_title" android:summary="@string/pref_zoom_to_window_summary"
 			android:defaultValue="true" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_EMU_DISABLE_DRC_4"
-			android:title="Disable DRC" android:summary="Disable DRC (dynamic recompiler) CPU core. Enable it to test compatibility in some games that freezes or not launch at the expense of performance"
+			android:title="@string/pref_disable_drc_title" android:summary="@string/pref_disable_drc_summary"
 			android:defaultValue="false" android:disableDependentsState="true" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_EMU_DRC_USE_C_4"
-			android:title="DRC use C" android:summary="Force DRC to use the C backend (compatibility but much less performance)"
+			android:title="@string/pref_drc_use_c_title" android:summary="@string/pref_drc_use_c_summary"
 			android:defaultValue="false" android:dependency="PREF_EMU_DISABLE_DRC_4" />
 
-	    <PreferenceScreen android:key="vector" android:title="Vector"
-	        android:summary="Select it to open vector games options" android:persistent="false">
+	    <PreferenceScreen android:key="vector" android:title="@string/prefscr_vector_title"
+	        android:summary="@string/prefscr_vector_summary" android:persistent="false">
 
 	    <com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_BEAM2X_2"
-			android:title="Beam 2x" android:summary="Sets the width of the vectors to 2x"
+			android:title="@string/pref_beam2x_title" android:summary="@string/pref_beam2x_summary"
 			android:defaultValue="false" />
 
 	    <com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_FLICKER"
-			android:title="Flicker" android:summary="Simulates a vector flicker effect"
+			android:title="@string/pref_flicker_title" android:summary="@string/pref_flicker_summary"
 			android:defaultValue="false" />
 
 	    </PreferenceScreen>
 
 	    <PreferenceScreen android:key="defaultData"
-			android:title="Default MAME data" android:summary="Restore MAME data to default values (mame.ini, mame_avail.ini, cfg and nvram files)" />
+			android:title="@string/pref_default_data_title" android:summary="@string/pref_default_data_summary" />
 
 	</PreferenceScreen>
 
 
-	<PreferenceScreen android:key="inputSettings" android:title="Input"
-	    android:summary="Select it to open input options" android:persistent="false">
+	<PreferenceScreen android:key="inputSettings" android:title="@string/prefscr_input_title"
+	    android:summary="@string/prefscr_input_summary" android:persistent="false">
 
-    <PreferenceScreen android:key="touchController" android:title="Touch controller"
-	        android:summary="Select it to open touch controller options" android:persistent="false">
+    <PreferenceScreen android:key="touchController" android:title="@string/prefscr_touch_controller_title"
+	        android:summary="@string/prefscr_touch_controller_summary" android:persistent="false">
 
 		<ListPreference
 			android:entries="@array/pref_controller_type_options"
-			android:title='Mode'
+			android:title="@string/pref_controller_type_title"
 			android:key="PREF_CONTROLLER_TYPE"
 			android:entryValues="@array/pref_controller_type_values"
 			android:defaultValue="1" />
 
         <PreferenceScreen android:key="customControlLayout"
-			android:title="Customize layout" android:summary="Select to customize fullscreen touch control layout" />
+			android:title="@string/pref_custom_layout_title" android:summary="@string/pref_custom_layout_summary" />
 
 		<PreferenceScreen android:key="defaultControlLayout"
-			android:title="Default layout" android:summary="Restore fullscreen touch control layout to default values" />
+			android:title="@string/pref_default_layout_title" android:summary="@string/pref_default_layout_summary" />
 
 		<ListPreference
 			android:entries="@array/pref_alpha_options"
-			android:title='Controller transparency (fullscreen)'
+			android:title="@string/pref_buttons_alpha_title"
 			android:key="PREF_BUTTONS_ALPHA"
 			android:entryValues="@array/pref_alpha_values"
 			android:defaultValue="60" />
 
 		<ListPreference
 			android:entries="@array/pref_buttons_size_options"
-			android:title='Buttons size (fullscreen)'
+			android:title="@string/pref_buttons_size_title"
 			android:key="PREF_BUTTONS_SIZE"
 			android:entryValues="@array/pref_buttons_size_values"
 			android:defaultValue="3" />
 
 		<ListPreference
 			android:entries="@array/pref_buttons_size_options"
-			android:title='Stick and DPAD size (fullscreen)'
+			android:title="@string/pref_stick_size_title"
 			android:key="PREF_STICK_SIZE"
 			android:entryValues="@array/pref_buttons_size_values"
 			android:defaultValue="3" />
 
 		<ListPreference
 			android:entries="@array/pref_numbuttons_options"
-			android:title='Number of buttons (fullscreen) '
+			android:title="@string/pref_numbuttons_title"
 			android:key="PREF_NUMBUTTONS"
 			android:entryValues="@array/pref_numbuttons_values"
 			android:defaultValue="-1" />
 
 		<CheckBoxPreference android:key="PREF_HIDE_STICK"
-			android:title="Hide stick" android:summary="Enable to hide stick or dpad when fullscreen"
+			android:title="@string/pref_hide_stick_title" android:summary="@string/pref_hide_stick_summary"
 			android:defaultValue="false" />
 
 		<CheckBoxPreference android:key="PREF_ALWAYS_GH_BUTTONS"
-			android:title="Always show G,H buttons" android:summary="Enable it to always show G,H buttons when full screen so you can bind them MAME actions"
+			android:title="@string/pref_always_gh_title" android:summary="@string/pref_always_gh_summary"
 			android:defaultValue="false" />
 
 		<CheckBoxPreference android:key="PREF_ANIMATED_INPUT"
-			android:title="Animated" android:summary="Animated touch control. Disable for performance boost"
+			android:title="@string/pref_animated_title" android:summary="@string/pref_animated_summary"
 			android:defaultValue="true" />
 
 		<CheckBoxPreference android:key="PREF_VIBRATE"
-			android:title="Vibrate" android:summary="Enable to vibrate when touch"
+			android:title="@string/pref_vibrate_title" android:summary="@string/pref_vibrate_summary"
 			android:defaultValue="false" />
 
 		<CheckBoxPreference android:key="PREF_TOUCH_DZ"
-			android:title="Digital dead zone" android:summary="Enable Touch Dead Zone"
+			android:title="@string/pref_touch_dz_title" android:summary="@string/pref_touch_dz_summary"
 			android:defaultValue="true" />
 
 	    <ListPreference
 			android:entries="@array/pref_dz_options"
-			android:title='Analog dead zone'
+			android:title="@string/pref_analog_dz_title"
 			android:key="PREF_ANALOG_DZ"
 			android:entryValues="@array/pref_dz_values"
 			android:defaultValue="2" />
 
 	</PreferenceScreen>
 
-    <PreferenceScreen android:key="externalController" android:title="Game controller"
-	        android:summary="Select it to open external controller options" android:persistent="false">
+    <PreferenceScreen android:key="externalController" android:title="@string/prefscr_ext_controller_title"
+	        android:summary="@string/prefscr_ext_controller_summary" android:persistent="false">
 
 		<CheckBoxPreference android:key="PREF_CONTROLLER_AUTODETECT"
-			android:title="Autodetect controllers"
-			android:summary="Automatically detect and map known gamepads (e.g., Xbox or PlayStation)."
+			android:title="@string/pref_autodetect_title"
+			android:summary="@string/pref_autodetect_summary"
 			android:defaultValue="True"/>
 
 		<PreferenceScreen android:key="defineKeys"
-			android:title="Map Buttons"
-			android:summary="Assign your physical controller or keyboard to the arcade D-pad and buttons." />
+			android:title="@string/pref_map_buttons_title"
+			android:summary="@string/pref_map_buttons_summary" />
 
 		<PreferenceScreen android:key="defaultsKeys"
-			android:title="Restore Defaults"
-			android:summary="Reset all button configurations to their original default values." />
+			android:title="@string/pref_restore_defaults_title"
+			android:summary="@string/pref_restore_defaults_summary" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 			android:key="PREF_INPUT_FAKE_ID"
-			android:title="Share mapping profile"
-			android:summary="Forces all controllers to share the exact same mapping profile. Map the first one controller profile, and the rest will use the same layout (Multiplayer is still supported). Ideal for identical clone gamepads or hardware with detection issues."
+			android:title="@string/pref_fake_id_title"
+			android:summary="@string/pref_fake_id_summary"
 			android:defaultValue="false" />
 <!--
 		<CheckBoxPreference android:key="PREF_DISABLE_RIGHT_STICK"
@@ -197,41 +197,41 @@
 			android:defaultValue="false" android:dependency="PREF_CONTROLLER_AUTODETECT"/>
 -->
 		<CheckBoxPreference android:key="PREF_CONTROLLER_DISABLE_BUTTONS_IN_FRONTEND"
-			android:title="Hide touch controls in MAME UI"
-			android:summary="Hide the on-screen buttons in the main interface when a controller is connected (fullscreen only)."
+			android:title="@string/pref_hide_touch_frontend_title"
+			android:summary="@string/pref_hide_touch_frontend_summary"
 			android:defaultValue="false"/>
 
 		<CheckBoxPreference android:key="PREF_CONTROLLER_DISABLE_BUTTONS_IN_GAME"
-			android:title="Hide touch controls in-game"
-			android:summary="Hide the on-screen buttons during gameplay when a controller is connected (fullscreen only)."
+			android:title="@string/pref_hide_touch_ingame_title"
+			android:summary="@string/pref_hide_touch_ingame_summary"
 			android:defaultValue="false"/>
 
 	     <ListPreference
 			android:entries="@array/pref_dz_options"
-			android:title='Analog dead zone'
+			android:title="@string/pref_analog_dz_title"
 			android:key="PREF_GAMEPAD_DZ"
 			android:entryValues="@array/pref_dz_values"
 			android:defaultValue="3" />
 
     </PreferenceScreen>
 
-		<PreferenceScreen android:key="mouse" android:title="Mouse"
-			android:summary="Select it to open mouse options.\n(On touch mouse, second finger will be main fire. Third finger when second finger is pressed will be alternate fire)" android:persistent="false">
+		<PreferenceScreen android:key="mouse" android:title="@string/prefscr_mouse_title"
+			android:summary="@string/prefscr_mouse_summary" android:persistent="false">
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_MOUSE"
-				android:title="Physical Mouse" android:summary="Enable physical (hardware) mouse support"
+				android:title="@string/pref_mouse_title" android:summary="@string/pref_mouse_summary"
 				android:defaultValue="true" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_TOUCH_MOUSE"
-				android:title="Touch mouse" android:summary="Enable touch mouse support"
+				android:title="@string/pref_touch_mouse_title" android:summary="@string/pref_touch_mouse_summary"
 				android:defaultValue="True" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_TOUCH_GAME_MOUSE"
-				android:title="Gaming touch mouse" android:summary="Enable to use touch mouse for games (autodetected)."
+				android:title="@string/pref_game_mouse_title" android:summary="@string/pref_game_mouse_summary"
 				android:defaultValue="True" android:dependency="PREF_TOUCH_MOUSE"/>
 
 			<CheckBoxPreference android:key="PREF_TOUCH_GAME_MOUSE_FORCE"
-				android:title="Always gaming touch mouse" android:summary="Forces the use of the touch mouse in all games (useful when fails autodetect)."
+				android:title="@string/pref_game_mouse_force_title" android:summary="@string/pref_game_mouse_force_summary"
 				android:defaultValue="False" android:dependency="PREF_TOUCH_GAME_MOUSE"/>
 <!--
 			<CheckBoxPreference android:key="PREF_TOUCH_GAME_MOUSE_HIDE_CONTROLLER"
@@ -241,87 +241,87 @@
 
 		</PreferenceScreen>
 
-		<PreferenceScreen android:key="mouse" android:title="Keyboard"
-			android:summary="Select it to open keyboard options" android:persistent="false">
+		<PreferenceScreen android:key="mouse" android:title="@string/prefscr_keyboard_title"
+			android:summary="@string/prefscr_keyboard_summary" android:persistent="false">
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_KEYBOARD"
-				android:title="Physical keyboard" android:summary="Enable physical (hardware) keyboard support"
+				android:title="@string/pref_keyboard_title" android:summary="@string/pref_keyboard_summary"
 				android:defaultValue="true" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_KEYBOARD_HIDE_CONTROLLER"
-				android:title="Hide touch controller" android:summary="Enable to auto hide touch controller when physical keyboard is detected"
+				android:title="@string/pref_keyboard_hide_controller_title" android:summary="@string/pref_keyboard_hide_controller_summary"
 				android:defaultValue="True" android:dependency="PREF_KEYBOARD"/>
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_VIRTUAL_KEYBOARD"
-				android:title="Virtual keyboard" android:summary="Enable virtual keyboard support"
+				android:title="@string/pref_virtual_keyboard_title" android:summary="@string/pref_virtual_keyboard_summary"
 				android:defaultValue="True" />
 
 		</PreferenceScreen>
 
-		<PreferenceScreen android:key="lightgunController" android:title="Touch lightgun"
-			android:summary="Select it to open touch lightgun options.\n(First finger will be main fire. Second finger when first finger is pressed will be alternate fire)" android:persistent="false">
+		<PreferenceScreen android:key="lightgunController" android:title="@string/prefscr_lightgun_title"
+			android:summary="@string/prefscr_lightgun_summary" android:persistent="false">
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_TOUCH_LIGHTGUN"
-				android:title="Touch lightgun" android:summary="Enable to use touch lightgun for games (autodetected)."
+				android:title="@string/pref_touch_lightgun_title" android:summary="@string/pref_touch_lightgun_summary"
 				android:defaultValue="True" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_TOUCH_LIGHTGUN_FORCE"
-				android:title="Always touch lightgun" android:summary="Forces the use of the touch lighgun in all games (useful when fails autodetect)."
+				android:title="@string/pref_lightgun_force_title" android:summary="@string/pref_lightgun_force_summary"
 				android:defaultValue="False" android:dependency="PREF_TOUCH_LIGHTGUN"/>
 
 			<CheckBoxPreference android:key="PREF_LIGHTGUN_LONGPRESS"
-				android:title="Long press as button two" android:summary="Enable to use first finger long press as button two. Useful for t.crisis"
+				android:title="@string/pref_lightgun_longpress_title" android:summary="@string/pref_lightgun_longpress_summary"
 				android:defaultValue="True" android:dependency="PREF_TOUCH_LIGHTGUN"/>
 
 			<CheckBoxPreference android:key="PREF_BOTTOM_RELOAD"
-				android:title="Bottom as reload" android:summary="Touch at the bottom of the screen to get off-screen reload"
+				android:title="@string/pref_bottom_reload_title" android:summary="@string/pref_bottom_reload_summary"
 				android:defaultValue="True" android:dependency="PREF_TOUCH_LIGHTGUN"/>
 
 		</PreferenceScreen>
 
 
-	<PreferenceScreen android:key="tiltController" android:title="Tilt controller"
-	    android:summary="Select it to open tilt controller options" android:persistent="false">
+	<PreferenceScreen android:key="tiltController" android:title="@string/prefscr_tilt_title"
+	    android:summary="@string/prefscr_tilt_summary" android:persistent="false">
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_TILT_SENSOR"
-			android:title="Tilt sensor"
-			android:summary="Enable to use tilt sensor for games."
+			android:title="@string/pref_tilt_sensor_title"
+			android:summary="@string/pref_tilt_sensor_summary"
 			android:defaultValue="false" />
 
 	    <ListPreference
 			android:entries="@array/pref_dz_options"
-			android:title='Dead zone'
+			android:title="@string/pref_tilt_dz_title"
 			android:key="PREF_TILT_DZ"
 			android:entryValues="@array/pref_dz_values"
 			android:defaultValue="3" android:dependency="PREF_TILT_SENSOR"/>
 
 		<com.seleuco.mame4droid.prefs.SensitivityPrefScreen
 			android:key="PREF_TILT_SENSITIVITY"
-			android:title="Sensitivity"
-			android:summary="Set tilt sensor sensitivity"
+			android:title="@string/pref_tilt_sensitivity_title"
+			android:summary="@string/pref_tilt_sensitivity_summary"
 			android:defaultValue="6" android:dependency="PREF_TILT_SENSOR"/>
 
 		<ListPreference
 			android:entries="@array/pref_tilt_neutralz_options"
-			android:title='Neutral vertical position'
+			android:title="@string/pref_tilt_neutral_title"
 			android:key="PREF_TILT_NEUTRAL"
 			android:entryValues="@array/pref_tilt_neutralz_values"
 			android:defaultValue="5" android:dependency="PREF_TILT_SENSOR" />
 
 		<CheckBoxPreference android:key="PREF_TILT_ANALOG"
-			android:title="Tilt as analog" android:summary="Enable to use tilt sensor as analog device, disable to use as digital"
+			android:title="@string/pref_tilt_analog_title" android:summary="@string/pref_tilt_analog_summary"
 			android:defaultValue="true"  android:dependency="PREF_TILT_SENSOR"/>
 
 		<CheckBoxPreference android:key="PREF_TILT_TOUCH"
-			android:title="Touch anywhere" android:summary="Enable to tap anywhere on screen to fire. First finger is main fire. Second finger when first finger is pressed is alternate fire"
+			android:title="@string/pref_tilt_touch_title" android:summary="@string/pref_tilt_touch_summary"
 			android:defaultValue="false"  android:dependency="PREF_TILT_SENSOR"/>
 
 		<CheckBoxPreference android:key="PREF_TILT_INVERT_X"
-			android:title="Invert X axe" android:summary="Enable to invert X axe."
+			android:title="@string/pref_tilt_invert_x_title" android:summary="@string/pref_tilt_invert_x_summary"
 			android:defaultValue="false"  android:dependency="PREF_TILT_SENSOR"/>
 
 		<CheckBoxPreference android:key="PREF_TILT_SWAP_YZ"
-			android:title="Swap Z,Y axes" android:summary="Enable to swap Z,Y axes. This fixes vertical tilt on some devices"
+			android:title="@string/pref_tilt_swap_yz_title" android:summary="@string/pref_tilt_swap_yz_summary"
 			android:defaultValue="false"  android:dependency="PREF_TILT_SENSOR"/>
 
     </PreferenceScreen>
@@ -329,21 +329,21 @@
 
 		<ListPreference
 			android:entries="@array/pref_stick_options"
-			android:title='Stick type'
+			android:title="@string/pref_stick_type_title"
 			android:key="PREF_STICK_TYPE"
 			android:entryValues="@array/pref_stick_values"
 			android:defaultValue="-1" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_TOUCH_UI"
-			android:title="MAME touch UI" android:summary="Enable support for navigating MAME menus / arworks using the touch screen"
+			android:title="@string/pref_touch_ui_title" android:summary="@string/pref_touch_ui_summary"
 			android:defaultValue="True"/>
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_NODEADZONEANDSAT"
-			android:title="Override SAT and DZ" android:summary="Override MAME deadzone and saturation so touch stick and lightgun are accurate"
+			android:title="@string/pref_override_sat_dz_title" android:summary="@string/pref_override_sat_dz_summary"
 			android:defaultValue="True" />
 
 	    <CheckBoxPreference android:key="PREF_PXASP1"
-			android:title="P4,P3,P2 as P1" android:summary="Allow a single input device to control multiple players at once. Could cause problems in some ROMs"
+			android:title="@string/pref_pxasp1_title" android:summary="@string/pref_pxasp1_summary"
 			android:defaultValue="False" />
 
     </PreferenceScreen>
@@ -351,51 +351,51 @@
 		<PreferenceScreen
 			android:key="shaders"
 			android:persistent="false"
-			android:title="Renderer &amp; Shaders">
+			android:title="@string/prefscr_shaders_title">
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:defaultValue="false"
 				android:key="PREF_SHADERS_ENABLED"
-				android:summary="Enables MAME's native renderer instead of the legacy (well tested) software renderer. Unlocks shaders and improves vector games. Important: Set Emulated Resolution to 'Native' to enjoy high-res artworks without any performance drop."
-				android:title="Native Renderer (Shaders and HDR)" />
+				android:summary="@string/pref_shaders_enabled_summary"
+				android:title="@string/pref_shaders_enabled_title" />
 
 			<ListPreference
 				android:defaultValue="none"
 				android:dependency="PREF_SHADERS_ENABLED"
 				android:key="PREF_SHADER_EFFECT_3"
-				android:title='Effect shader' />
+				android:title="@string/pref_effect_shader_title" />
 
 			<CheckBoxPreference android:key="PREF_BITMAP_FILTERING"
-				android:title="Smooth scaling" android:summary="Select to turn bitmap filtering on"
+				android:title="@string/pref_smooth_scaling_title" android:summary="@string/pref_smooth_scaling_summary"
 				android:defaultValue="true" />
 
 			<PreferenceScreen
 				android:key="PREFSCR_HDR_SETTINGS"
 				android:dependency="PREF_SHADERS_ENABLED"
-				android:title="HDR Settings"
-				android:summary="Configure True HDR for vector games and Auto HDR for raster games."
+				android:title="@string/prefscr_hdr_title"
+				android:summary="@string/prefscr_hdr_summary"
 				android:persistent="false">
 
 				<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 					android:key="PREF_HDR"
-					android:title="Enable HDR Display"
-					android:summary="Unlocks peak panel brightness and Wide Color Gamut. Note: HDR experience will vary across devices due to poor implementations by many manufacturers (optimized for Google Pixel). Enabling this renders vector games in true HDR, realistically emulating the intense brightness of original CRT phosphors. It also unlocks Auto HDR enhancements for classic raster games."
+					android:title="@string/pref_hdr_title"
+					android:summary="@string/pref_hdr_summary"
 					android:defaultValue="false" />
 
-				<PreferenceCategory android:title="CRT / Vector HDR Calibration">
+				<PreferenceCategory android:title="@string/cat_crt_vector_hdr">
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_BASE_NITS"
 						android:dependency="PREF_HDR"
-						android:title="CRT Base Luminance (Nits)"
-						android:summary="The physical baseline light of a standard vector (Default: 250 nits)."
+						android:title="@string/pref_base_nits_title"
+						android:summary="@string/pref_base_nits_summary"
 						android:max="100"
 						android:defaultValue="15" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_MAX_NITS"
 						android:dependency="PREF_HDR"
-						android:title="CRT Max Luminance (Nits)"
-						android:summary="The absolute physical limit of the emulated arcade monitor (Default: 700 nits)."
+						android:title="@string/pref_max_nits_title"
+						android:summary="@string/pref_max_nits_summary"
 						android:max="100"
 						android:defaultValue="60" />
 				</PreferenceCategory>
@@ -403,39 +403,39 @@
 				<CheckBoxPreference
 					android:key="PREF_HDR_DIM_VECTOR_ARTWORKS"
 					android:dependency="PREF_HDR"
-					android:title="Dim Vector Artworks"
-					android:summary="Darkens bezels and backgrounds in vector games to maximize the spectacular contrast of the phosphor lasers."
+					android:title="@string/pref_dim_vector_title"
+					android:summary="@string/pref_dim_vector_summary"
 					android:defaultValue="true" />
 
-				<PreferenceCategory android:title="Raster / Auto HDR (SDR to HDR)">
+				<PreferenceCategory android:title="@string/cat_raster_hdr">
 					<SeekBarPreference
 						android:key="PREF_HDR_RASTER_PAPER_WHITE"
 						android:dependency="PREF_HDR"
-						android:title="Raster Paper White Reference"
-						android:summary="Sets the baseline physical brightness strictly for standard games and artworks in HDR mode. Independent from Vector Nits. Adjust for visual comfort if it appears too bright."
+						android:title="@string/pref_paper_white_title"
+						android:summary="@string/pref_paper_white_summary"
 						android:max="100"
 						android:defaultValue="25" />
 
 					<CheckBoxPreference
 						android:key="PREF_HDR_RASTER_FAKE_HDR"
 						android:dependency="PREF_HDR"
-						android:title="Enable Auto HDR (Raster)"
-						android:summary="Upgrades standard SDR games and artworks to HDR luminance levels using Inverse Tone Mapping."
+						android:title="@string/pref_fake_hdr_title"
+						android:summary="@string/pref_fake_hdr_summary"
 						android:defaultValue="false" />
 
 					<SeekBarPreference
 						android:key="PREF_HDR_RASTER_HDR_MULTIPLIER"
 						android:dependency="PREF_HDR_RASTER_FAKE_HDR"
-						android:title="Auto HDR Intensity"
-						android:summary="How aggressively highlights are expanded to peak luminance."
+						android:title="@string/pref_hdr_multiplier_title"
+						android:summary="@string/pref_hdr_multiplier_summary"
 						android:max="100"
 						android:defaultValue="35" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Defaults">
+				<PreferenceCategory android:title="@string/cat_defaults">
 					<PreferenceScreen android:key="defaultHDRData"
-						android:title="Restore HDR Defaults"
-						android:summary="Reset all HDR and Auto HDR calibration values to defaults." />
+						android:title="@string/pref_restore_hdr_title"
+						android:summary="@string/pref_restore_hdr_summary" />
 				</PreferenceCategory>
 
 			</PreferenceScreen>
@@ -444,311 +444,311 @@
 			<CheckBoxPreference
 				android:key="PREF_VECTOR_IMPROVED"
 				android:dependency="PREF_SHADERS_ENABLED"
-				android:title="Vector Advanced Effects"
-				android:summary="Enables a highly accurate physical simulation of vector CRT monitors. Includes optical bloom, phosphor persistence, electron beam dynamics, corner burn, and magnetic jitter."
+				android:title="@string/pref_vector_improved_title"
+				android:summary="@string/pref_vector_improved_summary"
 				android:defaultValue="true" />
 
 			<PreferenceScreen
 				android:key="PREFSCR_VECTOR_SETTINGS"
 				android:dependency="PREF_VECTOR_IMPROVED"
-				android:title="Vector Effects Calibration (Expert Mode)"
-				android:summary="Fine-tune optical bloom, exposure, electron beam physics and yoke voltage."
+				android:title="@string/prefscr_vector_calib_title"
+				android:summary="@string/prefscr_vector_calib_summary"
 				android:persistent="false">
 
-				<PreferenceCategory android:title="Graphics Pipeline">
+				<PreferenceCategory android:title="@string/cat_graphics_pipeline">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_FBO_HALF_RES"
-						android:title="FBO Half Resolution"
-						android:summary="Renders vector passes at 50% resolution.\n• GAIN: Saves massive GPU fillrate and battery, making the glow smoother.\n• LOSS: Sacrifices vector core crispness, introducing jagged edges (aliasing) on sharp geometry like text and ships."
+						android:title="@string/pref_fbo_half_title"
+						android:summary="@string/pref_fbo_half_summary"
 						android:defaultValue="true" />
 				</PreferenceCategory>
 
 				<CheckBoxPreference
 					android:key="PREF_VECTOR_EFFECT_LINEAR_GAMMA"
-					android:title="Enable Linear Light Physics"
-					android:summary="Converts the raw electrical voltage into physical light energy using the CRT's natural Gamma curve (~2.5). Essential for accurate color mixing, though some games may appear less vivid as a result. Highly recommended when True HDR Display is enabled."
+					android:title="@string/pref_linear_gamma_title"
+					android:summary="@string/pref_linear_gamma_summary"
 					android:defaultValue="true" />
 
-				<PreferenceCategory android:title="CRT Drive">
+				<PreferenceCategory android:title="@string/cat_crt_drive">
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_GLOBAL_DRIVE"
-						android:title="CRT Global Drive (Voltage)"
-						android:summary="Master brightness knob (Voltage overdrive)."
+						android:title="@string/pref_global_drive_title"
+						android:summary="@string/pref_global_drive_summary"
 						android:max="100"
 						android:defaultValue="40" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Optical Bloom (Halo Scattering)">
+				<PreferenceCategory android:title="@string/cat_bloom">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_BLOOM"
-						android:title="Enable Optical Bloom"
-						android:summary="Calculate light scattering inside the CRT glass (Halos)."
+						android:title="@string/pref_bloom_title"
+						android:summary="@string/pref_bloom_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_KAWASE_PASSES"
 						android:dependency="PREF_VECTOR_EFFECT_BLOOM"
-						android:title="Optical Halo Size (Passes)"
-						android:summary="How massive the halo spreads."
+						android:title="@string/pref_kawase_passes_title"
+						android:summary="@string/pref_kawase_passes_summary"
 						android:max="6"
 						android:defaultValue="3" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_KAWASE_RADIUS"
 						android:dependency="PREF_VECTOR_EFFECT_BLOOM"
-						android:title="Optical Halo Spread (Radius)"
-						android:summary="Expands the blur radius of the tent filter."
+						android:title="@string/pref_kawase_radius_title"
+						android:summary="@string/pref_kawase_radius_summary"
 						android:max="100"
 						android:defaultValue="50" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_KAWASE_THRESHOLD"
 						android:dependency="PREF_VECTOR_EFFECT_BLOOM"
-						android:title="Extraction Threshold"
-						android:summary="Minimum energy required for a vector to emit a glowing halo."
+						android:title="@string/pref_kawase_threshold_title"
+						android:summary="@string/pref_kawase_threshold_summary"
 						android:max="100"
 						android:defaultValue="35" />
 
 					<SeekBarPreference
 						android:key="PREF_BLOOM_KAWASE_INTENSITY"
 						android:dependency="PREF_VECTOR_EFFECT_BLOOM"
-						android:title="Optical Halo Intensity"
-						android:summary="Final opacity multiplier of the light halo."
+						android:title="@string/pref_kawase_intensity_title"
+						android:summary="@string/pref_kawase_intensity_summary"
 						android:max="100"
 						android:defaultValue="44" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Off-screen Monitor Glow">
+				<PreferenceCategory android:title="@string/cat_offscreen_glow">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW"
-						android:title="Enable Ambient Tube Glow"
-						android:summary="Simulates the whole CRT glass glowing when intense laser beams (like explosions in starwars) bounce off the interior walls of the monitor."
+						android:title="@string/pref_offscreen_glow_title"
+						android:summary="@string/pref_offscreen_glow_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW_MULT"
 						android:dependency="PREF_VECTOR_EFFECT_OFFSCREEN_GLOW"
-						android:title="Ambient Glow Intensity"
-						android:summary="Multiplier for the off-screen energy. Turn it down if text or menus flash too brightly."
+						android:title="@string/pref_offscreen_glow_mult_title"
+						android:summary="@string/pref_offscreen_glow_mult_summary"
 						android:max="100"
 						android:defaultValue="15" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Vector Core Geometry">
+				<PreferenceCategory android:title="@string/cat_vector_core">
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORE_LINE_WIDTH"
-						android:title="Line Thickness"
-						android:summary="Physical thickness of the central laser core for drawing lines."
+						android:title="@string/pref_core_line_width_title"
+						android:summary="@string/pref_core_line_width_summary"
 						android:max="100"
 						android:defaultValue="50" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORE_POINT_WIDTH"
-						android:title="Point/Star Thickness"
-						android:summary="Physical thickness of the central laser core for isolated dots."
+						android:title="@string/pref_core_point_width_title"
+						android:summary="@string/pref_core_point_width_summary"
 						android:max="100"
 						android:defaultValue="30" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_POINT_ENERGY_BOOST"
-						android:title="Point Energy Boost"
-						android:summary="Multiplies the light energy specifically for dots/stars to make them pop."
+						android:title="@string/pref_point_boost_title"
+						android:summary="@string/pref_point_boost_summary"
 						android:max="100"
 						android:defaultValue="15" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Excess Energy (HDR Overbright)">
+				<PreferenceCategory android:title="@string/cat_overbright">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_OVERBRIGHT"
-						android:title="Enable Phosphor Saturation"
-						android:summary="Calculates physical expansion when the vector exceeds peak brightness."
+						android:title="@string/pref_overbright_title"
+						android:summary="@string/pref_overbright_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_OVERBRIGHT_MAX"
 						android:dependency="PREF_VECTOR_EFFECT_OVERBRIGHT"
-						android:title="Max HDR Saturation"
-						android:summary="Absolute limit for extra HDR energy a vector can accumulate."
+						android:title="@string/pref_overbright_max_title"
+						android:summary="@string/pref_overbright_max_summary"
 						android:max="100"
 						android:defaultValue="50" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_OVERBRIGHT_LINE_MULT"
 						android:dependency="PREF_VECTOR_EFFECT_OVERBRIGHT"
-						android:title="Line Physical Expansion"
-						android:summary="How much lines widen when saturated with excess energy."
+						android:title="@string/pref_overbright_line_title"
+						android:summary="@string/pref_overbright_line_summary"
 						android:max="100"
 						android:defaultValue="40" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_OVERBRIGHT_POINT_MULT"
 						android:dependency="PREF_VECTOR_EFFECT_OVERBRIGHT"
-						android:title="Point Physical Expansion"
-						android:summary="How much points widen when saturated with excess energy."
+						android:title="@string/pref_overbright_point_title"
+						android:summary="@string/pref_overbright_point_summary"
 						android:max="100"
 						android:defaultValue="55" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_OVERBRIGHT_CROSSTALK"
 						android:dependency="PREF_VECTOR_EFFECT_OVERBRIGHT"
-						android:title="Color Crosstalk (White Core)"
-						android:summary="How much excess energy bleeds into other channels to create white highlights."
+						android:title="@string/pref_overbright_crosstalk_title"
+						android:summary="@string/pref_overbright_crosstalk_summary"
 						android:max="100"
 						android:defaultValue="25" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Electron Beam Physics">
+				<PreferenceCategory android:title="@string/cat_beam_physics">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_BEAM_DYNAMICS"
-						android:title="Enable Beam Dynamics"
-						android:summary="Simulates the beam burning harder on short strokes (like text and ships)."
+						android:title="@string/pref_beam_dynamics_title"
+						android:summary="@string/pref_beam_dynamics_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_SHORT_LINE_INTENSITY"
 						android:dependency="PREF_VECTOR_EFFECT_BEAM_DYNAMICS"
-						android:title="Short Line Energy Boost"
-						android:summary="Extra light energy given to tiny strokes."
+						android:title="@string/pref_short_line_intensity_title"
+						android:summary="@string/pref_short_line_intensity_summary"
 						android:max="100"
 						android:defaultValue="30" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_SHORT_LINE_WIDTH"
 						android:dependency="PREF_VECTOR_EFFECT_BEAM_DYNAMICS"
-						android:title="Short Line Thermal Expansion"
-						android:summary="How much the core physically widens when burning the phosphor harder."
+						android:title="@string/pref_short_line_width_title"
+						android:summary="@string/pref_short_line_width_summary"
 						android:max="100"
 						android:defaultValue="10" />
 
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_CORNER_BURN"
-						android:title="Enable Corner Burn (Dwell)"
-						android:summary="Simulates the beam slowing down at sharp corners, causing bright weld points."
+						android:title="@string/pref_corner_burn_title"
+						android:summary="@string/pref_corner_burn_summary"
 						android:defaultValue="false" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORNER_DOT_THRESHOLD"
 						android:dependency="PREF_VECTOR_EFFECT_CORNER_BURN"
-						android:title="Corner Sharpness Threshold"
-						android:summary="How sharp an angle must be to trigger deceleration and burning."
+						android:title="@string/pref_corner_threshold_title"
+						android:summary="@string/pref_corner_threshold_summary"
 						android:max="100"
 						android:defaultValue="50" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORNER_BURN_BOOST"
 						android:dependency="PREF_VECTOR_EFFECT_CORNER_BURN"
-						android:title="Corner Intensity Boost"
-						android:summary="Extra energy dumped into the corner weld."
+						android:title="@string/pref_corner_boost_title"
+						android:summary="@string/pref_corner_boost_summary"
 						android:max="100"
 						android:defaultValue="10" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_CORNER_BURN_WIDTH_MULT"
 						android:dependency="PREF_VECTOR_EFFECT_CORNER_BURN"
-						android:title="Corner Size Confinement"
-						android:summary="Restricts the corner burn to keep it sharp and avoid spherical blobs."
+						android:title="@string/pref_corner_confinement_title"
+						android:summary="@string/pref_corner_confinement_summary"
 						android:max="100"
 						android:defaultValue="50" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Phosphor Chemistry">
+				<PreferenceCategory android:title="@string/cat_phosphor">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_PHOSPHOR_RESPONSE"
-						android:title="Phosphor Color Response"
-						android:summary="Simulates how green colors excite the phosphor more efficiently than blue."
+						android:title="@string/pref_phosphor_response_title"
+						android:summary="@string/pref_phosphor_response_summary"
 						android:defaultValue="false" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_PHOSPHOR_BASE_RESPONSE"
 						android:dependency="PREF_VECTOR_EFFECT_PHOSPHOR_RESPONSE"
-						android:title="Base Phosphor Floor"
-						android:summary="Minimum energy retained by inefficient colors like pure blue."
+						android:title="@string/pref_phosphor_base_title"
+						android:summary="@string/pref_phosphor_base_summary"
 						android:max="100"
 						android:defaultValue="40" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_PHOSPHOR_LUMA_BOOST"
 						android:dependency="PREF_VECTOR_EFFECT_PHOSPHOR_RESPONSE"
-						android:title="Luminance Multiplier"
-						android:summary="How much the specific color boosts the physical energy output."
+						android:title="@string/pref_phosphor_luma_title"
+						android:summary="@string/pref_phosphor_luma_summary"
 						android:max="100"
 						android:defaultValue="60" />
 
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_PERSISTENCE"
-						android:title="Enable Phosphor Trails"
-						android:summary="Simulate temporal ghosting (Ping-Pong FBO)."
+						android:title="@string/pref_persistence_title"
+						android:summary="@string/pref_persistence_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_PHOSPHOR_DECAY"
 						android:dependency="PREF_VECTOR_EFFECT_PERSISTENCE"
-						android:title="Trail Decay Speed"
-						android:summary="Lower = Long Radar smear. Higher = Fast Arcade fade."
+						android:title="@string/pref_phosphor_decay_title"
+						android:summary="@string/pref_phosphor_decay_summary"
 						android:max="100"
 						android:defaultValue="20" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Analog Wear &amp; Tear (Yoke)">
+				<PreferenceCategory android:title="@string/cat_yoke">
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_JITTER"
-						android:title="Enable Magnetic Noise"
-						android:summary="Simulate coil heat, AC hum, and voltage fluctuations."
+						android:title="@string/pref_jitter_title"
+						android:summary="@string/pref_jitter_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_BEAM_JITTER_AMOUNT"
 						android:dependency="PREF_VECTOR_EFFECT_JITTER"
-						android:title="Jitter Severity"
-						android:summary="Maximum physical deviation of the electron beam."
+						android:title="@string/pref_jitter_amount_title"
+						android:summary="@string/pref_jitter_amount_summary"
 						android:max="100"
 						android:defaultValue="15" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_BEAM_FLICKER_AMOUNT"
 						android:dependency="PREF_VECTOR_EFFECT_JITTER"
-						android:title="Voltage Flicker"
-						android:summary="Maximum intensity drop caused by random voltage fluctuation."
+						android:title="@string/pref_flicker_amount_title"
+						android:summary="@string/pref_flicker_amount_summary"
 						android:max="100"
 						android:defaultValue="20" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Global Exposure">
+				<PreferenceCategory android:title="@string/cat_exposure">
 
 					<CheckBoxPreference
 						android:key="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Enable HDR Auto-Exposure"
-						android:summary="Camera eye-adaptation. Dims the screen dynamically during bright explosions."
+						android:title="@string/pref_auto_exposure_title"
+						android:summary="@string/pref_auto_exposure_summary"
 						android:defaultValue="true" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_FIXED_EXPOSURE"
-						android:title="Fixed Manual Exposure"
-						android:summary="Used only if Auto-Exposure is OFF. Adjusts the baseline brightness."
+						android:title="@string/pref_fixed_exposure_title"
+						android:summary="@string/pref_fixed_exposure_summary"
 						android:max="100"
 						android:defaultValue="35" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_AUTO_EXPOSURE_MULT"
 						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Auto-Exposure Multiplier"
-						android:summary="Boosts or dims the overall dynamic range of the adaptation."
+						android:title="@string/pref_auto_exposure_mult_title"
+						android:summary="@string/pref_auto_exposure_mult_summary"
 						android:max="100"
 						android:defaultValue="40" />
 
 					<SeekBarPreference
 						android:key="PREF_VECTOR_EFFECT_AUTO_EXPOSURE_THRESHOLD"
 						android:dependency="PREF_VECTOR_EFFECT_AUTO_EXPOSURE"
-						android:title="Auto-Exposure Threshold"
-						android:summary="Screen area % that triggers maximum dimming (radar/explosions)."
+						android:title="@string/pref_auto_exposure_threshold_title"
+						android:summary="@string/pref_auto_exposure_threshold_summary"
 						android:max="100"
 						android:defaultValue="50" />
 				</PreferenceCategory>
 
-				<PreferenceCategory android:title="Defaults">
+				<PreferenceCategory android:title="@string/cat_defaults">
 					<PreferenceScreen android:key="defaultVectorData"
-						android:title="Restore CRT Defaults"
-						android:summary="Reset all advanced CRT calibration values to factory defaults." />
+						android:title="@string/pref_restore_crt_title"
+						android:summary="@string/pref_restore_crt_summary" />
 				</PreferenceCategory>
 
 			</PreferenceScreen>
@@ -763,183 +763,194 @@
 		<PreferenceScreen
 			android:key="scrape"
 			android:persistent="false"
-			android:summary="Select it to configure media scraping service"
-			android:title="Scraping">
+			android:summary="@string/prefscr_scrape_summary"
+			android:title="@string/prefscr_scrape_title">
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:defaultValue="false"
 				android:key="PREF_SCRAPE_ENABLED"
-				android:summary="Enable it to do media scraping thanks to Arcade Database by motoschifo. This will download icons or snapshots belonging to your own ROMSET so that they will be displayed on the frontend. You must configure the display of images in MAME UI (in the 'show side panels' option) if is necessary. Note: Media scraping will only scrape systems on external storage"
-				android:title="Enable media scraping" />
+				android:summary="@string/pref_scrape_enabled_summary"
+				android:title="@string/pref_scrape_enabled_title" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:key="PREF_SCRAPE_ICONS"
 				android:dependency="PREF_SCRAPE_ENABLED"
-				android:title="Scrape icons" android:summary="Enable it to scrape icons that will be showed on the system list"
+				android:title="@string/pref_scrape_icons_title" android:summary="@string/pref_scrape_icons_summary"
 				android:defaultValue="True" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:key="PREF_SCRAPE_SNAPSHOTS"
 				android:dependency="PREF_SCRAPE_ENABLED"
-				android:title="Scrape snapshots" android:summary="Enable it to scrape snapshots that will be showed on the images panel"
+				android:title="@string/pref_scrape_snapshots_title" android:summary="@string/pref_scrape_snapshots_summary"
 				android:defaultValue="True" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:key="PREF_SCRAPE_ALL"
 				android:dependency="PREF_SCRAPE_ENABLED"
-				android:title="Scrape additional media" android:summary="Enable to scrape the rest of available media like cabinets images. This will use up a lot of storage space and the download will take longer"
+				android:title="@string/pref_scrape_all_title" android:summary="@string/pref_scrape_all_summary"
 				android:defaultValue="False" />
 
 			<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
 				android:key="PREF_SCRAPE_RESIZE"
 				android:dependency="PREF_SCRAPE_ENABLED"
-				android:title="Resize images to save space" android:summary="Enable it to resize images so that less storage space is used"
+				android:title="@string/pref_scrape_resize_title" android:summary="@string/pref_scrape_resize_summary"
 				android:defaultValue="True" />
 
 		</PreferenceScreen>
 
-    <PreferenceScreen android:key="general" android:title="General"
-        android:summary="Select it to open general options" android:persistent="false">
+    <PreferenceScreen android:key="general" android:title="@string/prefscr_general_title"
+        android:summary="@string/prefscr_general_summary" android:persistent="false">
+
+		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
+			android:entries="@array/pref_language_options"
+			android:title="@string/pref_language_title"
+			android:key="PREF_LANGUAGE"
+			android:entryValues="@array/pref_language_values"
+			android:defaultValue="" />
+
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
+			android:key="PREF_MAME_LANGUAGE"
+			android:title="@string/pref_mame_language_title"
+			android:summary="@string/pref_mame_language_summary"
+			android:defaultValue="true" />
+
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn
+			android:key="PREF_FORCE_UNIFONT"
+			android:title="@string/pref_force_unifont_title"
+			android:summary="@string/pref_force_unifont_summary"
+			android:defaultValue="false" />
 
 		<PreferenceScreen android:key="changeRomPath"
-			android:title="Change ROMs path" android:summary="Change roms location. You have to move ROMs files manually" />
+			android:title="@string/pref_change_rom_path_title" android:summary="@string/pref_change_rom_path_summary" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="SAVESATES_IN_ROM_PATH"
-			android:title="Save States in ROMs path" android:summary="Game states will be stored under ROM files folder. This prevents Android 11+ from deleting them when using external storage for ROMs files and uninstalling the app"
+			android:title="@string/pref_savestates_rom_path_title" android:summary="@string/pref_savestates_rom_path_summary"
 			android:defaultValue="true" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
-			android:title='Screen orientation'
+			android:title="@string/pref_orientation_title"
 			android:key="PREF_ORIENTATION"
 			android:entries="@array/pref_orientation_options"
 			android:entryValues="@array/pref_orientation_values"
 			android:defaultValue="0" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
-			android:title='Overlay effect'
+			android:title="@string/pref_overlay_title"
 			android:key="PREF_OVERLAY"
 			android:entries="@array/pref_overlay_options"
 			android:entryValues="@array/pref_overlay_values"
 			android:defaultValue="none" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_GLOBAL_WARN_ON_EXIT"
-			android:title="Warn on exit" android:summary="Enable it to warn when you press the exit button when gaming"
+			android:title="@string/pref_warn_on_exit_title" android:summary="@string/pref_warn_on_exit_summary"
 			android:defaultValue="true" />
 
 	    <com.seleuco.mame4droid.prefs.ListPrefWithWarn android:key="PREF_GLOBAL_NAVBAR_MODE"
-			android:title="Navigation bar mode"
+			android:title="@string/pref_navbar_title"
 			android:entries="@array/pref_navbar_options"
 			android:entryValues="@array/pref_navbar_values"
 			android:defaultValue="1"/>
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_GLOBAL_USE_NOTCH"
-			android:title="Use Notch" android:summary="Expand display area to use notch area on devices supported"
+			android:title="@string/pref_use_notch_title" android:summary="@string/pref_use_notch_summary"
 			android:defaultValue="false" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_GLOBAL_SIMPLE_UI"
-			android:title="Use simple UI" android:summary="Use the MAME simple UI instead of the cabinet one. Simple UI will show you 20 random games but you can search for any by typing with the keyboard"
+			android:title="@string/pref_simple_ui_title" android:summary="@string/pref_simple_ui_summary"
 			android:defaultValue="false" />
 
 		<CheckBoxPreference android:key="PREF_GLOBAL_SCALE_BEYOND"
-			android:title="Scale beyond boundaries" android:summary="Enable it to scale beyond screen boundaries when a fixed scale is selected"
+			android:title="@string/pref_scale_beyond_title" android:summary="@string/pref_scale_beyond_summary"
 			android:defaultValue="true" />
 
 	    <CheckBoxPreference android:key="PREF_GLOBAL_OVERSCAN"
-			android:title="TV overscan" android:summary="Enable it to apply a 10 pct safe area to correct overscan issues on some TV sets"
+			android:title="@string/pref_overscan_title" android:summary="@string/pref_overscan_summary"
 			android:defaultValue="false" />
 
 	</PreferenceScreen>
 
     <PreferenceScreen android:key="netplay" android:title="@string/netplay"
-        android:summary="Select it to open NetPlay options" android:persistent="false">
-		<EditTextPreference android:title="NetPlay port" android:key="PREF_NETPLAY_PORT" android:defaultValue="2080" />
-		<ListPreference android:entries="@array/pref_netplay_delay_options" android:title="NetPlay delay" android:key="PREF_NETPLAY_DELAY" android:entryValues="@array/pref_netplay_delay_values" android:defaultValue="0" />
-		<CheckBoxPreference android:title="Show connection stats overlay" android:summary="Small ping/delay indicator at the bottom of the screen during a NetPlay session" android:key="PREF_NETPLAY_STATS_ENABLED" android:defaultValue="false" />
-		<CheckBoxPreference android:title="Desync detector" android:summary="Detect and warn about NetPlay desyncs (Rollback only); disable to save the extra CPU cost" android:key="PREF_NETPLAY_DESYNC_DETECTOR_ENABLED" android:defaultValue="true" />
-		<CheckBoxPreference android:title="UPnP port mapping (host)" android:summary="When hosting, automatically forward the netplay port on the router so internet peers can join directly. Removed on disconnect" android:key="PREF_NETPLAY_UPNP" android:defaultValue="true" />
+        android:summary="@string/prefscr_netplay_summary" android:persistent="false">
+		<EditTextPreference android:title="@string/pref_netplay_port_title" android:key="PREF_NETPLAY_PORT" android:defaultValue="2080" />
+		<ListPreference android:entries="@array/pref_netplay_delay_options" android:title="@string/pref_netplay_delay_title" android:key="PREF_NETPLAY_DELAY" android:entryValues="@array/pref_netplay_delay_values" android:defaultValue="0" />
+		<CheckBoxPreference android:title="@string/pref_netplay_stats_title" android:summary="@string/pref_netplay_stats_summary" android:key="PREF_NETPLAY_STATS_ENABLED" android:defaultValue="false" />
+		<CheckBoxPreference android:title="@string/pref_netplay_desync_title" android:summary="@string/pref_netplay_desync_summary" android:key="PREF_NETPLAY_DESYNC_DETECTOR_ENABLED" android:defaultValue="true" />
+		<CheckBoxPreference android:title="@string/pref_netplay_upnp_title" android:summary="@string/pref_netplay_upnp_summary" android:key="PREF_NETPLAY_UPNP" android:defaultValue="true" />
     </PreferenceScreen>
 
-    <PreferenceScreen android:key="advanced" android:title="Advanced"
-        android:summary="Select it to open advanced options" android:persistent="false">
+    <PreferenceScreen android:key="advanced" android:title="@string/prefscr_advanced_title"
+        android:summary="@string/prefscr_advanced_summary" android:persistent="false">
 
 		<ListPreference
 			android:entries="@array/pref_global_video_render_options"
-			android:title='Video engine'
+			android:title="@string/pref_video_engine_title"
 			android:key="PREF_GLOBAL_VIDEO_RENDER_MODE"
 			android:entryValues="@array/pref_global_video_render_values"
 			android:defaultValue="1" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn android:entries="@array/pref_sound_engine_options"
-			android:title='Sound engine' android:key="PREF_SOUND_ENGINE_2"
+			android:title="@string/pref_sound_engine_title" android:key="PREF_SOUND_ENGINE_2"
 			android:entryValues="@array/pref_sound_engine_values"
 			android:defaultValue="1" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_osd_numprocessors_options"
-			android:title='Number of threads'
+			android:title="@string/pref_num_threads_title"
 			android:key="PREF_EMU_NUM_PROCESSORS"
 			android:entryValues="@array/pref_osd_numprocessors_values"
 			android:defaultValue="-1" />
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn android:entries="@array/pref_low_norm_or_hight_options"
-			android:title='Main thread priority' android:key="PREF_MAIN_THREAD_PRIORITY"
+			android:title="@string/pref_main_th_priority_title" android:key="PREF_MAIN_THREAD_PRIORITY"
 			android:entryValues="@array/pref_low_norm_or_hight_values"
 			android:defaultValue="2" />
 
         <com.seleuco.mame4droid.prefs.EditTextPrefWithWarn
-                android:dialogTitle="Change installation path:"
+                android:dialogTitle="@string/pref_installation_path_dialog"
                 android:key="PREF_INSTALLATION_DIR"
-                android:title="Installation path"
+                android:title="@string/pref_installation_path_title"
                 android:defaultValue=""/>
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_MAMEINI"
-			android:title="Use mame.ini for paths" android:summary="Use mame.ini instead of the values established by the emulator automatically to define the paths of the ROMs and other resources in external storage. Enabling this option can prevent you from seeing your ROMs if you don't know what you are doing"
+			android:title="@string/pref_mameini_title" android:summary="@string/pref_mameini_summary"
 			android:defaultValue="False" />
 
 		<CheckBoxPreference android:key="PREF_GLOBAL_DEBUG"
-			android:title="Debug mode" android:summary="Only for developers"
+			android:title="@string/pref_debug_title" android:summary="@string/pref_debug_summary"
 			android:defaultValue="false" />
 
 	</PreferenceScreen>
 
 	</PreferenceCategory>
 
-	<PreferenceCategory android:title="Portrait Display Settings">
+	<PreferenceCategory android:title="@string/cat_portrait_display">
 
 		<ListPreference android:entries="@array/pref_scaleMode_options"
-			android:title='Scaling mode' android:key="PREF_PORTRAIT_SCALING_MODE"
+			android:title="@string/pref_scaling_mode_title" android:key="PREF_PORTRAIT_SCALING_MODE"
 			android:entryValues="@array/pref_scaleMode_values"
 			android:defaultValue="1" />
-<!--
-		<ListPreference
-			android:title='Overlay effect' android:key="PREF_PORTRAIT_OVERLAY"
-			android:defaultValue="none" />
--->
+
 		<CheckBoxPreference android:key="PREF_PORTRAIT_TOUCH_CONTROLLER"
-			android:title="Touch controller visible" android:summary="Disable to hide the touch controller. Useful when you are using a GamePad"
+			android:title="@string/pref_touch_controller_visible_title" android:summary="@string/pref_touch_controller_visible_summary"
 			android:defaultValue="true" />
 
 		<CheckBoxPreference android:key="PREF_PORTRAIT_FULLSCREEN"
-			android:title="Fullscreen" android:summary="Select to enable fullscreen portrait mode"
+			android:title="@string/pref_fullscreen_portrait_title" android:summary="@string/pref_fullscreen_portrait_summary"
 			android:defaultValue="false"
 			android:dependency="PREF_PORTRAIT_TOUCH_CONTROLLER"
 			/>
 
 	</PreferenceCategory>
 
-	<PreferenceCategory android:title="Landscape Display Settings">
+	<PreferenceCategory android:title="@string/cat_landscape_display">
 
 		<ListPreference android:entries="@array/pref_scaleMode_options"
-			android:title='Scaling mode' android:key="PREF_LANDSCAPE_SCALING_MODE"
+			android:title="@string/pref_scaling_mode_title" android:key="PREF_LANDSCAPE_SCALING_MODE"
 			android:entryValues="@array/pref_scaleMode_values"
 			android:defaultValue="1" />
-<!--
-		<ListPreference
-			android:title='Overlay effect ' android:key="PREF_LANDSCAPE_OVERLAY"
-			android:defaultValue="none" />
--->
+
 		<CheckBoxPreference android:key="PREF_LANDSCAPE_TOUCH_CONTROLLER"
-			android:title="Touch controller visible" android:summary="Disable to hide the touch controller. Useful when you are using a GamePad"
+			android:title="@string/pref_touch_controller_visible_title" android:summary="@string/pref_touch_controller_visible_summary"
 			android:defaultValue="true" />
 
 	</PreferenceCategory>

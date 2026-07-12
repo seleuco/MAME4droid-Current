@@ -319,7 +319,7 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 				} else {
 
 					android.util.Log.d(TAG, "WARNING: Hardware rejected HDR 16-bit. Falling back to SDR 8-bit.");
-					new WarnWidget.WarnWidgetHelper(mm, "WARNING: Hardware rejected HDR 16-bit. Falling back to SDR.", 3, Color.RED, false);
+					new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.hdr_rejected), 3, Color.RED, false);
 
 					setEGLContextClientVersion(3);
 					setEGLConfigChooser(8, 8, 8, 8, 0, 0);

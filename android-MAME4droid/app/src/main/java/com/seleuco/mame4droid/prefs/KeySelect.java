@@ -62,6 +62,12 @@ public class KeySelect extends Activity {
 	protected int emulatorInputIndex;
 
 	@Override
+	protected void attachBaseContext(android.content.Context newBase) {
+		com.seleuco.mame4droid.helpers.LocaleHelper.applyLocale(this, newBase);
+		super.attachBaseContext(newBase);
+	}
+
+	@Override
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
 
@@ -69,7 +75,8 @@ public class KeySelect extends Activity {
 			WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
 
 		emulatorInputIndex = getIntent().getIntExtra("emulatorInputIndex", 0);
-		setTitle("Press button for \"" + ListKeys.emulatorInputLabels[emulatorInputIndex] + "\"");
+		setTitle(getString(com.seleuco.mame4droid.R.string.press_button_for,
+				ListKeys.getInputLabel(this, emulatorInputIndex)));
 
 		int dp16 = (int) (16 * getResources().getDisplayMetrics().density);
 		int dp300 = (int) (300 * getResources().getDisplayMetrics().density); // Ancho máximo sugerido
@@ -87,7 +94,7 @@ public class KeySelect extends Activity {
 		dialogBox.setLayoutParams(dialogParams);
 
 		Button cancelButton = new Button(this);
-		cancelButton.setText("Cancel");
+		cancelButton.setText(getString(com.seleuco.mame4droid.R.string.cancel));
 		cancelButton.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
 				setResult(RESULT_CANCELED, new Intent());
@@ -96,7 +103,7 @@ public class KeySelect extends Activity {
 		});
 
 		Button clearButton = new Button(this);
-		clearButton.setText("Clear");
+		clearButton.setText(getString(com.seleuco.mame4droid.R.string.key_clear));
 		clearButton.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
 				setResult(RESULT_OK, new Intent().putExtra("androidKeyCode", -1));
@@ -105,7 +112,7 @@ public class KeySelect extends Activity {
 		});
 
 		TextView helpText = new TextView(this);
-		helpText.setText("\nWaiting for input...\n");
+		helpText.setText("\n" + getString(com.seleuco.mame4droid.R.string.waiting_for_input) + "\n");
 		helpText.setGravity(Gravity.CENTER);
 		helpText.setTextAppearance(this, android.R.style.TextAppearance_Medium);
 

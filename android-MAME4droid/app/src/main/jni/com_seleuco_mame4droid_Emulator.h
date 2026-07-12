@@ -95,6 +95,8 @@ extern "C" {
 #define com_seleuco_mame4droid_Emulator_BITMAP_FILTERING 74L
 #undef com_seleuco_mame4droid_Emulator_VECTOR_IMPROVED
 #define com_seleuco_mame4droid_Emulator_VECTOR_IMPROVED 75L
+#undef com_seleuco_mame4droid_Emulator_FORCE_UNIFONT
+#define com_seleuco_mame4droid_Emulator_FORCE_UNIFONT 76L
 
 #undef com_seleuco_mame4droid_Emulator_NETPLAY_HAS_CONNECTION
 #define com_seleuco_mame4droid_Emulator_NETPLAY_HAS_CONNECTION 53L
@@ -117,6 +119,8 @@ extern "C" {
 #define com_seleuco_mame4droid_Emulator_CLI_PARAMS 5L
 #undef com_seleuco_mame4droid_Emulator_GAME_SELECTED
 #define com_seleuco_mame4droid_Emulator_GAME_SELECTED 6L
+#undef com_seleuco_mame4droid_Emulator_LANGUAGE
+#define com_seleuco_mame4droid_Emulator_LANGUAGE 7L
 #undef com_seleuco_mame4droid_Emulator_MAME_VERSION
 #define com_seleuco_mame4droid_Emulator_MAME_VERSION 1L
 #undef com_seleuco_mame4droid_Emulator_KEY_DOWN

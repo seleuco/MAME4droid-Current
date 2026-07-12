@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>Ayuda de MAME4Droid Reloaded</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">NetPlay</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <p>NetPlay permite que dos dispositivos jueguen al mismo juego juntos
+      por Wi-Fi/red, uno actuando como <strong>Anfitrión</strong> y el otro
+      como <strong>Cliente</strong>. Ambos dispositivos ejecutan exactamente
+      la misma ROM al mismo tiempo; solo las entradas del mando viajan por la
+      red.</p>
+
+      <h3>Modos</h3>
+      <p>Solo el <strong>Anfitrión</strong> elige el modo, desde el diálogo de
+      NetPlay antes de crear la partida. El Cliente no necesita elegir nada:
+      adopta automáticamente el modo que use el Anfitrión en cuanto se conecta.</p>
+      <ul>
+        <li><strong>Lockstep:</strong> el modo más seguro y compatible. Ambos
+            dispositivos esperan la entrada del otro antes de avanzar un
+            fotograma, así que el juego siempre está perfectamente
+            sincronizado. La contrapartida es el retardo de entrada: cuanto
+            peor sea la conexión (mayor ping), más retardo notarás entre pulsar
+            un botón y ver que ocurre. Funciona con todos los juegos.
+        </li>
+        <li><strong>Rollback:</strong> el modo de baja latencia, ideal para
+            juegos de reflejos rápidos (NeoGeo, CPS1/CPS2, juegos de lucha...).
+            Cada dispositivo predice la entrada del otro y sigue jugando de
+            inmediato; si la predicción resulta errónea cuando llega la entrada
+            real, rebobina silenciosamente unos fotogramas y los vuelve a
+            simular con la entrada correcta. La mayor parte del tiempo no notas
+            ningún retardo. Cuesta más CPU/batería que Lockstep y necesita RAM
+            extra para mantener un breve historial de estados guardados a los
+            que rebobinar.
+        </li>
+      </ul>
+
+      <h3>Retardo de entrada</h3>
+      <p>Ambos modos ocultan la latencia de red retrasando la entrada local unos
+      fotogramas antes de que surta efecto (para que llegue al mismo tiempo que
+      la entrada del otro jugador), en lugar de aplicarla al instante. Por
+      defecto está en <strong>Auto</strong>: MAME4droid mide el ping de tu
+      conexión y ajusta el retardo por sí solo, así que no necesitas tocar
+      nada. Funciona un poco distinto según el modo:</p>
+      <ul>
+        <li>En <strong>Rollback</strong>, Auto sigue continuamente alrededor de
+            la mitad del tiempo de ida y vuelta, dentro de límites seguros
+            &mdash; se mantiene bajo, ya que la propia predicción/rebobinado del
+            rollback absorbe la latencia que el retardo no cubra.
+        </li>
+        <li>En <strong>Lockstep</strong>, Auto ajusta en pasos ocasionales
+            (programados para caer en el mismo fotograma para ambos
+            dispositivos), reaccionando a cambios sostenidos de latencia en
+            lugar de a cada pequeña fluctuación del ping.
+        </li>
+      </ul>
+      <p>Si prefieres no dejarlo en Auto, <em>Opciones-&gt;Ajustes-&gt;NetPlay-&gt;Retardo
+      de NetPlay</em> te permite fijarlo a un valor concreto (de 1 a 6
+      fotogramas). Como con el modo, esto lo decide efectivamente el
+      <strong>Anfitrión</strong>: una vez conectado, el Cliente adopta el
+      retardo que el Anfitrión acabe usando para la sesión.</p>
+
+      <h3>Compatibilidad de Rollback y cambio automático</h3>
+      <p>Rollback necesita guardar/restaurar el estado completo de la máquina
+      muchas veces por segundo, así que no es igual de adecuado para todos los
+      juegos. MAME4droid lo comprueba automáticamente al inicio de una sesión de
+      Rollback y cambia a Lockstep (con un aviso en pantalla) cuando es
+      necesario &mdash; no tienes que hacer nada:</p>
+      <ul>
+        <li><strong>Estado demasiado grande:</strong> los juegos con mucha RAM
+            (por ejemplo los que usan disco duro/CHD) producen un estado
+            guardado demasiado grande como para mantener muchas copias en
+            memoria. Si no cabe en el presupuesto de RAM configurado, esa sesión
+            se ejecuta automáticamente en Lockstep.
+        </li>
+        <li><strong>Distinto diseño de estado entre dispositivos:</strong> los
+            dos dispositivos deben registrar exactamente los mismos datos
+            internos de guardado para el driver (misma versión/compilación de
+            MAME4droid). Si se detecta una discrepancia antes de intercambiar el
+            estado del juego, ambos cambian a Lockstep en lugar de arriesgarse a
+            una desincronización silenciosa.
+        </li>
+      </ul>
+
+      <h3>Juegos con problemas conocidos con Rollback</h3>
+      <p>Un puñado de juegos leen un control analógico (volante, spinner/paleta,
+      pedales) a través de un chip secundario (una MCU de protección o una
+      segunda CPU de sonido) que lo consulta con precisión de temporización de
+      hardware en lugar de una vez por fotograma. El rebobinar-y-repetir del
+      Rollback puede entonces captar una lectura analógica ligeramente distinta
+      de la de la ejecución original, lo que puede manifestarse como una
+      desincronización ocasional en estos juegos:</p>
+      <ul>
+        <li><strong>Arkanoid</strong> (y clones/bootlegs que comparten su
+            hardware de paleta + MCU de protección)
+        </li>
+        <li><strong>Familia Buggy Boy / Buggy Boy Jr. / TX-1</strong> (volante +
+            pedales leídos por una segunda CPU de sonido)
+        </li>
+      </ul>
+      <p>Si notas desincronizaciones en un juego así, elige <strong>Lockstep</strong>
+      para él &mdash; Lockstep nunca rebobina ni vuelve a simular, así que esta
+      clase de problema no puede ocurrir allí. Otros juegos con hardware similar
+      (controles analógicos de dial/paleta/volante/pedal leídos fuera de la ruta
+      normal de entrada por fotograma) podrían mostrar el mismo comportamiento.</p>
+
+      <h3>Indicador de estadísticas de conexión</h3>
+      <p>Mientras una sesión está activa, puede mostrarse opcionalmente un pequeño
+      indicador de ping/retardo en la parte inferior de la pantalla: modo actual,
+      ping (tiempo de ida y vuelta) y retardo de entrada, coloreado en
+      <strong>verde</strong> para una buena conexión, <strong>amarillo</strong>
+      para una aceptable y <strong>rojo</strong> para una mala. Se actualiza cada
+      pocos segundos y desaparece automáticamente al terminar la sesión. Actívalo
+      en <em>Opciones-&gt;Ajustes-&gt;NetPlay-&gt;Mostrar estadísticas de
+      conexión</em> (desactivado por defecto).</p>
+
+      <h3>Detector de desincronización</h3>
+      <p>Por defecto, una sesión de Rollback también ejecuta una comprobación en
+      segundo plano que compara una suma de comprobación periódica del estado
+      entre ambos dispositivos. Si alguna vez detecta que las dos pantallas han
+      divergido de verdad, muestra un breve aviso rojo indicando que el juego
+      actual puede no ser seguro para Rollback &mdash; esa es tu señal para probar
+      <strong>Resincronizar</strong> o cambiar esa sesión a <strong>Lockstep</strong>.
+      La comprobación cuesta un poco de CPU extra cada fotograma; si prefieres
+      ahorrar ese coste en un dispositivo antiguo y te vale renunciar al aviso,
+      desactívalo en <em>Opciones-&gt;Ajustes-&gt;NetPlay-&gt;Detector de
+      desincronización</em>.</p>
+
+      <h3>Crear una partida</h3>
+      <ul>
+        <li>Abre el diálogo de NetPlay y toca <strong>Iniciar partida</strong>.</li>
+        <li>Elige <strong>Lockstep</strong> o <strong>Rollback</strong> para esta sesión.</li>
+        <li>MAME4droid abre un puerto de escucha (configurable en
+            <em>Opciones-&gt;Ajustes-&gt;Puerto de NetPlay</em>, por defecto
+            2080) y la pantalla de espera muestra tus direcciones, cada una
+            etiquetada con su uso: <em>tu IP local</em> para un jugador en la
+            misma Wi-Fi/red, <em>tu IP pública</em> para un jugador que se une
+            por internet &mdash; el botón <strong>Compartir</strong> las envía a
+            través de cualquier mensajería, listas para pegar en el cuadro de
+            unirse del otro jugador.
+        </li>
+        <li>Carga/selecciona el juego que quieres jugar; en cuanto el Cliente se
+            conecta, se lanzará automáticamente en ambos dispositivos.
+        </li>
+      </ul>
+
+      <h3>Unirse a una partida</h3>
+      <ul>
+        <li>Abre el diálogo de NetPlay y toca <strong>Unirse a partida</strong>.</li>
+        <li>Introduce la dirección IP del Anfitrión (y asegúrate de que ambos
+            usáis el mismo puerto).
+        </li>
+        <li>Eso es todo &mdash; no hay modo que elegir. En cuanto se establece la
+            conexión, tu dispositivo adopta el modo del Anfitrión y carga
+            automáticamente el juego seleccionado por el Anfitrión.
+        </li>
+      </ul>
+      <p><strong>Nota:</strong> ambos dispositivos deben ser alcanzables en la
+      misma red (misma Wi-Fi, o enrutados de forma que el puerto elegido esté
+      abierto entre ellos), necesitan exactamente el mismo archivo de ROM y
+      deben ejecutar la misma versión de MAME4droid &mdash; una discrepancia de
+      versión se detecta y la conexión se rechaza con un aviso en lugar de
+      arriesgar una desincronización silenciosa.</p>
+
+      <h3>Juego por internet (sin servidor)</h3>
+      <p>Dos jugadores en redes diferentes pueden conectarse directamente
+      intercambiando direcciones por cualquier mensajería &mdash; sin cuenta,
+      sala ni servidor. Crear la partida funciona exactamente igual que en una
+      LAN: toca <strong>Iniciar partida</strong> y lee la pantalla de espera
+      &mdash; te dice qué compartir y qué hacer a continuación.</p>
+      <p><strong>El caso habitual es automático (UPnP):</strong> mientras haces
+      de anfitrión, MAME4droid pide a tu router que abra el puerto de NetPlay
+      por sí solo. Si la pantalla de espera dice <em>Puerto del router mapeado
+      (UPnP)</em>, solo toca <strong>Compartir</strong> y envía tus direcciones
+      al otro jugador: él toca <strong>Unirse a partida</strong> y pega la de
+      internet. Eso es todo &mdash; funciona incluso si el otro jugador está con
+      datos móviles. El mapeo se elimina al terminar la sesión; la función se
+      puede desactivar en <em>Opciones-&gt;Ajustes-&gt;NetPlay-&gt;Mapeo de
+      puertos UPnP</em>.</p>
+      <p><strong>Si UPnP no está disponible</strong> (la línea no aparece, o la
+      unión no se establece), MAME4droid puede aún hacer «hole punching» a través
+      de ambos routers. El punching necesita que las direcciones se intercambien
+      en AMBOS sentidos:</p>
+      <ul>
+        <li><strong>Paso 1 (Anfitrión):</strong> toca <strong>Compartir</strong>
+            en la pantalla de espera y envía tus direcciones al otro jugador.</li>
+        <li><strong>Paso 2 (Cliente):</strong> únete a la dirección pública del
+            Anfitrión; luego toca <strong>Compartir</strong> en la pantalla de
+            conexión para enviar tu propia dirección pública al Anfitrión.</li>
+        <li><strong>Paso 3 (Anfitrión):</strong> toca <strong>IP compañero</strong>
+            en la pantalla de espera y pega la dirección del Cliente. La conexión
+            suele establecerse en unos segundos.</li>
+      </ul>
+      <p><strong>Requisitos y limitaciones:</strong></p>
+      <ul>
+        <li>Funciona entre la mayoría de routers <strong>Wi-Fi domésticos</strong>.
+            Con <strong>datos móviles</strong> (4G/5G) el hole punching suele
+            fallar: el CGNAT del operador tiende a cambiar el puerto público en
+            cada conexión &mdash; incluso cuando no se mostró aviso de simétrico.
+            Un jugador con datos móviles <em>sí</em> puede unirse a un Anfitrión
+            cuyo puerto esté abierto (UPnP arriba, o el método manual de abajo).</li>
+        <li>Si aparece <em>NAT simétrico detectado</em>, el juego por internet
+            puede fallar &mdash; inténtalo igualmente, o usa el método de abrir
+            puertos.</li>
+        <li>Los routers estrictos o de gaming (cortafuegos SPI &mdash; p. ej.
+            ASUS TUF/ROG) pueden descartar silenciosamente las conexiones
+            punteadas aunque ambos NAT parezcan correctos. Si los ajustes del
+            router ofrecen una opción de tipo de NAT, elige <em>Full Cone</em>;
+            si no, usa el método de abrir puertos.</li>
+        <li>Si <strong>ambos</strong> jugadores están tras CGNAT (sin IPv4
+            pública accesible en ninguno de los extremos), ni el hole punching ni
+            el abrir puertos pueden funcionar. Es una limitación del ISP, no un
+            fallo de la app; pide a tu ISP una IPv4 pública o juega en una red que
+            tenga una.</li>
+        <li>Espera un ping mayor que en una LAN &mdash; el modo Rollback es muy
+            recomendable.</li>
+        <li>Si ambos dispositivos están en la <em>misma</em> Wi-Fi, usa el flujo
+            local normal (IP local), no las direcciones públicas.</li>
+      </ul>
+      <p><strong>Método que siempre funciona:</strong> el Anfitrión redirige el
+      puerto UDP 2080 a su dispositivo en su router (los routers lo llaman
+      Servidor Virtual, Redirección de Puertos, o un perfil de juego <em>Open
+      NAT</em>) y comparte su IP pública; el Cliente simplemente se une a ella.
+      Solo el router del Anfitrión necesita esto &mdash; también permite jugar a
+      un Cliente con datos móviles. Es el equivalente manual de UPnP, para
+      routers donde UPnP está desactivado o roto.</p>
+
+      <h3>Durante la partida</h3>
+      <ul>
+        <li><strong>Resincronizar:</strong> en una sesión de Rollback en vivo, el
+            diálogo de NetPlay ofrece un botón <strong>Resincronizar</strong>.
+            Fuerza a ambos dispositivos a congelarse un momento mientras el
+            Anfitrión reenvía su estado exacto del juego al Cliente, devolviendo
+            ambas máquinas a la sincronía. Úsalo si alguna vez notas que las dos
+            pantallas han divergido visiblemente. No es necesario (ni se muestra)
+            en Lockstep, ya que Lockstep no puede desincronizarse.
+        </li>
+        <li><strong>Desconectar:</strong> finaliza la sesión de NetPlay en ambos
+            dispositivos y vuelve al juego normal sin conexión.
+        </li>
+      </ul>
+
+      <h3>Consejos</h3>
+      <ul>
+        <li>Una conexión Wi-Fi estable importa mucho más que la velocidad bruta
+            &mdash; un enlace estable de 2.4GHz a menudo funciona mejor que uno
+            de 5GHz congestionado.
+        </li>
+        <li>Mantén las pantallas de ambos dispositivos encendidas y la app en
+            primer plano durante la sesión; enviarla al fondo puede pausar la
+            conexión.
+        </li>
+        <li>Si Rollback va a tirones en un juego concreto, prueba a cambiar esa
+            sesión a Lockstep &mdash; cierto hardware (ver arriba) simplemente no
+            es buen candidato para rollback.
+        </li>
+      </ul>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Volver</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

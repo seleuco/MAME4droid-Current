@@ -293,7 +293,7 @@ public class MainHelper {
                 deleteRecursive(f1);
                 deleteRecursive(f2);
 
-                Toast.makeText(mm, "Deleted MAME cfg and NVRAM files...",
+                Toast.makeText(mm, mm.getString(R.string.deleted_cfg_files),
                         Toast.LENGTH_LONG).show();
             }
 
@@ -320,7 +320,7 @@ public class MainHelper {
             fm.mkdirs();
             fm.createNewFile();
 
-			pw = new WarnWidget(mm,"Installing files, ","please wait...", Color.WHITE,false,true);
+			pw = new WarnWidget(mm, mm.getString(R.string.installing_title), mm.getString(R.string.installing_wait), Color.WHITE,false,true);
 			pw.init();
 
             // Create a ZipInputStream to read the zip file
@@ -342,7 +342,7 @@ public class MainHelper {
                         throw new SecurityException("Error zip!!!!");
                     }
 
-					pw.notifyText("Installing: "+f.getName());
+					pw.notifyText(mm.getString(R.string.installing_file, f.getName()));
 
                     String destination = zip_dir;
                     String destFN = destination + File.separator + entry.getName();
@@ -377,15 +377,11 @@ public class MainHelper {
             if (!dir.endsWith("/")) dir += "/";
             String rompath = mm.getPrefsHelper().getROMsDIR() != null && mm.getPrefsHelper().getROMsDIR() != "" ? mm
                     .getPrefsHelper().getROMsDIR() : dir + "roms";
-            String msg =
-                    "Created or updated: '"
-                            + dir
-                            + "' to store save states, cfg files and MAME assets.\n\nNote, copy or move your zipped ROMs under '"
-                            + rompath
-                            + "' directory!\n\nIMPORTANT: MAME4droid (Current) uses only "+ mm.getString(R.string.mame_version) +" MAME romset, not 0.139.";
+            String msg = mm.getString(R.string.created_updated_msg,
+                    dir, rompath, mm.getString(R.string.mame_version));
 
 			if(mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_METAQUEST){
-				msg = "Welcome to MAME4droid for META Quest!\n\nYou should pair an XBOX One controller on your META Quest to be able to play games but you can play lightgun games with your touch controllers.\n\n"+msg;
+				msg = mm.getString(R.string.welcome_quest) + msg;
 			}
 
             //if (mm.getPrefsHelper().getSAF_Uri()!=null)
@@ -471,6 +467,9 @@ public class MainHelper {
 
 		Emulator.setValue(Emulator.VECTOR_IMPROVED,
 			prefsHelper.isVectorBloom() ? 1 : 0);
+
+		Emulator.setValue(Emulator.FORCE_UNIFONT,
+			prefsHelper.isForceUnifont() ? 1 : 0);
 
         Emulator.setValue(Emulator.SHOW_FPS,
                 prefsHelper.isFPSShowed() ? 1 : 0);
@@ -677,8 +676,7 @@ public class MainHelper {
             if (ControlCustomizer.isEnabled() && !Emulator.isPortraitFull()) {
                 ControlCustomizer.setEnabled(false);
                 mm.getDialogHelper()
-                        .setInfoMsg(
-                                "Control layout customization is only allowed in fullscreen mode");
+                        .setInfoMsg(mm.getString(R.string.layout_custom_fullscreen_only));
                 mm.showDialog(DialogHelper.DIALOG_INFO);
             }
         } else {
@@ -764,8 +762,7 @@ galaxy sde	   --> 2560x1600 16:10
                 && ControlCustomizer.isEnabled()) {
             ControlCustomizer.setEnabled(false);
             mm.getDialogHelper()
-                    .setInfoMsg(
-                            "Control layout customization is only allowed when touch controller is visible");
+                    .setInfoMsg(mm.getString(R.string.layout_custom_controller_visible));
             mm.showDialog(DialogHelper.DIALOG_INFO);
         }
 
@@ -799,13 +796,7 @@ galaxy sde	   --> 2560x1600 16:10
         // mm.startActivityForResult(i2, MainHelper.SUBACTIVITY_HELP);
         if (mm.getMainHelper().isAndroidTV()) {
             mm.getDialogHelper()
-                    .setInfoMsg(
-                            "When MAME4droid is first run, it will create a folder structure for you on the internal memory of your Android device. This folder contains all the other folders MAME uses as well as some basic configuration files."
-                                    + "Since MAME4droid does not come with game ROM files, you will need to copy them to (You can change it in options to external storage if your device allows it) '/storage/emulated/0/Android/media/com.seleuco.mame4d2024/roms' folder (" +
-                                    "the one that applies) yourself. These should be properly named, ZIPped MAME v0.272 ROMs files with the filenames in all lower case.\n\nImportant: You should define or map your Android TV game controller on 'options/settings/input/External controller/define Keys' to avoid this help screen constantly showing if the controller is not auto detected.\n\n"
-                                    + "Controls: Buttons A,B,C,D,E,F on the controller map to buttons Button MAME 1 to 6 buttons."
-                                    + " Coin button inserts coin/adds credit.START button starts 1P game. A+START is fast forward. B+START is toggle UI controls. START+A+B is service mode. SELECT+A+B is soft reset. Use SELECT(coin) or START for UI navigation."
-                                    + "R1 + START loads a save state. L1 + START saves a save state. START + SELECT when gaming accesses the game's MAME menu (dip switches, etc)...");
+                    .setInfoMsg(mm.getString(R.string.tv_help));
             mm.showDialog(DialogHelper.DIALOG_INFO);
         } else {
 

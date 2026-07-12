@@ -76,16 +76,16 @@ public class EditTextPrefWithWarn extends EditTextPreference {
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setMessage("Are you sure? (app restart needed)")
+        builder.setMessage(context.getString(com.seleuco.mame4droid.R.string.are_you_sure_restart))
                 .setCancelable(false)
-                .setPositiveButton("Yes",
+                .setPositiveButton(context.getString(com.seleuco.mame4droid.R.string.yes),
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
                                 EditTextPrefWithWarn.super.onDialogClosed(true);
                                 Emulator.setNeedRestart(true);
                             }
                         })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                .setNegativeButton(context.getString(com.seleuco.mame4droid.R.string.no), new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         EditTextPrefWithWarn.super.onDialogClosed(false);
                     }

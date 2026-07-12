@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>MAME4Droid Reloaded 帮助</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">安装</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <h3>首次运行：ROM 存放位置</h3>
+        <p>首次启动 MAME4droid 时，它会询问您想将 ROM 文件（以及 MAME 的其余数据：artwork、采样、存档等）
+            存放在哪里。您有两个选择：</p>
+        <ul>
+            <li><strong>内部：</strong>MAME4droid 在其自己的私有应用存储中创建一个空文件夹并使用它。然后您
+                自行将 ROM 复制进去，可以通过 USB/ADB 从电脑复制，或使用能浏览应用私有文件夹的文件管理器
+                应用。卸载应用时这些数据会自动删除。
+            </li>
+            <li><strong>外部存储：</strong>您使用 Android 标准文件夹选择器在设备上的任意位置（SD 卡、您已用于
+                存放 ROM 的文件夹、云同步文件夹等）选择一个现有文件夹。MAME4droid 请求 Android 授予读写该
+                文件夹的权限，并记住以备下次使用。这些数据在卸载应用后仍会保留，您可以用任意普通文件管理器
+                自由地移入移出文件，无需电脑。
+            </li>
+        </ul>
+        <p><strong>重要：</strong>使用<em>外部存储</em>时，您选择的文件夹<em>就是</em>您的 ROM 文件夹本身
+            &mdash; MAME4droid <em>不会</em>在其中创建 <em>roms</em> 子文件夹。请将压缩为 ZIP 的 ROM 文件直接
+            放入您选择的文件夹。在同一文件夹内，您还可以自行创建这些可选子文件夹：</p>
+        <p><em>artwork/</em> 用于您的边框/招牌 artwork 套件<br>
+            <em>samples/</em> 用于声音采样<br>
+            <em>software/</em> 用于软件列表媒体（带可移除软件的非街机系统使用的磁带/磁盘映像，如 8 位家用
+            电脑）<br>
+            <em>sta/</em> 用于存档，仅当您同时启用<em>存档保存在 ROM 路径</em>时（见下文）</p>
+        <p>其他所有内容（MAME 配置、高分、NVRAM、快照）始终保留在 MAME4droid 自己的内部数据中，无论您的 ROM
+            存放在哪里。</p>
+        <p>使用<em>内部</em>存储时，MAME4droid 则会在其自己的私有应用存储中创建下面完整的文件夹树（包括
+            <em>roms/</em> 子文件夹）。</p>
+
+        <h3>关于文件夹选择器（Storage Access Framework）</h3>
+        <p>自 Android 10 起，应用不再被允许在共享存储的任意位置自由读写 &mdash; 它们只能访问用户通过 Android
+            自己的选择器明确授予的文件夹（这称为 Storage Access Framework，即 SAF）。这就是您在上面选择
+            <em>外部存储</em>，或稍后更改 ROM 文件夹时打开的选择器。它比直接文件访问稍慢，但 MAME4droid 会
+            缓存文件列表，因此一旦您的 ROM 建立索引，日常使用中仍保持快速。</p>
+        <p><strong>提示：</strong>保持您的 ROM 文件夹扁平（不要将 ROM 埋在子文件夹中），也不要混入无关的、
+            未压缩的文件 &mdash; 该文件夹实际上应只包含您压缩为 ZIP 的 MAME ROM 集。</p>
+
+        <h3>稍后更改 ROM 位置</h3>
+        <p>您无需一次就选对。前往<em>选项-&gt;设置-&gt;常规-&gt;更改 ROM 路径</em>再次运行相同的内部/外部存储
+            选择（之后应用会重启）。如果您切换到新的外部文件夹，请记得先将您的 ROM 文件实际移动或复制过去。</p>
+        <p>如果您希望存档与外部存储上的 ROM 一起存放（这样您最终卸载时 Android 不会清理它们），请启用
+            <em>选项-&gt;设置-&gt;常规-&gt;存档保存在 ROM 路径</em>。</p>
+
+        <h3>高级：迁移整个安装</h3>
+        <p>与您的 ROM 文件夹分开，有经验的用户可以在<em>选项-&gt;设置-&gt;高级-&gt;安装路径</em>中将 MAME4droid
+            的整个数据文件夹（不仅是 ROM，还有下面列出的每个配置/支持文件夹）迁移到特定路径。此项是手动输入
+            而非选择的，仅供高级使用：输入一个有效但非预期的路径会使 MAME4droid 将其视为全新的空安装。除非
+            您确实需要，否则请勿改动。</p>
+
+        <h3>文件夹布局</h3>
+        <p>这是 MAME4droid 的内部数据文件夹树（使用<em>内部</em>存储时按原样使用；使用<em>外部存储</em>时，
+            如上所述，只有下面的 <em>roms/artwork/samples/software</em> 实际位于您选择的文件夹中，且那里的
+            文件夹名不带结尾斜杠）。它与桌面 MAME 使用的布局相同，因此您可以复用现有的 artwork/采样集合。请查看
+            <a class="link" href="external.htm" rel="external">资源和素材</a>部分了解在哪里找到这些素材，以及
+            <a class="link" href="games.htm" rel="external">支持的游戏</a>了解 ROM 命名规则。</p>
+        <p>artwork/ -&gt; Artwork 目录<br>
+            cfg/ -&gt; MAME 配置文件目录<br>
+            hi/ -&gt; 高分目录<br>
+            nvram/ -&gt; NVRAM 文件目录<br>
+            roms/ -&gt; ROM 目录<br>
+            samples/ -&gt; 采样目录<br>
+            snap/ -&gt; 屏幕快照目录<br>
+            sta/ -&gt; 存档目录</p>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">返回</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

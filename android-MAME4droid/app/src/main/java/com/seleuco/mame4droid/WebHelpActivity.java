@@ -62,6 +62,12 @@ public class WebHelpActivity extends Activity {
 	WebView lWebView = null;
 
 	@Override
+	protected void attachBaseContext(android.content.Context newBase) {
+		com.seleuco.mame4droid.helpers.LocaleHelper.applyLocale(this, newBase);
+		super.attachBaseContext(newBase);
+	}
+
+	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 
 		super.onCreate(savedInstanceState);
@@ -81,7 +87,15 @@ public class WebHelpActivity extends Activity {
 			path += "/";
 
 		//lWebView.loadUrl("file:///" +  path +"help/index.htm");
-		lWebView.loadUrl("file:///android_asset/index.htm");
+		/* Use the localized help only if that folder is actually bundled;
+		 * otherwise fall back to the English help at the assets root, so a
+		 * language without translated help still opens (English) instead of
+		 * a broken page. */
+		String helpFolder = com.seleuco.mame4droid.helpers.LocaleHelper.getHelpAssetFolder(this);
+		if (!helpFolder.isEmpty() && !assetExists(helpFolder + "/index.htm"))
+			helpFolder = "";
+		lWebView.loadUrl("file:///android_asset/"
+				+ (helpFolder.isEmpty() ? "" : helpFolder + "/") + "index.htm");
 
 		// attempt to fix FileUriExposedException
 		//https://stackoverflow.com/questions/40560604/navigating-asset-based-html-files-in-webview-on-nougat
@@ -94,37 +108,58 @@ public class WebHelpActivity extends Activity {
         };
         lWebView.setWebViewClient(client);
         */
-		if (android.os.Build.VERSION.SDK_INT >= 24) {
-			lWebView.setWebViewClient(new WebViewClient() {
-				@Override
-				public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest webResourceRequest) {
-					if (webResourceRequest.getUrl().getScheme().equals("file")) {
-						webView.loadUrl(webResourceRequest.getUrl().toString());
-					} else {
-						// If the URI is not pointing to a local file, open with an ACTION_VIEW Intent
-						webView.getContext().startActivity(new Intent(Intent.ACTION_VIEW, webResourceRequest.getUrl()));
-					}
-					return true; // in both cases we handle the link manually
+		lWebView.setWebViewClient(new WebViewClient() {
+			@Override
+			public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest webResourceRequest) {
+				if (webResourceRequest.getUrl().getScheme().equals("file")) {
+					webView.loadUrl(webResourceRequest.getUrl().toString());
+				} else {
+					// If the URI is not pointing to a local file, open with an ACTION_VIEW Intent
+					webView.getContext().startActivity(new Intent(Intent.ACTION_VIEW, webResourceRequest.getUrl()));
 				}
-			});
-		} else {
-			lWebView.setWebViewClient(new WebViewClient() {
-				@Override
-				public boolean shouldOverrideUrlLoading(WebView webView, String url) {
-					if (Uri.parse(url).getScheme().equals("file")) {
-						webView.loadUrl(url);
-					} else {
-						// If the URI is not pointing to a local file, open with an ACTION_VIEW Intent
-						webView.getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-					}
-					return true; // in both cases we handle the link manually
+				return true; // in both cases we handle the link manually
+			}
+
+			/* Per-asset fallback: a page or the shared stylesheet missing from
+			 * the localized help folder is served from the English root, so a
+			 * partially translated language still renders correctly. */
+			@Override
+			public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				android.net.Uri uri = request.getUrl();
+				if (!"file".equals(uri.getScheme())) return null;
+				String p = uri.getPath();
+				final String base = "/android_asset/";
+				int i = (p == null) ? -1 : p.indexOf(base);
+				if (i < 0) return null;
+				String rel = p.substring(i + base.length());
+				if (assetExists(rel)) return null; // real localized asset: let it load
+				int slash = rel.indexOf('/');
+				if (slash < 0 || !rel.substring(0, slash).startsWith("help-")) return null;
+				String english = rel.substring(slash + 1); // drop help-xx/ prefix
+				try {
+					String mime = english.endsWith(".css") ? "text/css"
+							: english.endsWith(".htm") || english.endsWith(".html") ? "text/html"
+							: "application/octet-stream";
+					return new android.webkit.WebResourceResponse(mime, "utf-8", getAssets().open(english));
+				} catch (java.io.IOException e) {
+					return null;
 				}
-			});
-		}
+			}
+		});
 
 		lWebView.requestFocus();
 	}
 
+
+	/* True if the given path exists under the APK assets (used to decide
+	 * whether a localized help folder was actually bundled). */
+	private boolean assetExists(String assetPath) {
+		try (java.io.InputStream is = getAssets().open(assetPath)) {
+			return true;
+		} catch (java.io.IOException e) {
+			return false;
+		}
+	}
 
 	public void onBackPressed() {
 

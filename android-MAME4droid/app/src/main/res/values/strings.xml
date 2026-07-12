@@ -1,16 +1,501 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App -->
+    <string name="app_name" translatable="false">MAME4droid (Current)</string>
+    <string name="mame_version" translatable="false">0.288</string>
+    <string name="label_settings">MAME4droid Settings</string>
+    <string name="label_help">MAME4droid Help</string>
+    <string name="label_define_buttons">MAME4droid Define Buttons</string>
+    <string name="label_controller_buttons">MAME4droid Controller Buttons</string>
+    <string name="label_select_key">Select Key</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="cancel">Cancel</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="error">Error</string>
+    <string name="info">Info</string>
+    <string name="current_value_is">Current value is \'%1$s\'</string>
+    <string name="are_you_sure_restart">Are you sure? (app restart needed)</string>
+    <string name="are_you_sure_restore">Are you sure to restore?</string>
+    <string name="don_t_bother">Don\'t ask again</string>
+
+    <!-- Options menu -->
     <string name="menu_options">Options</string>
     <string name="menu_quit_game">Exit Game</string>
     <string name="menu_quit">Exit App</string>
-    <string name="app_name">MAME4droid (Current)</string>
-    <string name="don_t_bother">Don\'t ask again</string>
-	<string name="mame_version">0.288</string>
+    <string name="menu_choose_option">Choose an option from the menu.</string>
+    <string name="opt_exit">Exit</string>
+    <string name="opt_help">Help</string>
+    <string name="opt_load_state">Load State</string>
+    <string name="opt_save_state">Save State</string>
+    <string name="opt_settings">Settings</string>
+    <string name="opt_keyboard">Keyboard</string>
+
+    <!-- DialogHelper -->
+    <string name="dlg_save_changes">Do you want to save changes?</string>
+    <string name="dlg_roms_message">Where do you have stored or want to store your ROM files?\n\nBy default, an empty internal folder will be used (but you should manually copy your ROMs files there using a PC). You can also select a folder with ROMs files from your external storage which will need to be authorized in the next step so MAME4droid can read the ROMS from it.\n\nAlso, if you select an external storage folder, your ROMs files will not be deleted when the app is uninstalled and you can use an Android file manager to move your ROMs there without needing a PC.</string>
+    <string name="dlg_roms_internal">Internal</string>
+    <string name="dlg_roms_external">External Storage</string>
+    <string name="dlg_no_doc_picker">Your device doesn\'t have the native android file manager needed to authorize external storage reading.</string>
+    <string name="dlg_no_doc_picker_tv">\n\nSome Android TV devices don\'t include the OS document picker which is needed to grant folder permissions for the apps on Android 11+. As an alternative, select default which use the App Media Folder which is supported on all devices and is created at Android/media/[app package name]. Move any emulator files into that folder with a file manager so the app can access them without any special permissions.</string>
+    <string name="dlg_exit_message">Are you sure you want to exit from app?</string>
+    <string name="dlg_restart_title">Restart needed!</string>
+    <string name="dlg_restart_message">MAME4droid needs to restart for the changes to take effect.</string>
+    <string name="dlg_no_permissions_title">No permissions!</string>
+    <string name="dlg_no_permissions_message">You don\'t have permission to read from external storage. Please, allow storage permission on Android applications settings.</string>
+
+    <!-- NetPlay UI -->
     <string name="netplay">NetPlay</string>
     <string name="connection">Connection</string>
     <string name="start_game">Start Game</string>
-	<string name="join_peer_game">Join peer game</string>
-	<string name="disconnect">Disconnect</string>
-	<string name="resync">Resync game state</string>
-</resources>
+    <string name="join_peer_game">Join peer game</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="resync">Resync game state</string>
+    <string name="np_dialog_title">Peer-To-Peer NetPlay</string>
+    <string name="np_start_game">Start game</string>
+    <string name="np_start_game_named">Start game: %1$s</string>
+    <string name="np_mode_title">NetPlay Mode</string>
+    <string name="np_mode_lockstep">Lockstep  (guaranteed sync)</string>
+    <string name="np_mode_rollback">Rollback  (low-latency, ideal for NeoGeo/CPS)</string>
+    <string name="np_peer_ip_title">Peer public IP[:port]</string>
+    <string name="np_enter_peer_ip">Enter peer IP address (ip or ip:port):</string>
+    <string name="np_join_hint">Or paste the shared invite (public/private).</string>
+    <string name="np_peer_ip_hint">Or paste the peer\'s shared message (their public IP).</string>
+    <string name="clear">Clear</string>
+    <string name="paste">Paste</string>
+    <string name="np_invalid_ip">Connection canceled: Invalid IP address.</string>
+    <string name="np_invalid_port">Connection canceled: Invalid port.</string>
+    <string name="np_no_network">Connection canceled: No network available.</string>
+    <string name="np_disconnected_game">NetPlay: Disconnected from the game.</string>
+    <string name="np_resync_unavailable">NetPlay: Resync not available.</string>
+    <string name="np_error_init">NetPlay: Critical error initializing network.</string>
+    <string name="np_connected">NetPlay: Connected successfully! Starting game...</string>
+    <string name="np_press_back_cancel">Press back to cancel</string>
+    <string name="np_waiting_peer">Waiting for peer...</string>
+    <string name="np_getting_info">Getting network info...</string>
+    <string name="np_connecting_to">Connecting to :%1$s</string>
+    <string name="np_btn_share">Share</string>
+    <string name="np_btn_peer_ip">Peer IP</string>
+    <string name="np_lan_connect_body">Local network game: connecting directly on your Wi-Fi / network.\n\nMake sure both devices are on the same network and use the same port.</string>
+    <string name="np_upnp_fallback_hint">Internet play: if the other player can\'t reach your public IP, tap Peer IP and enter THEIR public address, or forward UDP %1$d on your router.</string>
+    <string name="np_upnp_mapped">Router port mapped (UPnP): peers can join your public IP directly.</string>
+    <string name="np_local_ip">Your local IP (for same-network play): %1$s</string>
+    <string name="np_mobile_only">Mobile data only: no local network (internet play only)</string>
+    <string name="np_tap_share">Tap Share to send these addresses via any messenger.</string>
+    <string name="np_public_ip">Your public IP (for internet play): %1$s</string>
+    <string name="np_symmetric_nat">Symmetric NAT detected. Internet play may fail.</string>
+    <string name="np_public_unavailable">Your public IP: unavailable (internet play may need port forwarding)</string>
+    <string name="np_same_public_ip">Same public IP as the host: you seem to be on their network -- join their LOCAL IP instead.</string>
+    <string name="np_share_hint_client">If the connection won\'t land: tap Share and send this address to the host (their Peer IP button).</string>
+    <string name="np_share_title">Share NetPlay address</string>
+    <string name="np_share_header">MAME4droid NetPlay</string>
+    <string name="np_share_same_network">Same network: %1$s</string>
+    <string name="np_share_internet">Internet: %1$s</string>
 
+    <!-- NetPlay native messages: keys arrive from C++ as "@np_msg_x|arg..."
+         through the warn channel and are resolved here (see Emulator.netplayWarn) -->
+    <string name="np_msg_peer_paused">NetPlay: Peer is paused, please wait...</string>
+    <string name="np_msg_incompatible">NetPlay: incompatible app builds (local v%1$s / peer v%2$s). Update BOTH devices to the same version.</string>
+    <string name="np_msg_desync_rollback">NetPlay: desync detected -- this game may not be Rollback-safe. Try Resync, or switch to Lockstep.</string>
+    <string name="np_msg_desync">NetPlay: desync detected.</string>
+    <string name="np_msg_state_sync_failed">NetPlay: initial state sync failed (state too large: %1$s MB). Session may desync.</string>
+    <string name="np_msg_host_running">NetPlay: host is running \'%1$s\', loading it.</string>
+    <string name="np_msg_peer_resync">NetPlay: peer requested a resync, syncing game state...</string>
+    <string name="np_msg_not_rollback_compatible">NetPlay: this game\'s savestate is not rollback-compatible across devices. Using lockstep mode.</string>
+    <string name="np_msg_sync_timeout">NetPlay: initial sync timed out. Resuming offline.</string>
+    <string name="np_msg_resyncing">NetPlay: resyncing game state...</string>
+    <string name="np_msg_state_too_large">NetPlay: savestate too large for rollback (%1$s MB). Using lockstep mode.</string>
+    <string name="np_msg_disconnected">NetPlay: Disconnected.</string>
+    <string name="np_msg_rom_error">NetPlay: Error loading ROM. Disconnected.</string>
+    <string name="np_msg_connection_lost">NetPlay: Connection lost. Resuming offline play...</string>
+    <string name="np_msg_peer_disconnected">NetPlay: Peer disconnected. Resuming offline play...</string>
+    <string name="np_msg_send_failed">NetPlay: Failed to send data.\nError: %1$s</string>
+    <string name="np_msg_bind_failed">NetPlay: Failed to bind socket.\nError: %1$s</string>
+
+    <!-- MainHelper -->
+    <string name="deleted_cfg_files">Deleted MAME cfg and NVRAM files...</string>
+    <string name="installing_title">Installing files, </string>
+    <string name="installing_wait">please wait...</string>
+    <string name="installing_file">Installing: %1$s</string>
+    <string name="created_updated_msg">Created or updated: \'%1$s\' to store save states, cfg files and MAME assets.\n\nNote, copy or move your zipped ROMs under \'%2$s\' directory!\n\nIMPORTANT: MAME4droid (Current) uses only %3$s MAME romset, not 0.139.</string>
+    <string name="welcome_quest">Welcome to MAME4droid for META Quest!\n\nYou should pair an XBOX One controller on your META Quest to be able to play games but you can play lightgun games with your touch controllers.\n\n</string>
+    <string name="layout_custom_fullscreen_only">Control layout customization is only allowed in fullscreen mode</string>
+    <string name="layout_custom_controller_visible">Control layout customization is only allowed when touch controller is visible</string>
+    <string name="tv_help">When MAME4droid is first run, it will create a folder structure for you on the internal memory of your Android device. This folder contains all the other folders MAME uses as well as some basic configuration files.Since MAME4droid does not come with game ROM files, you will need to copy them to (You can change it in options to external storage if your device allows it) \'/storage/emulated/0/Android/media/com.seleuco.mame4d2024/roms\' folder (the one that applies) yourself. These should be properly named, ZIPped MAME v0.272 ROMs files with the filenames in all lower case.\n\nImportant: You should define or map your Android TV game controller on \'options/settings/input/External controller/define Keys\' to avoid this help screen constantly showing if the controller is not auto detected.\n\nControls: Buttons A,B,C,D,E,F on the controller map to buttons Button MAME 1 to 6 buttons. Coin button inserts coin/adds credit.START button starts 1P game. A+START is fast forward. B+START is toggle UI controls. START+A+B is service mode. SELECT+A+B is soft reset. Use SELECT(coin) or START for UI navigation.R1 + START loads a save state. L1 + START saves a save state. START + SELECT when gaming accesses the game\'s MAME menu (dip switches, etc)...</string>
+
+    <!-- Emulator -->
+    <string name="error_opening_file">Error opening file...</string>
+    <string name="launching_rom">Launching: %1$s\nMAME4droid (Current) %2$s by D.Valdeita (Seleuco)</string>
+
+    <!-- Scraper -->
+    <string name="scraping_no_space">Media scraping stopped (there is not enough free space)</string>
+    <string name="scraping_error">Media scraping error: %1$s</string>
+    <string name="scraping_running">Media scraping is running...</string>
+    <string name="scraping_ends">Media scraping ends (you should restart MAME4droid...)</string>
+
+    <!-- Renderer / video -->
+    <string name="shader_error">Error creating effect shader... reverting to stock!</string>
+    <string name="hdr_rejected">WARNING: Hardware rejected HDR 16-bit. Falling back to SDR.</string>
+
+    <!-- Input / controllers -->
+    <string name="controller_disconnected">Disconnected controller (P%1$d)</string>
+    <string name="controller_detected_custom">Detected controller as %1$s\n (Custom Mapping)</string>
+    <string name="controller_detected_defaults">Detected controller as %1$s\n(Defaults applied) Please map the buttons in Settings</string>
+    <string name="controller_unassigned">Unassigned (Max 4)</string>
+    <string name="input_device_detected">Detected input device: %1$s</string>
+    <string name="controller_detected_as">Detected %1$s controller as P%2$d</string>
+    <string name="keyboard_enabled">Keyboard is enabled!</string>
+    <string name="mouse_enabled">Mouse is enabled!</string>
+    <string name="tilt_sensor_enabled">Tilt sensor is enabled!</string>
+    <string name="touch_lightgun_always">Touch lightgun is always enabled!</string>
+    <string name="touch_lightgun_auto">Touch lightgun is auto enabled!</string>
+    <string name="touch_mouse_always">Touch mouse is always enabled!</string>
+    <string name="touch_mouse_auto">Touch mouse is auto enabled!</string>
+    <string name="controller_n">Controller %1$d</string>
+    <string name="controller_buttons_title">MAME4droid Controller %1$d buttons</string>
+    <string name="press_button_for">Press button for \"%1$s\"</string>
+    <string name="not_mapped">Not mapped</string>
+    <string name="key_clear">Clear</string>
+    <string name="waiting_for_input">Waiting for input...</string>
+
+    <!-- SAF -->
+    <string name="saf_caching_title">Caching SAF files.</string>
+    <string name="saf_caching_wait">Reading, please wait...</string>
+    <string name="saf_no_permission">MAME4droid doesn\'t have permission to read the roms files on %1$s.\n\nPlease grant permissions again or select another ROMs folder, both in MAME4droid menu \'Options -> Settings -> General -> Change ROMs path\'.</string>
+    <string name="saf_selected_folder">the selected folder</string>
+
+    <!-- Preference confirm dialogs -->
+    <string name="confirm_restore_data">Are you sure to restore? This will remove all your MAME cfg and nvram files. This is useful to restore games to defaults to fixup mame key mappings.</string>
+    <string name="confirm_restore_crt">Are you sure to restore CRT settings to factory defaults?</string>
+    <string name="confirm_restore_hdr">Are you sure to restore HDR settings to defaults?</string>
+
+    <!-- Language preference -->
+    <string name="pref_language_title">Language</string>
+    <string name="lang_system_default">System default</string>
+    <string name="pref_force_unifont_title">Use Unicode UI font</string>
+    <string name="pref_force_unifont_summary">Use the Unicode font (unifont) for MAME\'s UI instead of its built-in font. Chinese, Japanese and Korean always use it.</string>
+    <string name="pref_mame_language_title">Translate MAME\'s own menus</string>
+    <string name="pref_mame_language_summary">Show MAME\'s built-in menus and messages in the selected language instead of English.</string>
+
+    <!-- Preferences: categories and screens -->
+    <string name="cat_configuration">Configuration</string>
+    <string name="cat_portrait_display">Portrait Display Settings</string>
+    <string name="cat_landscape_display">Landscape Display Settings</string>
+
+    <string name="prefscr_emu_title">Emulation</string>
+    <string name="prefscr_emu_summary">Select it to open emulation options</string>
+    <string name="pref_emu_res_title">Emulated resolution</string>
+    <string name="pref_osd_res_title">Frontend resolution</string>
+    <string name="pref_speed_hacks_title">Speed hacks</string>
+    <string name="pref_speed_hacks_summary">Enable it to get better performance in games like K.Instinct, M.Kombat or CPS3. You should only enable it to play those games because other games may work poorly or not work.</string>
+    <string name="pref_sound_title">Sound</string>
+    <string name="pref_show_fps_title">Show FPS</string>
+    <string name="pref_show_fps_summary">Enable it to turn FPS display on</string>
+    <string name="pref_auto_frameskip_title">Auto frameskip</string>
+    <string name="pref_auto_frameskip_summary">Enable it to turn auto frameskip on</string>
+    <string name="pref_cheats_title">Cheats</string>
+    <string name="pref_cheats_summary">Enables the reading of the cheat database</string>
+    <string name="pref_hiscore_title">Hiscore</string>
+    <string name="pref_hiscore_summary">Enable it to activate hiscore MAME plugin to save and restores high scores for games that did not originally save high scores in non-volatile memory</string>
+    <string name="pref_inputmacro_title">Input macro</string>
+    <string name="pref_inputmacro_summary">Enable it to allows you to trigger a sequence of emulated input actions with a key or button combination. Note: The plugin is available from MAME UI plugin options</string>
+    <string name="pref_autofire_title">Autofire</string>
+    <string name="pref_autofire_summary">Enable it to allows you to simulate repeatedly pressing an emulated button by holding down a key or button combination. Note: The plugin is available from MAME UI plugin options</string>
+    <string name="pref_skip_gameinfo_title">Skip game info</string>
+    <string name="pref_skip_gameinfo_summary">Forces to skip displaying the system info screen</string>
+    <string name="pref_zoom_to_window_title">Zoom to window</string>
+    <string name="pref_zoom_to_window_summary">Automatically zooms the emulated display so that portrait and landscape games use the entire device window. Disable if you use artwork to zoom into the screen area in MAME video options using fixed orientation and wide resolutions</string>
+    <string name="pref_disable_drc_title">Disable DRC</string>
+    <string name="pref_disable_drc_summary">Disable DRC (dynamic recompiler) CPU core. Enable it to test compatibility in some games that freezes or not launch at the expense of performance</string>
+    <string name="pref_drc_use_c_title">DRC use C</string>
+    <string name="pref_drc_use_c_summary">Force DRC to use the C backend (compatibility but much less performance)</string>
+    <string name="prefscr_vector_title">Vector</string>
+    <string name="prefscr_vector_summary">Select it to open vector games options</string>
+    <string name="pref_beam2x_title">Beam 2x</string>
+    <string name="pref_beam2x_summary">Sets the width of the vectors to 2x</string>
+    <string name="pref_flicker_title">Flicker</string>
+    <string name="pref_flicker_summary">Simulates a vector flicker effect</string>
+    <string name="pref_default_data_title">Default MAME data</string>
+    <string name="pref_default_data_summary">Restore MAME data to default values (mame.ini, mame_avail.ini, cfg and nvram files)</string>
+
+    <string name="prefscr_input_title">Input</string>
+    <string name="prefscr_input_summary">Select it to open input options</string>
+    <string name="prefscr_touch_controller_title">Touch controller</string>
+    <string name="prefscr_touch_controller_summary">Select it to open touch controller options</string>
+    <string name="pref_controller_type_title">Mode</string>
+    <string name="pref_custom_layout_title">Customize layout</string>
+    <string name="pref_custom_layout_summary">Select to customize fullscreen touch control layout</string>
+    <string name="pref_default_layout_title">Default layout</string>
+    <string name="pref_default_layout_summary">Restore fullscreen touch control layout to default values</string>
+    <string name="pref_buttons_alpha_title">Controller transparency (fullscreen)</string>
+    <string name="pref_buttons_size_title">Buttons size (fullscreen)</string>
+    <string name="pref_stick_size_title">Stick and DPAD size (fullscreen)</string>
+    <string name="pref_numbuttons_title">Number of buttons (fullscreen)</string>
+    <string name="pref_hide_stick_title">Hide stick</string>
+    <string name="pref_hide_stick_summary">Enable to hide stick or dpad when fullscreen</string>
+    <string name="pref_always_gh_title">Always show G,H buttons</string>
+    <string name="pref_always_gh_summary">Enable it to always show G,H buttons when full screen so you can bind them MAME actions</string>
+    <string name="pref_animated_title">Animated</string>
+    <string name="pref_animated_summary">Animated touch control. Disable for performance boost</string>
+    <string name="pref_vibrate_title">Vibrate</string>
+    <string name="pref_vibrate_summary">Enable to vibrate when touch</string>
+    <string name="pref_touch_dz_title">Digital dead zone</string>
+    <string name="pref_touch_dz_summary">Enable Touch Dead Zone</string>
+    <string name="pref_analog_dz_title">Analog dead zone</string>
+
+    <string name="prefscr_ext_controller_title">Game controller</string>
+    <string name="prefscr_ext_controller_summary">Select it to open external controller options</string>
+    <string name="pref_autodetect_title">Autodetect controllers</string>
+    <string name="pref_autodetect_summary">Automatically detect and map known gamepads (e.g., Xbox or PlayStation).</string>
+    <string name="pref_map_buttons_title">Map Buttons</string>
+    <string name="pref_map_buttons_summary">Assign your physical controller or keyboard to the arcade D-pad and buttons.</string>
+    <string name="pref_restore_defaults_title">Restore Defaults</string>
+    <string name="pref_restore_defaults_summary">Reset all button configurations to their original default values.</string>
+    <string name="pref_fake_id_title">Share mapping profile</string>
+    <string name="pref_fake_id_summary">Forces all controllers to share the exact same mapping profile. Map the first one controller profile, and the rest will use the same layout (Multiplayer is still supported). Ideal for identical clone gamepads or hardware with detection issues.</string>
+    <string name="pref_hide_touch_frontend_title">Hide touch controls in MAME UI</string>
+    <string name="pref_hide_touch_frontend_summary">Hide the on-screen buttons in the main interface when a controller is connected (fullscreen only).</string>
+    <string name="pref_hide_touch_ingame_title">Hide touch controls in-game</string>
+    <string name="pref_hide_touch_ingame_summary">Hide the on-screen buttons during gameplay when a controller is connected (fullscreen only).</string>
+
+    <string name="prefscr_mouse_title">Mouse</string>
+    <string name="prefscr_mouse_summary">Select it to open mouse options.\n(On touch mouse, second finger will be main fire. Third finger when second finger is pressed will be alternate fire)</string>
+    <string name="pref_mouse_title">Physical Mouse</string>
+    <string name="pref_mouse_summary">Enable physical (hardware) mouse support</string>
+    <string name="pref_touch_mouse_title">Touch mouse</string>
+    <string name="pref_touch_mouse_summary">Enable touch mouse support</string>
+    <string name="pref_game_mouse_title">Gaming touch mouse</string>
+    <string name="pref_game_mouse_summary">Enable to use touch mouse for games (autodetected).</string>
+    <string name="pref_game_mouse_force_title">Always gaming touch mouse</string>
+    <string name="pref_game_mouse_force_summary">Forces the use of the touch mouse in all games (useful when fails autodetect).</string>
+
+    <string name="prefscr_keyboard_title">Keyboard</string>
+    <string name="prefscr_keyboard_summary">Select it to open keyboard options</string>
+    <string name="pref_keyboard_title">Physical keyboard</string>
+    <string name="pref_keyboard_summary">Enable physical (hardware) keyboard support</string>
+    <string name="pref_keyboard_hide_controller_title">Hide touch controller</string>
+    <string name="pref_keyboard_hide_controller_summary">Enable to auto hide touch controller when physical keyboard is detected</string>
+    <string name="pref_virtual_keyboard_title">Virtual keyboard</string>
+    <string name="pref_virtual_keyboard_summary">Enable virtual keyboard support</string>
+
+    <string name="prefscr_lightgun_title">Touch lightgun</string>
+    <string name="prefscr_lightgun_summary">Select it to open touch lightgun options.\n(First finger will be main fire. Second finger when first finger is pressed will be alternate fire)</string>
+    <string name="pref_touch_lightgun_title">Touch lightgun</string>
+    <string name="pref_touch_lightgun_summary">Enable to use touch lightgun for games (autodetected).</string>
+    <string name="pref_lightgun_force_title">Always touch lightgun</string>
+    <string name="pref_lightgun_force_summary">Forces the use of the touch lighgun in all games (useful when fails autodetect).</string>
+    <string name="pref_lightgun_longpress_title">Long press as button two</string>
+    <string name="pref_lightgun_longpress_summary">Enable to use first finger long press as button two. Useful for t.crisis</string>
+    <string name="pref_bottom_reload_title">Bottom as reload</string>
+    <string name="pref_bottom_reload_summary">Touch at the bottom of the screen to get off-screen reload</string>
+
+    <string name="prefscr_tilt_title">Tilt controller</string>
+    <string name="prefscr_tilt_summary">Select it to open tilt controller options</string>
+    <string name="pref_tilt_sensor_title">Tilt sensor</string>
+    <string name="pref_tilt_sensor_summary">Enable to use tilt sensor for games.</string>
+    <string name="pref_tilt_dz_title">Dead zone</string>
+    <string name="pref_tilt_sensitivity_title">Sensitivity</string>
+    <string name="pref_tilt_sensitivity_summary">Set tilt sensor sensitivity</string>
+    <string name="pref_tilt_neutral_title">Neutral vertical position</string>
+    <string name="pref_tilt_analog_title">Tilt as analog</string>
+    <string name="pref_tilt_analog_summary">Enable to use tilt sensor as analog device, disable to use as digital</string>
+    <string name="pref_tilt_touch_title">Touch anywhere</string>
+    <string name="pref_tilt_touch_summary">Enable to tap anywhere on screen to fire. First finger is main fire. Second finger when first finger is pressed is alternate fire</string>
+    <string name="pref_tilt_invert_x_title">Invert X axe</string>
+    <string name="pref_tilt_invert_x_summary">Enable to invert X axe.</string>
+    <string name="pref_tilt_swap_yz_title">Swap Z,Y axes</string>
+    <string name="pref_tilt_swap_yz_summary">Enable to swap Z,Y axes. This fixes vertical tilt on some devices</string>
+
+    <string name="pref_stick_type_title">Stick type</string>
+    <string name="pref_touch_ui_title">MAME touch UI</string>
+    <string name="pref_touch_ui_summary">Enable support for navigating MAME menus / arworks using the touch screen</string>
+    <string name="pref_override_sat_dz_title">Override SAT and DZ</string>
+    <string name="pref_override_sat_dz_summary">Override MAME deadzone and saturation so touch stick and lightgun are accurate</string>
+    <string name="pref_pxasp1_title">P4,P3,P2 as P1</string>
+    <string name="pref_pxasp1_summary">Allow a single input device to control multiple players at once. Could cause problems in some ROMs</string>
+
+    <string name="prefscr_shaders_title">Renderer &amp; Shaders</string>
+    <string name="pref_shaders_enabled_title">Native Renderer (Shaders and HDR)</string>
+    <string name="pref_shaders_enabled_summary">Enables MAME\'s native renderer instead of the legacy (well tested) software renderer. Unlocks shaders and improves vector games. Important: Set Emulated Resolution to \'Native\' to enjoy high-res artworks without any performance drop.</string>
+    <string name="pref_effect_shader_title">Effect shader</string>
+    <string name="pref_smooth_scaling_title">Smooth scaling</string>
+    <string name="pref_smooth_scaling_summary">Select to turn bitmap filtering on</string>
+
+    <string name="prefscr_hdr_title">HDR Settings</string>
+    <string name="prefscr_hdr_summary">Configure True HDR for vector games and Auto HDR for raster games.</string>
+    <string name="pref_hdr_title">Enable HDR Display</string>
+    <string name="pref_hdr_summary">Unlocks peak panel brightness and Wide Color Gamut. Note: HDR experience will vary across devices due to poor implementations by many manufacturers (optimized for Google Pixel). Enabling this renders vector games in true HDR, realistically emulating the intense brightness of original CRT phosphors. It also unlocks Auto HDR enhancements for classic raster games.</string>
+    <string name="cat_crt_vector_hdr">CRT / Vector HDR Calibration</string>
+    <string name="pref_base_nits_title">CRT Base Luminance (Nits)</string>
+    <string name="pref_base_nits_summary">The physical baseline light of a standard vector (Default: 250 nits).</string>
+    <string name="pref_max_nits_title">CRT Max Luminance (Nits)</string>
+    <string name="pref_max_nits_summary">The absolute physical limit of the emulated arcade monitor (Default: 700 nits).</string>
+    <string name="pref_dim_vector_title">Dim Vector Artworks</string>
+    <string name="pref_dim_vector_summary">Darkens bezels and backgrounds in vector games to maximize the spectacular contrast of the phosphor lasers.</string>
+    <string name="cat_raster_hdr">Raster / Auto HDR (SDR to HDR)</string>
+    <string name="pref_paper_white_title">Raster Paper White Reference</string>
+    <string name="pref_paper_white_summary">Sets the baseline physical brightness strictly for standard games and artworks in HDR mode. Independent from Vector Nits. Adjust for visual comfort if it appears too bright.</string>
+    <string name="pref_fake_hdr_title">Enable Auto HDR (Raster)</string>
+    <string name="pref_fake_hdr_summary">Upgrades standard SDR games and artworks to HDR luminance levels using Inverse Tone Mapping.</string>
+    <string name="pref_hdr_multiplier_title">Auto HDR Intensity</string>
+    <string name="pref_hdr_multiplier_summary">How aggressively highlights are expanded to peak luminance.</string>
+    <string name="cat_defaults">Defaults</string>
+    <string name="pref_restore_hdr_title">Restore HDR Defaults</string>
+    <string name="pref_restore_hdr_summary">Reset all HDR and Auto HDR calibration values to defaults.</string>
+
+    <string name="pref_vector_improved_title">Vector Advanced Effects</string>
+    <string name="pref_vector_improved_summary">Enables a highly accurate physical simulation of vector CRT monitors. Includes optical bloom, phosphor persistence, electron beam dynamics, corner burn, and magnetic jitter.</string>
+    <string name="prefscr_vector_calib_title">Vector Effects Calibration (Expert Mode)</string>
+    <string name="prefscr_vector_calib_summary">Fine-tune optical bloom, exposure, electron beam physics and yoke voltage.</string>
+    <string name="cat_graphics_pipeline">Graphics Pipeline</string>
+    <string name="pref_fbo_half_title">FBO Half Resolution</string>
+    <string name="pref_fbo_half_summary">Renders vector passes at 50% resolution.\n• GAIN: Saves massive GPU fillrate and battery, making the glow smoother.\n• LOSS: Sacrifices vector core crispness, introducing jagged edges (aliasing) on sharp geometry like text and ships.</string>
+    <string name="pref_linear_gamma_title">Enable Linear Light Physics</string>
+    <string name="pref_linear_gamma_summary">Converts the raw electrical voltage into physical light energy using the CRT\'s natural Gamma curve (~2.5). Essential for accurate color mixing, though some games may appear less vivid as a result. Highly recommended when True HDR Display is enabled.</string>
+    <string name="cat_crt_drive">CRT Drive</string>
+    <string name="pref_global_drive_title">CRT Global Drive (Voltage)</string>
+    <string name="pref_global_drive_summary">Master brightness knob (Voltage overdrive).</string>
+    <string name="cat_bloom">Optical Bloom (Halo Scattering)</string>
+    <string name="pref_bloom_title">Enable Optical Bloom</string>
+    <string name="pref_bloom_summary">Calculate light scattering inside the CRT glass (Halos).</string>
+    <string name="pref_kawase_passes_title">Optical Halo Size (Passes)</string>
+    <string name="pref_kawase_passes_summary">How massive the halo spreads.</string>
+    <string name="pref_kawase_radius_title">Optical Halo Spread (Radius)</string>
+    <string name="pref_kawase_radius_summary">Expands the blur radius of the tent filter.</string>
+    <string name="pref_kawase_threshold_title">Extraction Threshold</string>
+    <string name="pref_kawase_threshold_summary">Minimum energy required for a vector to emit a glowing halo.</string>
+    <string name="pref_kawase_intensity_title">Optical Halo Intensity</string>
+    <string name="pref_kawase_intensity_summary">Final opacity multiplier of the light halo.</string>
+    <string name="cat_offscreen_glow">Off-screen Monitor Glow</string>
+    <string name="pref_offscreen_glow_title">Enable Ambient Tube Glow</string>
+    <string name="pref_offscreen_glow_summary">Simulates the whole CRT glass glowing when intense laser beams (like explosions in starwars) bounce off the interior walls of the monitor.</string>
+    <string name="pref_offscreen_glow_mult_title">Ambient Glow Intensity</string>
+    <string name="pref_offscreen_glow_mult_summary">Multiplier for the off-screen energy. Turn it down if text or menus flash too brightly.</string>
+    <string name="cat_vector_core">Vector Core Geometry</string>
+    <string name="pref_core_line_width_title">Line Thickness</string>
+    <string name="pref_core_line_width_summary">Physical thickness of the central laser core for drawing lines.</string>
+    <string name="pref_core_point_width_title">Point/Star Thickness</string>
+    <string name="pref_core_point_width_summary">Physical thickness of the central laser core for isolated dots.</string>
+    <string name="pref_point_boost_title">Point Energy Boost</string>
+    <string name="pref_point_boost_summary">Multiplies the light energy specifically for dots/stars to make them pop.</string>
+    <string name="cat_overbright">Excess Energy (HDR Overbright)</string>
+    <string name="pref_overbright_title">Enable Phosphor Saturation</string>
+    <string name="pref_overbright_summary">Calculates physical expansion when the vector exceeds peak brightness.</string>
+    <string name="pref_overbright_max_title">Max HDR Saturation</string>
+    <string name="pref_overbright_max_summary">Absolute limit for extra HDR energy a vector can accumulate.</string>
+    <string name="pref_overbright_line_title">Line Physical Expansion</string>
+    <string name="pref_overbright_line_summary">How much lines widen when saturated with excess energy.</string>
+    <string name="pref_overbright_point_title">Point Physical Expansion</string>
+    <string name="pref_overbright_point_summary">How much points widen when saturated with excess energy.</string>
+    <string name="pref_overbright_crosstalk_title">Color Crosstalk (White Core)</string>
+    <string name="pref_overbright_crosstalk_summary">How much excess energy bleeds into other channels to create white highlights.</string>
+    <string name="cat_beam_physics">Electron Beam Physics</string>
+    <string name="pref_beam_dynamics_title">Enable Beam Dynamics</string>
+    <string name="pref_beam_dynamics_summary">Simulates the beam burning harder on short strokes (like text and ships).</string>
+    <string name="pref_short_line_intensity_title">Short Line Energy Boost</string>
+    <string name="pref_short_line_intensity_summary">Extra light energy given to tiny strokes.</string>
+    <string name="pref_short_line_width_title">Short Line Thermal Expansion</string>
+    <string name="pref_short_line_width_summary">How much the core physically widens when burning the phosphor harder.</string>
+    <string name="pref_corner_burn_title">Enable Corner Burn (Dwell)</string>
+    <string name="pref_corner_burn_summary">Simulates the beam slowing down at sharp corners, causing bright weld points.</string>
+    <string name="pref_corner_threshold_title">Corner Sharpness Threshold</string>
+    <string name="pref_corner_threshold_summary">How sharp an angle must be to trigger deceleration and burning.</string>
+    <string name="pref_corner_boost_title">Corner Intensity Boost</string>
+    <string name="pref_corner_boost_summary">Extra energy dumped into the corner weld.</string>
+    <string name="pref_corner_confinement_title">Corner Size Confinement</string>
+    <string name="pref_corner_confinement_summary">Restricts the corner burn to keep it sharp and avoid spherical blobs.</string>
+    <string name="cat_phosphor">Phosphor Chemistry</string>
+    <string name="pref_phosphor_response_title">Phosphor Color Response</string>
+    <string name="pref_phosphor_response_summary">Simulates how green colors excite the phosphor more efficiently than blue.</string>
+    <string name="pref_phosphor_base_title">Base Phosphor Floor</string>
+    <string name="pref_phosphor_base_summary">Minimum energy retained by inefficient colors like pure blue.</string>
+    <string name="pref_phosphor_luma_title">Luminance Multiplier</string>
+    <string name="pref_phosphor_luma_summary">How much the specific color boosts the physical energy output.</string>
+    <string name="pref_persistence_title">Enable Phosphor Trails</string>
+    <string name="pref_persistence_summary">Simulate temporal ghosting (Ping-Pong FBO).</string>
+    <string name="pref_phosphor_decay_title">Trail Decay Speed</string>
+    <string name="pref_phosphor_decay_summary">Lower = Long Radar smear. Higher = Fast Arcade fade.</string>
+    <string name="cat_yoke">Analog Wear &amp; Tear (Yoke)</string>
+    <string name="pref_jitter_title">Enable Magnetic Noise</string>
+    <string name="pref_jitter_summary">Simulate coil heat, AC hum, and voltage fluctuations.</string>
+    <string name="pref_jitter_amount_title">Jitter Severity</string>
+    <string name="pref_jitter_amount_summary">Maximum physical deviation of the electron beam.</string>
+    <string name="pref_flicker_amount_title">Voltage Flicker</string>
+    <string name="pref_flicker_amount_summary">Maximum intensity drop caused by random voltage fluctuation.</string>
+    <string name="cat_exposure">Global Exposure</string>
+    <string name="pref_auto_exposure_title">Enable HDR Auto-Exposure</string>
+    <string name="pref_auto_exposure_summary">Camera eye-adaptation. Dims the screen dynamically during bright explosions.</string>
+    <string name="pref_fixed_exposure_title">Fixed Manual Exposure</string>
+    <string name="pref_fixed_exposure_summary">Used only if Auto-Exposure is OFF. Adjusts the baseline brightness.</string>
+    <string name="pref_auto_exposure_mult_title">Auto-Exposure Multiplier</string>
+    <string name="pref_auto_exposure_mult_summary">Boosts or dims the overall dynamic range of the adaptation.</string>
+    <string name="pref_auto_exposure_threshold_title">Auto-Exposure Threshold</string>
+    <string name="pref_auto_exposure_threshold_summary">Screen area percentage that triggers maximum dimming (radar/explosions).</string>
+    <string name="pref_restore_crt_title">Restore CRT Defaults</string>
+    <string name="pref_restore_crt_summary">Reset all advanced CRT calibration values to factory defaults.</string>
+
+    <string name="prefscr_scrape_title">Scraping</string>
+    <string name="prefscr_scrape_summary">Select it to configure media scraping service</string>
+    <string name="pref_scrape_enabled_title">Enable media scraping</string>
+    <string name="pref_scrape_enabled_summary">Enable it to do media scraping thanks to Arcade Database by motoschifo. This will download icons or snapshots belonging to your own ROMSET so that they will be displayed on the frontend. You must configure the display of images in MAME UI (in the \'show side panels\' option) if is necessary. Note: Media scraping will only scrape systems on external storage</string>
+    <string name="pref_scrape_icons_title">Scrape icons</string>
+    <string name="pref_scrape_icons_summary">Enable it to scrape icons that will be showed on the system list</string>
+    <string name="pref_scrape_snapshots_title">Scrape snapshots</string>
+    <string name="pref_scrape_snapshots_summary">Enable it to scrape snapshots that will be showed on the images panel</string>
+    <string name="pref_scrape_all_title">Scrape additional media</string>
+    <string name="pref_scrape_all_summary">Enable to scrape the rest of available media like cabinets images. This will use up a lot of storage space and the download will take longer</string>
+    <string name="pref_scrape_resize_title">Resize images to save space</string>
+    <string name="pref_scrape_resize_summary">Enable it to resize images so that less storage space is used</string>
+
+    <string name="prefscr_general_title">General</string>
+    <string name="prefscr_general_summary">Select it to open general options</string>
+    <string name="pref_change_rom_path_title">Change ROMs path</string>
+    <string name="pref_change_rom_path_summary">Change roms location. You have to move ROMs files manually</string>
+    <string name="pref_savestates_rom_path_title">Save States in ROMs path</string>
+    <string name="pref_savestates_rom_path_summary">Game states will be stored under ROM files folder. This prevents Android 11+ from deleting them when using external storage for ROMs files and uninstalling the app</string>
+    <string name="pref_orientation_title">Screen orientation</string>
+    <string name="pref_overlay_title">Overlay effect</string>
+    <string name="pref_warn_on_exit_title">Warn on exit</string>
+    <string name="pref_warn_on_exit_summary">Enable it to warn when you press the exit button when gaming</string>
+    <string name="pref_navbar_title">Navigation bar mode</string>
+    <string name="pref_use_notch_title">Use Notch</string>
+    <string name="pref_use_notch_summary">Expand display area to use notch area on devices supported</string>
+    <string name="pref_simple_ui_title">Use simple UI</string>
+    <string name="pref_simple_ui_summary">Use the MAME simple UI instead of the cabinet one. Simple UI will show you 20 random games but you can search for any by typing with the keyboard</string>
+    <string name="pref_scale_beyond_title">Scale beyond boundaries</string>
+    <string name="pref_scale_beyond_summary">Enable it to scale beyond screen boundaries when a fixed scale is selected</string>
+    <string name="pref_overscan_title">TV overscan</string>
+    <string name="pref_overscan_summary">Enable it to apply a 10 pct safe area to correct overscan issues on some TV sets</string>
+
+    <string name="prefscr_netplay_summary">Select it to open NetPlay options</string>
+    <string name="pref_netplay_port_title">NetPlay port</string>
+    <string name="pref_netplay_delay_title">NetPlay delay</string>
+    <string name="pref_netplay_stats_title">Show connection stats overlay</string>
+    <string name="pref_netplay_stats_summary">Small ping/delay indicator at the bottom of the screen during a NetPlay session</string>
+    <string name="pref_netplay_desync_title">Desync detector</string>
+    <string name="pref_netplay_desync_summary">Detect and warn about NetPlay desyncs (Rollback only); disable to save the extra CPU cost</string>
+    <string name="pref_netplay_upnp_title">UPnP port mapping (host)</string>
+    <string name="pref_netplay_upnp_summary">When hosting, automatically forward the netplay port on the router so internet peers can join directly. Removed on disconnect</string>
+
+    <string name="prefscr_advanced_title">Advanced</string>
+    <string name="prefscr_advanced_summary">Select it to open advanced options</string>
+    <string name="pref_video_engine_title">Video engine</string>
+    <string name="pref_sound_engine_title">Sound engine</string>
+    <string name="pref_num_threads_title">Number of threads</string>
+    <string name="pref_main_th_priority_title">Main thread priority</string>
+    <string name="pref_installation_path_title">Installation path</string>
+    <string name="pref_installation_path_dialog">Change installation path:</string>
+    <string name="pref_mameini_title">Use mame.ini for paths</string>
+    <string name="pref_mameini_summary">Use mame.ini instead of the values established by the emulator automatically to define the paths of the ROMs and other resources in external storage. Enabling this option can prevent you from seeing your ROMs if you don\'t know what you are doing</string>
+    <string name="pref_debug_title">Debug mode</string>
+    <string name="pref_debug_summary">Only for developers</string>
+
+    <string name="pref_scaling_mode_title">Scaling mode</string>
+    <string name="pref_touch_controller_visible_title">Touch controller visible</string>
+    <string name="pref_touch_controller_visible_summary">Disable to hide the touch controller. Useful when you are using a GamePad</string>
+    <string name="pref_fullscreen_portrait_title">Fullscreen</string>
+    <string name="pref_fullscreen_portrait_summary">Select to enable fullscreen portrait mode</string>
+</resources>

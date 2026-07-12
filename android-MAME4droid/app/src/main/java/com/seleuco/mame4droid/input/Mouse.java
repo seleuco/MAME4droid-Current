@@ -70,7 +70,7 @@ public class Mouse implements IController {
 		// Display OSD feedback only on the first hardware mouse interaction
 		if (!isMouseEnabled) {
 			isMouseEnabled = true;
-			CharSequence text = "Mouse is enabled!";
+			CharSequence text = mm.getString(com.seleuco.mame4droid.R.string.mouse_enabled);
 			new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
 
 			mm.getMainHelper().updateMAME4droid();

@@ -96,11 +96,17 @@ public class StatsWidget {
 								FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
 						params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
 
-						float px = 6 * ((float) mm.getResources().getDisplayMetrics().densityDpi / DisplayMetrics.DENSITY_DEFAULT);
+						DisplayMetrics dm = mm.getResources().getDisplayMetrics();
+						float px = 6 * ((float) dm.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
 						params.setMargins(0, 0, 0, (int) px);
 
 						textView.setLayoutParams(params);
-						textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+						/* Proportional to the screen short edge (not sp): a fixed sp/dp
+						 * looks big on small screens, tiny on large, and sp also swings
+						 * with font-scale.  Clamped px = stable across density/size/font. */
+						int shortEdge = Math.min(dm.widthPixels, dm.heightPixels);
+						float textPx = Math.max(14f, Math.min(44f, shortEdge * 0.025f));
+						textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, textPx);
 						textView.setBackgroundColor(Color.TRANSPARENT);
 						textView.setShadowLayer(3, 1, 1, Color.BLACK);
 

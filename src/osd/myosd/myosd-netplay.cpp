@@ -407,9 +407,9 @@ static void netplay_iu_on_game_start(netplay_t *handle, bool is_java_paused)
                  state_sz, ROLLBACK_STATE_SIZE_LIMIT, ring, ROLLBACK_MIN_FRAMES,
                  (unsigned)(ROLLBACK_RING_RAM_BUDGET / (1024u * 1024u)));
             if (handle->netplay_warn) {
-                char warn_buf[256];
+                char warn_buf[64];
                 snprintf(warn_buf, sizeof(warn_buf),
-                         "TOAST:Netplay: savestate too large for rollback (%.2f MB). Using lockstep mode.",
+                         "TOAST:@state_too_large|%.2f",
                          (double)state_sz / (1024.0 * 1024.0));
                 handle->netplay_warn(warn_buf);
             }
@@ -714,7 +714,7 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
         if (handle->has_received_data && handle->has_connection &&
             peer_pause_confirmed && !handle->resync_active) {
             if (handle->netplay_warn)
-                handle->netplay_warn((char*)"TOAST:Netplay: Peer is paused, please wait...");
+                handle->netplay_warn((char*)"TOAST:@peer_paused");
             myosd_droid_netplay_set_exitPause(1);
             /* Park the rate controller: no live pacing while frozen. */
             if (g_rate_speed != 1000) {

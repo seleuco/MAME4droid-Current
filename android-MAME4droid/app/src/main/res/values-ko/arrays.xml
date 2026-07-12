@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="pref_scaleMode_options">
+		<item>스케일(화면비 유지)</item>
+		<item>화면에 맞게 늘이기</item>
+		<item>원본 크기</item>
+		<item>스케일(화면에 맞는 정수 스케일)</item>
+		<item>스케일(경계를 넘는 정수 스케일)</item>
+		<item>1.5X</item>
+		<item>2X</item>
+	</string-array>
+
+	<string-array name="pref_controller_type_options">
+		<item>디지털 방향 키</item>
+		<item>디지털 스틱</item>
+		<item>아날로그 스틱</item>
+	</string-array>
+
+	<string-array name="pref_dz_options">
+		<item>없음</item>
+		<item>낮음</item>
+		<item>보통</item>
+		<item>높음</item>
+		<item>매우 높음</item>
+	</string-array>
+
+	<string-array name="pref_sound_options">
+		<item>끄기</item>
+		<item>켜기(11 KHz)</item>
+		<item>켜기(22 KHz)</item>
+		<item>켜기(33 KHz)</item>
+		<item>켜기(44 KHz)</item>
+		<item>켜기(48 KHz)</item>
+	</string-array>
+
+	<string-array name="pref_stick_options">
+		<item>자동</item>
+		<item>2방향</item>
+		<item>4방향</item>
+		<item>8방향</item>
+	</string-array>
+
+	<string-array name="pref_numbuttons_options">
+		<item>자동(휴리스틱)</item>
+		<item>0개 버튼</item>
+		<item>1개 버튼</item>
+		<item>2개 버튼</item>
+		<item>3개 버튼(C=A+B)</item>
+		<item>3개 버튼</item>
+		<item>4개 버튼</item>
+		<item>모든 버튼</item>
+	</string-array>
+
+	<string-array name="pref_resolution_options">
+		<item>자동(기기 원본 / 최고 성능)</item>
+		<item>640x480(성능 균형)</item>
+		<item>기기 네이티브(artworks 및 베젤에 이상적)</item>
+	</string-array>
+
+	<string-array name="pref_osd_resolution_options">
+		<item>400x300(레트로 픽셀 아트)</item>
+		<item>640x480(표준)</item>
+		<item>기기 네이티브(4:3 원본)</item>
+		<item>기기 네이티브(화면 채우기)</item>
+	</string-array>
+
+	<string-array name="pref_buttons_size_options">
+		<item>더 작게</item>
+		<item>작게</item>
+		<item>보통</item>
+		<item>크게</item>
+		<item>더 크게</item>
+	</string-array>
+
+	<string-array name="pref_low_norm_or_hight_options">
+		<item>낮음</item>
+		<item>보통</item>
+		<item>높음</item>
+	</string-array>
+
+	<string-array name="pref_tilt_neutralz_options">
+		<item>90도</item>
+		<item>80도</item>
+		<item>70도</item>
+		<item>60도</item>
+		<item>50도</item>
+		<item>45도</item>
+		<item>40도</item>
+		<item>30도</item>
+		<item>20도</item>
+		<item>10도</item>
+	</string-array>
+
+	<string-array name="pref_navbar_options">
+		<item>표시</item>
+		<item>몰입 모드</item>
+	</string-array>
+
+	<string-array name="pref_input_modes_options">
+		<item>비활성화</item>
+		<item>자동</item>
+		<item>활성화</item>
+	</string-array>
+
+	<string-array name="pref_orientation_options">
+		<item>자동</item>
+		<item>가로(센서)</item>
+		<item>가로</item>
+		<item>가로 반대</item>
+		<item>세로(센서)</item>
+		<item>세로</item>
+		<item>세로 반대</item>
+	</string-array>
+
+	<string-array name="pref_netplay_delay_options">
+		<item>자동</item>
+		<item>1프레임 지연</item>
+		<item>2프레임 지연</item>
+		<item>3프레임 지연</item>
+		<item>4프레임 지연</item>
+		<item>5프레임 지연</item>
+		<item>6프레임 지연</item>
+	</string-array>
+
+	<string-array name="input_labels">
+		<item>위</item>
+		<item>아래</item>
+		<item>왼쪽</item>
+		<item>오른쪽</item>
+		<item>버튼 A</item>
+		<item>버튼 B</item>
+		<item>버튼 C</item>
+		<item>버튼 D</item>
+		<item>버튼 E</item>
+		<item>버튼 F</item>
+		<item>버튼 G</item>
+		<item>버튼 H</item>
+		<item>코인</item>
+		<item>스타트</item>
+		<item>종료</item>
+		<item>옵션</item>
+	</string-array>
+
+</resources>

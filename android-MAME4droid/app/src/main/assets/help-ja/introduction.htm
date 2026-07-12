@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid (Current) ヘルプ</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">はじめに</h1>
+  </div><!-- /header -->
+	<div class="content">
+<p><strong>MAME4droid (Current) へようこそ </strong></p>
+    <p>MAME4droid (Current) は、MAMEDev と貢献者による最新のデスクトップ版 MAME エミュレーターの移植版として David Valdeita (Seleuco) が開発しています。このバージョンの MAME が対応するアーケードゲームとシステムをエミュレートし、40000 種類以上の異なるシステムを含みます。</p>
+    <p>このバージョンの MAME4droid は、旧バージョンより高いスペックを必要とする PC 版 MAME をベースにしているため、ハイエンドの Android デバイスでの使用を想定して設計されています。</p>
+    <p>ハイエンドデバイスであっても、90 年代以降の「現代的な」アーケードゲームが必ずしもフルスピードや完全な互換性で動作するとは限りません。</p>
+    <p>40000 種類以上のシステムに対応しているため、あるゲームは他のゲームより快適に動作します。まったく動作しないゲームもあります。これほど膨大な数のタイトルをサポートすることは不可能なので、特定のゲームのサポートを求めて開発者にメールを送らないでください。</p>
+    <p>ローエンドの Android デバイスをお使いの場合は、<a class="link"  href="https://play.google.com/store/apps/details?id=com.seleuco.mame4droid" target="new"><em>MAME4droid (0.139u1)</em></a> の方がはるかに高速ですが、対応する ROM は少なく古く、完全な音声体験にはより多くのゲームがサウンドサンプルを必要とします。</p>
+    <p>エミュレートする互換 ROM が少なくとも 1 つないと、MAME4droid は何もできません。最初のステップは、互換性のある ROM ファイルを入手し、指定された ROMs フォルダに配置することです（詳細は <a class="link"  href="installation.htm" rel="external">インストール</a> と <a class="link"  href="games.htm" rel="external">対応ゲーム</a> を参照）。ニュース、ソースコード、追加情報の公式ウェブページ：<a class="link" href="https://github.com/seleuco" target="new">MAME4droid 公式サイト</a>。</p>
+    <p><strong>技術的な注記</strong>：このバージョンには、v1.21 で再導入された MAME の UML ベースの ARM64 動的リコンパイラ (DRC) が含まれています。DRC は、ゲームの CPU 命令を 1 つずつ解釈する（ハイスペックなアーケード CPU には極めて遅い）代わりに、それらをその場でネイティブの ARM64 マシンコードに変換し、デバイス自身の CPU 上で直接実行します。これが、MIPS/ARM/SH2/PowerPC ベースのゲーム（v1.21 以前はプレイ不能、または実速度のごく一部でしか動かなかった）を実際にプレイ可能にしているのです &mdash; <strong>Killer Instinct</strong>（MIPS R4600 メイン CPU で動作）は、リコンパイラなしではカクついてプレイ不能だったものが、それによってフルスピードになる良い例です。これは、上記の旧 <em>MAME4droid (0.139u1)</em>（動的リコンパイラを一度も備えていなかった）に対するこのバージョンの最大の利点の 1 つです。</p>
+    <p>MAME および MAME4droid のライセンスは <a class="link" href="license.htm" rel="external">ライセンス</a> セクションにあります。</p>
+    <p></p>
+
+    </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">戻る</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

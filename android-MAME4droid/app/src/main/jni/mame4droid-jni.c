@@ -58,6 +58,7 @@ void (*netplaySetInternetMode)(int on) = NULL;
 void (*netplaySetLocalPort)(int port) = NULL;
 const char *(*netplayGetPublicAddr)(void) = NULL;
 const char *(*netplayGetDiagnostics)(void) = NULL;
+const char *(*netplayProbePublicIp)(void) = NULL;
 
 void  (*setMyValue)(int key,int i, int value)=NULL;
 int  (*getMyValue)(int key, int i)=NULL;
@@ -220,6 +221,9 @@ static void load_lib(const char *str)
 
     netplayGetDiagnostics = dlsym(libdl, "netplayGetDiagnostics");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplayGetDiagnostics %d\n", netplayGetDiagnostics != NULL);
+
+    netplayProbePublicIp = dlsym(libdl, "netplayProbePublicIp");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplayProbePublicIp %d\n", netplayProbePublicIp != NULL);
 }
 
 void myJNI_dumpVideo()
@@ -1013,5 +1017,14 @@ JNIEXPORT jstring JNICALL Java_com_seleuco_mame4droid_Emulator_netplayGetDiagnos
   (JNIEnv *env, jclass c)
 {
     const char *r = (netplayGetDiagnostics != NULL) ? netplayGetDiagnostics() : NULL;
+    return (*env)->NewStringUTF(env, r != NULL ? r : "");
+}
+
+/* One-shot STUN to learn our own public IP; "" on failure.  BLOCKING (<=1.5s):
+ * the caller must invoke it off the UI thread. */
+JNIEXPORT jstring JNICALL Java_com_seleuco_mame4droid_Emulator_netplayProbePublicIp
+  (JNIEnv *env, jclass c)
+{
+    const char *r = (netplayProbePublicIp != NULL) ? netplayProbePublicIp() : NULL;
     return (*env)->NewStringUTF(env, r != NULL ? r : "");
 }

@@ -55,6 +55,7 @@ import android.view.View;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
+import com.seleuco.mame4droid.R;
 import com.seleuco.mame4droid.input.ControlCustomizer;
 import com.seleuco.mame4droid.views.IEmuView;
 
@@ -99,9 +100,9 @@ public class DialogHelper {
 		switch (id) {
 			case DIALOG_FINISH_CUSTOM_LAYOUT:
 
-				builder.setMessage("Do you want to save changes?")
+				builder.setMessage(mm.getString(R.string.dlg_save_changes))
 					.setCancelable(false)
-					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.yes), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							DialogHelper.savedDialog = DIALOG_NONE;
 							mm.removeDialog(DIALOG_FINISH_CUSTOM_LAYOUT);
@@ -113,7 +114,7 @@ public class DialogHelper {
 							mm.getInputView().invalidate();
 						}
 					})
-					.setNegativeButton("No", new DialogInterface.OnClickListener() {
+					.setNegativeButton(mm.getString(R.string.no), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							DialogHelper.savedDialog = DIALOG_NONE;
 							mm.removeDialog(DIALOG_FINISH_CUSTOM_LAYOUT);
@@ -130,16 +131,9 @@ public class DialogHelper {
 
 			case DIALOG_ROMs:
 
-				String message = "";
-
-				message += "Where do you have stored or want to store your ROM files?\n\n" +
-					"By default, an empty internal folder will be used (but you should manually copy your ROMs files there using a PC). You can also select a folder with ROMs files from your external storage which will "
-					+ "need to be authorized in the next step so MAME4droid can read the ROMS from it.\n\n" +
-					"Also, if you select an external storage folder, your ROMs files will not be deleted when the app is uninstalled and you can use an Android file manager to move your ROMs there without needing a PC.";
-
-				builder.setMessage(message)
+				builder.setMessage(mm.getString(R.string.dlg_roms_message))
 					.setCancelable(false)
-					.setPositiveButton("Internal", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.dlg_roms_internal), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							DialogHelper.savedDialog = DIALOG_NONE;
 							mm.removeDialog(DIALOG_ROMs);
@@ -158,7 +152,7 @@ public class DialogHelper {
 							//mm.runMAME4droid();
 						}
 					})
-					.setNegativeButton("External Storage", new DialogInterface.OnClickListener() {
+					.setNegativeButton(mm.getString(R.string.dlg_roms_external), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							DialogHelper.savedDialog = DIALOG_NONE;
 							mm.removeDialog(DIALOG_ROMs);
@@ -169,9 +163,9 @@ public class DialogHelper {
 								//throw new ActivityNotFoundException("TEST");
 							} catch (ActivityNotFoundException e) {
 
-								String msg = "Your device doesn't have the native android file manager needed to authorize external storage reading.";
+								String msg = mm.getString(R.string.dlg_no_doc_picker);
 								if (mm.getMainHelper().isAndroidTV())
-									msg += "\n\nSome Android TV devices don't include the OS document picker which is needed to grant folder permissions for the apps on Android 11+. As an alternative, select default which use the App Media Folder which is supported on all devices and is created at Android/media/[app package name]. Move any emulator files into that folder with a file manager so the app can access them without any special permissions.";
+									msg += mm.getString(R.string.dlg_no_doc_picker_tv);
 
 								mm.getDialogHelper().showMessage(msg,
 									new DialogInterface.OnClickListener() {
@@ -188,16 +182,16 @@ public class DialogHelper {
 				break;
 			case DIALOG_EXIT:
 
-				builder.setMessage("Are you sure you want to exit from app?")
+				builder.setMessage(mm.getString(R.string.dlg_exit_message))
 					.setCancelable(false)
-					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.yes), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							//System.exit(0);
 							mm.finishAndRemoveTask();
 							android.os.Process.killProcess(android.os.Process.myPid());
 						}
 					})
-					.setNegativeButton("No", new DialogInterface.OnClickListener() {
+					.setNegativeButton(mm.getString(R.string.no), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							Emulator.resume();
 							DialogHelper.savedDialog = DIALOG_NONE;
@@ -208,9 +202,9 @@ public class DialogHelper {
 				dialog = builder.create();
 				break;
 			case DIALOG_ERROR_WRITING:
-				builder.setMessage("Error")
+				builder.setMessage(mm.getString(R.string.error))
 					.setCancelable(false)
-					.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							//System.exit(0);
 							DialogHelper.savedDialog = DIALOG_NONE;
@@ -223,9 +217,9 @@ public class DialogHelper {
 				dialog = builder.create();
 				break;
 			case DIALOG_INFO:
-				builder.setMessage("Info")
+				builder.setMessage(mm.getString(R.string.info))
 					.setCancelable(false)
-					.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							if (DialogHelper.savedDialog == DIALOG_INFO) {
 								DialogHelper.savedDialog = DIALOG_NONE;
@@ -239,10 +233,17 @@ public class DialogHelper {
 				break;
 			case DIALOG_OPTIONS:
 			case DIALOG_FULLSCREEN:
-				CharSequence[] items1 = {"Help", "Load State", "Save State", "NetPlay", "Settings", "Keyboard"};
-				CharSequence[] items2 = {"Help", "NetPlay", "Settings", "Keyboard"};
-				CharSequence[] items3 = {"Exit", "Help", "Load State", "Save State", "NetPlay", "Settings", "Keyboard"};
-				CharSequence[] items4 = {"Exit", "Help", "NetPlay", "Settings", "Keyboard"};
+				final String sExit = mm.getString(R.string.opt_exit);
+				final String sHelp = mm.getString(R.string.opt_help);
+				final String sLoad = mm.getString(R.string.opt_load_state);
+				final String sSave = mm.getString(R.string.opt_save_state);
+				final String sNetplay = mm.getString(R.string.netplay);
+				final String sSettings = mm.getString(R.string.opt_settings);
+				final String sKeyboard = mm.getString(R.string.opt_keyboard);
+				CharSequence[] items1 = {sHelp, sLoad, sSave, sNetplay, sSettings, sKeyboard};
+				CharSequence[] items2 = {sHelp, sNetplay, sSettings, sKeyboard};
+				CharSequence[] items3 = {sExit, sHelp, sLoad, sSave, sNetplay, sSettings, sKeyboard};
+				CharSequence[] items4 = {sExit, sHelp, sNetplay, sSettings, sKeyboard};
 
 				boolean saveload = Emulator.isInGameButNotInMenu() && Emulator.getValue(Emulator.PAUSE)!=1;
 				/* Help only makes sense in the frontend (browsing ROMs, nothing
@@ -257,7 +258,7 @@ public class DialogHelper {
 				final int c =  inGame ? 1 : 0;
 
 				if (a == 1)
-					builder.setTitle("Choose an option from the menu.");
+					builder.setTitle(mm.getString(R.string.menu_choose_option));
 
 				CharSequence[] items = saveload ? (id == DIALOG_OPTIONS ? items1 : items3) : (id == DIALOG_OPTIONS ? items2 : items4);
 
@@ -265,7 +266,7 @@ public class DialogHelper {
 					CharSequence[] filtered = new CharSequence[items.length - 1];
 					int w = 0;
 					for (CharSequence it : items)
-						if (!"Help".equals(it)) filtered[w++] = it;
+						if (!sHelp.equals(it)) filtered[w++] = it;
 					items = filtered;
 				}
 
@@ -334,10 +335,10 @@ public class DialogHelper {
 				dialog = builder.create();
 				break;
 			case DIALOG_EMU_RESTART:
-				builder.setTitle("Restart needed!")
-					.setMessage("MAME4droid needs to restart for the changes to take effect.")
+				builder.setTitle(mm.getString(R.string.dlg_restart_title))
+					.setMessage(mm.getString(R.string.dlg_restart_message))
 					.setCancelable(false)
-					.setPositiveButton("Dismiss", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.dismiss), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							mm.getMainHelper().restartApp();
 						}
@@ -345,10 +346,10 @@ public class DialogHelper {
 				dialog = builder.create();
 				break;
 			case DIALOG_NO_PERMISSIONS:
-				builder.setTitle("No permissions!")
-					.setMessage("You don't have permission to read from external storage. Please, allow storage permission on Android applications settings.")
+				builder.setTitle(mm.getString(R.string.dlg_no_permissions_title))
+					.setMessage(mm.getString(R.string.dlg_no_permissions_message))
 					.setCancelable(false)
-					.setPositiveButton("Dismiss", new DialogInterface.OnClickListener() {
+					.setPositiveButton(mm.getString(R.string.dismiss), new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							android.os.Process.killProcess(android.os.Process.myPid());
 						}
@@ -410,7 +411,7 @@ public class DialogHelper {
 		new AlertDialog.Builder(mm)
 			.setMessage(message)
 			.setCancelable(false)
-			.setPositiveButton("OK", okListener)
+			.setPositiveButton(mm.getString(R.string.ok), okListener)
 			.create()
 			.show();
 	}

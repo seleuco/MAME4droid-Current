@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>Ayuda de MAME4Droid Reloaded</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">Renderizador y shaders</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <p>MAME4droid puede dibujar los juegos con dos renderizadores diferentes. Elige entre ellos en
+      <em>Opciones-&gt;Ajustes-&gt;Renderizador y shaders-&gt;Renderizador nativo (shaders y HDR)</em>.</p>
+
+      <h3>Los dos renderizadores</h3>
+      <ul>
+        <li><strong>Renderizador heredado (software) &mdash; el predeterminado:</strong> la ruta de
+            renderizado más antigua y extremadamente bien probada. No tiene soporte de shaders ni HDR,
+            pero es la opción más segura y compatible en todos los dispositivos, incluidos los de gama
+            baja o hardware antiguo. Quédate con este si solo quieres que las cosas funcionen con el
+            mínimo esfuerzo, o si tu dispositivo tiene problemas con el renderizador nativo.
+        </li>
+        <li><strong>Renderizador nativo (shaders y HDR):</strong> el propio pipeline de renderizado
+            moderno de MAME. Activarlo desbloquea efectos de shaders, True HDR para juegos vectoriales,
+            Auto HDR para juegos normales (raster), y un aspecto de mucha mayor calidad para los juegos
+            vectoriales en general (ver abajo). Necesita más potencia de GPU que el renderizador
+            heredado, pero en cualquier dispositivo razonablemente moderno también es <em>más
+            rápido</em> cuando usas artwork/marcos de alta resolución, ya que su pipeline se optimizó
+            específicamente para ese caso.
+        </li>
+      </ul>
+      <p><strong>Importante:</strong> una vez que actives el renderizador nativo, ajusta también
+      <em>Opciones-&gt;Ajustes-&gt;Emulación-&gt;Resolución emulada</em> a <strong>Nativa</strong>.
+      Esto permite que el artwork/marcos de alta resolución se rendericen a máxima calidad sin
+      penalización de rendimiento &mdash; dejarlo en una resolución fija más baja mientras usas el
+      renderizador nativo desperdicia la calidad de imagen extra que acabas de desbloquear.</p>
+
+      <h3>Shaders</h3>
+      <p>Con el renderizador nativo activado, <em>Renderizador y shaders-&gt;Shader de efecto</em> te
+      permite elegir un efecto de posprocesado (filtros de líneas de escaneo/estilo CRT y similares),
+      aplicado sobre la imagen emulada. La lista disponible depende de tu dispositivo/compilación;
+      selecciona <strong>ninguno</strong> para desactivarlo. Los shaders solo afectan a la pantalla de
+      juego en sí &mdash; los propios menús y la información en pantalla de MAME permanecen nítidos y
+      sin filtrar, así que cambiar esto nunca dificulta la lectura de la interfaz de MAME.</p>
+
+      <h3>Juegos vectoriales: simulación CRT avanzada</h3>
+      <p>Los juegos vectoriales (Asteroids, Tempest, Star Wars, Battlezone, etc. dibujan la imagen con
+      líneas en lugar de una cuadrícula de píxeles) son los que más se benefician del renderizador
+      nativo. Con <em>Efectos avanzados vectoriales</em> activado, MAME4droid ejecuta una simulación
+      basada en la física de cómo un monitor CRT vectorial real dibujaba realmente esas líneas, en
+      lugar de dibujar simplemente líneas planas suavizadas:</p>
+      <ul>
+        <li><strong>Bloom óptico:</strong> dispersión de luz/halos dentro del cristal del tubo
+            alrededor de los vectores brillantes.
+        </li>
+        <li><strong>Persistencia de fósforo (estelas):</strong> el resplandor residual que se
+            desvanece dejado por el haz de electrones, como una pantalla de fósforo real.
+        </li>
+        <li><strong>Dinámica del haz de electrones:</strong> los trazos cortos (texto, pequeños
+            detalles de naves) queman más brillante, exactamente como el hardware real.
+        </li>
+        <li><strong>Quemado de esquinas:</strong> «puntos de soldadura» brillantes donde el haz
+            decelera en las esquinas afiladas.
+        </li>
+        <li><strong>Vibración/parpadeo magnético:</strong> sutil ruido de bobina y fluctuación de
+            voltaje, para un aspecto de CRT imperfecto auténtico en lugar de una imagen vectorial
+            demasiado perfecta.
+        </li>
+      </ul>
+      <p>Cada uno de estos tiene sus propios deslizadores de calibración en <em>Calibración de efectos
+      vectoriales (modo experto)</em> si quieres ajustar el aspecto con precisión; <strong>Restaurar
+      valores CRT</strong> los restablece todos si te pierdes. <strong>FBO a media resolución</strong>
+      renderiza las pasadas de brillo vectorial a media resolución para ahorrar GPU/batería, a costa
+      de líneas de núcleo algo menos nítidas &mdash; un buen compromiso en dispositivos menos
+      potentes.</p>
+
+      <h3>HDR</h3>
+      <p>Si tu dispositivo y pantalla admiten HDR, <em>Ajustes HDR-&gt;Activar pantalla HDR</em>
+      desbloquea el brillo máximo del panel y una gama de color más amplia:</p>
+      <ul>
+        <li><strong>Juegos vectoriales (True HDR):</strong> el brillo del fósforo se renderiza con
+            luminancia HDR real en lugar de limitarse al blanco de rango dinámico estándar, más cerca
+            de lo intensos que se veían realmente los fósforos CRT originales. <em>Luminancia
+            base/máx. CRT</em> calibra el brillo base y máximo (en nits); <em>Atenuar artworks
+            vectoriales</em> oscurece el marco alrededor del juego para hacer que ese contraste
+            resalte aún más.
+        </li>
+        <li><strong>Juegos raster (Auto HDR):</strong> los juegos normales (no vectoriales) y su
+            artwork son contenido de rango dinámico estándar, así que MAME4droid puede opcionalmente
+            mejorarlos hacia la luminancia HDR usando mapeo de tonos inverso (<em>Activar Auto HDR
+            (raster)</em>), con <em>Intensidad de Auto HDR</em> controlando con qué agresividad se
+            expanden las luces altas, y <em>Referencia de blanco papel raster</em> ajustando el brillo
+            base para mayor comodidad.
+        </li>
+      </ul>
+      <p><strong>Nota:</strong> la calidad HDR varía mucho entre dispositivos/paneles &mdash; los
+      resultados están ajustados principalmente en torno a implementaciones que se comportan bien (p.
+      ej. Google Pixel) y pueden verse diferentes, mejor o peor, en otro hardware. <strong>Restaurar
+      valores HDR</strong> está ahí por si tu calibración se tuerce.</p>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Volver</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

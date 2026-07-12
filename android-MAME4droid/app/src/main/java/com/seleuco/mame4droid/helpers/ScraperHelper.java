@@ -127,7 +127,7 @@ public class ScraperHelper implements Runnable {
 
 			if(freeGB <= 1)
 			{
-				new WarnWidget.WarnWidgetHelper(mm,"Media scraping stopped (there is not enough free space)", 3, Color.RED, false);
+				new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.scraping_no_space), 3, Color.RED, false);
 				ScraperHelper.isStopped = true;
 				break;
 			}
@@ -137,13 +137,13 @@ public class ScraperHelper implements Runnable {
 			try {
 				scrapping = scraper.scrape(name, current);
 			}catch (ScrapeException e) {
-				new WarnWidget.WarnWidgetHelper(mm,"Media scraping error: "+e.getMessage(), 3, Color.RED, false);
+				new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.scraping_error, e.getMessage()), 3, Color.RED, false);
 				break;
 			}
 
 			if(!ScraperHelper.isScraping && scrapping){
 				ScraperHelper.isScraping = true;
-				new WarnWidget.WarnWidgetHelper(mm,"Media scraping is running...", 3, Color.GREEN, true);
+				new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.scraping_running), 3, Color.GREEN, true);
 			}
 
 			current++;
@@ -166,7 +166,7 @@ public class ScraperHelper implements Runnable {
         isRunning = false;
 
 		if(isScraping && !isStopped){
-			new WarnWidget.WarnWidgetHelper(mm,"Media scraping ends (you should restart MAME4droid...)", 5, Color.GREEN, true);
+			new WarnWidget.WarnWidgetHelper(mm, mm.getString(com.seleuco.mame4droid.R.string.scraping_ends), 5, Color.GREEN, true);
 		}
         Log.d(TAG, "Scraping ends");
     }

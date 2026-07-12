@@ -64,7 +64,7 @@
 
     /* NLOG master switch: 0 for release .so builds (compiles all NLOG out;
      * netplay_warn messages and the stats overlay are unaffected).        */
-    #define NETPLAY_LOG_ENABLED 1
+    #define NETPLAY_LOG_ENABLED 0
 
     /* Build/protocol handshake: bump on any wire or determinism-critical
      * change.  Peers exchange it (+ state-size/ring limits) in JOIN/JOIN_ACK
@@ -358,6 +358,7 @@
         uint32_t last_peer_timestamp; /* peer's timestamp, echoed back for their RTT */
         uint32_t smoothed_rtt;   /* slow EMA (a=1/8) of RTT, drives input delay */
         uint32_t fast_rtt;       /* fast EMA (a=1/4) of RTT                 */
+        uint32_t rtt_mdev;       /* EMA of |rtt - smoothed_rtt| = jitter (RFC6298 mdev); overlay readout, both paths */
         uint32_t max_rtt_interval; /* decaying peak RTT (jitter envelope)   */
         uint32_t min_rtt_window;   /* decaying minimum RTT (jitter envelope) */
         uint32_t rtt_update_time;  /* last lockstep auto-frameskip evaluation, ms */

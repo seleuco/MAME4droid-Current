@@ -135,7 +135,7 @@ public class Keyboard implements IController {
 			// Trigger OSD feedback only on the first valid physical keyboard press
 			if(!isVirtual && !isKeyboardEnabled) {
 				isKeyboardEnabled = true;
-				CharSequence text = "Keyboard is enabled!";
+				CharSequence text = mm.getString(com.seleuco.mame4droid.R.string.keyboard_enabled);
 				new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
 
 				mm.getMainHelper().updateMAME4droid();

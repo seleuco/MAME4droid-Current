@@ -412,7 +412,7 @@ void netplay_pre_frame_net(netplay_t *handle)
                     warn_paused = 1;
                     pthread_mutex_unlock(&handle->sync_mutex);
                     if (handle->netplay_warn)
-                        handle->netplay_warn((char*)"TOAST:Netplay: Peer is paused, please wait...");
+                        handle->netplay_warn((char*)"TOAST:@peer_paused");
                     myosd_droid_netplay_set_exitPause(1);
                     pthread_mutex_lock(&handle->sync_mutex);
                 }
@@ -603,14 +603,39 @@ void netplay_post_frame_net(netplay_t *handle)
         if (handle->netplay_warn && handle->smoothed_rtt > 0 &&
             (now_ms - s_last_stats_ms) > 2000) {
             s_last_stats_ms = now_ms;
-            const char *quality = "GREEN";
-            if (handle->smoothed_rtt > 150)      quality = "RED";
-            else if (handle->smoothed_rtt > 60)  quality = "YELLOW";
+
+            /* Jitter = RTT mean deviation (RFC 6298 mdev), updated on BOTH
+             * receive paths so rollback shows real jitter, not the flat 0 the
+             * lockstep-only peak/floor envelope gave.  Unlocked read is benign. */
+            uint32_t jitter = handle->rtt_mdev;
+
+            /* Colour = WORSE of ping and jitter.  Tuned for INTERNET rollback:
+             * rollback hides latency so ping is judged leniently; jitter is the
+             * real enemy, so a scattery link reddens even when the ping is fine. */
+            int sev = 0;                                /* 0 green,1 yellow,2 red */
+            if (handle->smoothed_rtt > 180)      sev = 2;   /* sluggish even w/ rollback */
+            else if (handle->smoothed_rtt > 100) sev = 1;   /* good, slightly laggy      */
+
+            /* Jitter rating with HYSTERESIS (worsen at high edge, recover past a
+             * lower one) so it doesn't flip-flop: green<->yellow 30/20, yellow<->
+             * red 60/45 mdev-ms.  Normal internet/VPN (~10-15ms) sits green.     */
+            static int s_jsev = 0;
+            int jsev = s_jsev;
+            switch (s_jsev) {
+                case 0:  if (jitter > 30) jsev = 1; break;
+                case 1:  if (jitter > 60) jsev = 2; else if (jitter < 20) jsev = 0; break;
+                default: if (jitter < 45) jsev = 1; break;      /* case 2 (red)   */
+            }
+            s_jsev = jsev;
+            if (jsev > sev) sev = jsev;
+            const char *quality = (sev == 2) ? "RED" : (sev == 1) ? "YELLOW" : "GREEN";
+
             char buf[128];
-            snprintf(buf, sizeof(buf), "STATS:%s:%s | Ping %ums | Delay %uf%s",
+            snprintf(buf, sizeof(buf), "STATS:%s:%s | Ping %ums | Jitter %ums | Delay %uf%s",
                      quality,
                      handle->mode == NETPLAY_MODE_ROLLBACK ? "Rollback" : "Lockstep",
                      (unsigned)handle->smoothed_rtt,
+                     (unsigned)jitter,
                      (unsigned)((handle->frame_skip + 1) / 2),
                      handle->is_auto_frameskip ? " (Auto)" : "");
             handle->netplay_warn(buf);
@@ -860,9 +885,9 @@ static int netplay_check_build_compat(netplay_t *handle, const netplay_msg_t *ms
         uint32_t now_ms = netplay_get_ticks_ms();
         if (handle->netplay_warn && (now_ms - s_last_warn_ms) > 3000) {
             s_last_warn_ms = now_ms;
-            char buf[192];
-            snprintf(buf, sizeof(buf),
-                     "TOAST:Netplay: incompatible app builds (local v%u / peer v%u). Update BOTH devices to the same version.",
+            char buf[64];
+            /* Java localizes "@key|args"; args are the two protocol versions. */
+            snprintf(buf, sizeof(buf), "TOAST:@incompatible|%u|%u",
                      (unsigned)NETPLAY_PROTOCOL_VERSION, peer_proto);
             handle->netplay_warn(buf);
         }
@@ -998,6 +1023,14 @@ int netplay_read_data(netplay_t *handle)
                 if (rtt < 2000) {
                     handle->fast_rtt = (handle->fast_rtt == 0)
                         ? rtt : (handle->fast_rtt * 3 + rtt) / 4;
+                    /* Jitter = EMA of |rtt - smoothed| (mdev); measured HERE too
+                     * so the overlay shows real jitter during rollback play, not
+                     * the flat 0 the lockstep-only peak/floor envelope gave.     */
+                    if (handle->smoothed_rtt != 0) {
+                        uint32_t dev = (rtt > handle->smoothed_rtt)
+                            ? rtt - handle->smoothed_rtt : handle->smoothed_rtt - rtt;
+                        handle->rtt_mdev = (handle->rtt_mdev * 3 + dev) / 4;
+                    }
                     handle->smoothed_rtt = (handle->smoothed_rtt == 0)
                         ? rtt : (handle->smoothed_rtt * 7 + rtt) / 8;
                 }
@@ -1090,9 +1123,9 @@ int netplay_read_data(netplay_t *handle)
                         if (handle->netplay_warn && (now_ms - s_last_desync_warn_ms) > 10000) {
                             s_last_desync_warn_ms = now_ms;
                             if (handle->mode == NETPLAY_MODE_ROLLBACK)
-                                handle->netplay_warn((char*)"TOASTERR:Netplay: desync detected -- this game may not be Rollback-safe. Try Resync, or switch to Lockstep.");
+                                handle->netplay_warn((char*)"TOASTERR:@desync_rollback");
                             else
-                                handle->netplay_warn((char*)"TOASTERR:Netplay: desync detected.");
+                                handle->netplay_warn((char*)"TOASTERR:@desync");
                         }
                     }
                     desync_print_count++;
@@ -1295,6 +1328,13 @@ int netplay_read_data(netplay_t *handle)
                     : (handle->smoothed_rtt * 7 + rtt) / 8; /* EMA slow α=1/8 */
 
                 handle->fast_rtt = fast_rtt;
+                /* Jitter = EMA of |rtt - smoothed| (mdev), computed before the
+                 * smoothed_rtt update so it uses the prior mean (RFC6298).      */
+                if (handle->smoothed_rtt != 0) {
+                    uint32_t dev = (rtt > handle->smoothed_rtt)
+                        ? rtt - handle->smoothed_rtt : handle->smoothed_rtt - rtt;
+                    handle->rtt_mdev = (handle->rtt_mdev * 3 + dev) / 4;
+                }
                 handle->smoothed_rtt = slow_rtt;
 
                 if (handle->max_rtt_interval == 0 || rtt > handle->max_rtt_interval) {
@@ -1488,9 +1528,9 @@ int netplay_read_data(netplay_t *handle)
                                 NLOG("Client failed to uncompress state! zerr=%d (comp=%u bytes, buf=%d)",
                                      zerr, handle->sync_state_size, ROLLBACK_STATE_SIZE_LIMIT);
                                 if (handle->netplay_warn) {
-                                    char warn_buf[256];
+                                    char warn_buf[64];
                                     snprintf(warn_buf, sizeof(warn_buf),
-                                        "TOAST:Netplay: initial state sync failed (state too large: %.2f MB). Session may desync.",
+                                        "TOAST:@state_sync_failed|%.2f",
                                         (double)handle->sync_state_size / (1024.0 * 1024.0));
                                     handle->netplay_warn(warn_buf);
                                 }
@@ -1700,8 +1740,8 @@ int netplay_read_data(netplay_t *handle)
                  handle->game_name, host_game);
             if (handle->netplay_warn) {
                 char wmsg[128];
-                snprintf(wmsg, sizeof(wmsg),
-                         "TOAST:Netplay: host is running '%s', loading it.", host_game);
+                /* arg is the host's game name, which Java inserts into the text. */
+                snprintf(wmsg, sizeof(wmsg), "TOAST:@host_running|%s", host_game);
                 handle->netplay_warn(wmsg);
             }
         }
@@ -1757,7 +1797,7 @@ int netplay_read_data(netplay_t *handle)
         int was_active = handle->resync_active;
         if (netplay_resync_begin(handle, "peer request") && !was_active) {
             if (handle->netplay_warn)
-                handle->netplay_warn((char*)"TOAST:Netplay: peer requested a resync, syncing game state...");
+                handle->netplay_warn((char*)"TOAST:@peer_resync");
         }
     }
     break;
@@ -2350,7 +2390,7 @@ bool netplay_initial_sync(netplay_t *handle)
             NLOG("INCOMPATIBLE save layout (local=%u peer=%u bytes) - falling back to LOCKSTEP",
                  local_size, handle->peer_state_size);
             if (handle->netplay_warn)
-                handle->netplay_warn((char*)"TOAST:Netplay: this game's savestate is not rollback-compatible across devices. Using lockstep mode.");
+                handle->netplay_warn((char*)"TOAST:@not_rollback_compatible");
             return true;   /* next frame: mode=LOCKSTEP, block skipped, barrier runs */
         }
         NLOG("save layout OK (local=%u peer=%u bytes)", local_size, handle->peer_state_size);
@@ -2511,7 +2551,7 @@ bool netplay_initial_sync(netplay_t *handle)
             NLOG("ROLLBACK: initial sync TIMEOUT after %lld ms (role=%s) - aborting netplay",
                  (long long)elapsed_ms, handle->player1 ? "HOST" : "CLIENT");
             if (handle->netplay_warn)
-                handle->netplay_warn((char*)"TOAST:Netplay: initial sync timed out. Resuming offline.");
+                handle->netplay_warn((char*)"TOAST:@sync_timeout");
             handle->has_connection = 0;
             break;
         }
@@ -2611,7 +2651,9 @@ void netplay_set_crc_detector_enabled(bool enabled) {
  * offline play (this function only shows the message).                    */
 void netplay_warn_hangup(netplay_t *handle)
 {
-    char msg[] = "Netplay: Connection lost. Resuming offline play...";
+    /* No TOAST* prefix -> Java shows it as a MODAL dialog (original behavior);
+     * the "@key" is localized by resolveNpMsg in Emulator.netplayWarn.        */
+    char msg[] = "@connection_lost";
     
     if(handle->netplay_warn!=0)
         handle->netplay_warn(msg);
@@ -2623,7 +2665,9 @@ void netplay_warn_hangup(netplay_t *handle)
  * offline play (this function only shows the message).                    */
 void netplay_warn_disconnect(netplay_t *handle)
 {
-    char msg[] = "Netplay: Peer disconnected. Resuming offline play...";
+    /* No TOAST* prefix -> Java shows it as a MODAL dialog (original behavior);
+     * the "@key" is localized by resolveNpMsg in Emulator.netplayWarn.        */
+    char msg[] = "@peer_disconnected";
     
     if(handle->netplay_warn!=0)
         handle->netplay_warn(msg);
@@ -2712,7 +2756,7 @@ int myosd_netplay_request_resync(void)
     for (int i = 0; i < 3; i++)
         netplay_send_resync(handle);
     if (handle->netplay_warn)
-        handle->netplay_warn((char*)"TOAST:Netplay: resyncing game state...");
+        handle->netplay_warn((char*)"TOAST:@resyncing");
     return 1;
 }
 

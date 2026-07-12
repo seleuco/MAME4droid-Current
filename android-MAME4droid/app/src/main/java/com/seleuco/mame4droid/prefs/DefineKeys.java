@@ -59,12 +59,18 @@ public class DefineKeys extends ListActivity {
 
 	private ArrayAdapter<String> keyLabelsAdapter;
 
-    public static final String[] playerLabels = {
-            "Controller 1",
-            "Controller 2",
-            "Controller 3",
-            "Controller 4",
-    };
+    private String[] playerLabels() {
+        String[] labels = new String[4];
+        for (int i = 0; i < labels.length; i++)
+            labels[i] = getString(com.seleuco.mame4droid.R.string.controller_n, i + 1);
+        return labels;
+    }
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        com.seleuco.mame4droid.helpers.LocaleHelper.applyLocale(this, newBase);
+        super.attachBaseContext(newBase);
+    }
 
     @Override
     public void onCreate(Bundle icicle) {
@@ -82,7 +88,7 @@ public class DefineKeys extends ListActivity {
 			keyLabelsAdapter = new ArrayAdapter<String>(
 				this,
 				android.R.layout.simple_list_item_1,
-				DefineKeys.playerLabels
+				playerLabels()
 			);
 			setListAdapter(keyLabelsAdapter);
 		} else {

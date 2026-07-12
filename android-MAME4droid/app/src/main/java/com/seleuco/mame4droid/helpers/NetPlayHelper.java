@@ -122,6 +122,21 @@ public class NetPlayHelper {
         return root;
     }
 
+    /* First clipboard item as trimmed text, or null if empty/unavailable. */
+    private String readClipboard() {
+        try {
+            android.content.ClipboardManager cb = (android.content.ClipboardManager)
+                    mm.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cb == null || !cb.hasPrimaryClip()) return null;
+            android.content.ClipData clip = cb.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) return null;
+            CharSequence t = clip.getItemAt(0).coerceToText(mm);
+            return t == null ? null : t.toString().trim();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private volatile boolean canceled = false;
 
     /* Host waiting-dialog text is composed by two racing workers (netplayInit
@@ -137,9 +152,9 @@ public class NetPlayHelper {
 
     /* Body of the connecting dialog on a LAN join: nothing to share or
      * exchange there, so it explains the situation instead. */
-    private static final String LAN_CONNECT_BODY =
-            "Local network game: connecting directly on your Wi-Fi / network."
-            + "\n\nMake sure both devices are on the same network and use the same port.";
+    private String lanConnectBody() {
+        return mm.getString(R.string.np_lan_connect_body);
+    }
 
     /** True when the user has selected ROLLBACK mode for the next session. */
     private boolean rollbackMode = false;
@@ -229,9 +244,9 @@ public class NetPlayHelper {
 
         String name = Emulator.getValueStr(Emulator.GAME_SELECTED);
         if (name != null && name.length() != 0) {
-            startButton.setText("Start game: " + name);
+            startButton.setText(mm.getString(R.string.np_start_game_named, name));
         } else {
-            startButton.setText("Start game");
+            startButton.setText(mm.getString(R.string.np_start_game));
             startButton.setEnabled(false);
         }
     }
@@ -244,7 +259,7 @@ public class NetPlayHelper {
         netplayDlg = new Dialog(mm);
 
         netplayDlg.setContentView(R.layout.netplayview);
-        netplayDlg.setTitle("Peer-To-Peer NetPlayHelper");
+        netplayDlg.setTitle(mm.getString(R.string.np_dialog_title));
         netplayDlg.setCancelable(true);
         netplayDlg.setOnCancelListener(dialogCancelListener);
 
@@ -292,53 +307,117 @@ public class NetPlayHelper {
         return first;
     }
 
+    /* Every non-loopback IPv4 except carrier interfaces, so the host can share
+     * ALL its LAN/hotspot addresses and the peer keeps the one on its own /24
+     * (a hotspot host often has both a mobile and a reachable AP address). */
+    private java.util.List<String> getAllLocalIPv4() {
+        java.util.List<String> out = new java.util.ArrayList<String>();
+        try {
+            for (NetworkInterface intf : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                String name = intf.getName().toLowerCase();
+                if (name.contains("rmnet") || name.contains("ccmni") || name.contains("p2p") || name.contains("dummy")) continue;
+                for (InetAddress addr : Collections.list(intf.getInetAddresses())) {
+                    if (addr.isLoopbackAddress()) continue;
+                    String s = addr.getHostAddress().toUpperCase(Locale.getDefault());
+                    if (isIPv4Address(s) && !out.contains(s)) out.add(s);
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return out;
+    }
+
     /* Android share sheet with the addresses ready to paste on the other
      * end -- nobody should ever transcribe an IP by hand. */
     private void shareAddresses(int port) {
-        StringBuilder sb = new StringBuilder("MAME4droid NetPlay\n");
-        String loc = shareLocalAddr;
-        if (loc != null)
-            sb.append("Same network: ").append(loc).append(':').append(port).append('\n');
+        StringBuilder sb = new StringBuilder(mm.getString(R.string.np_share_header)).append('\n');
+        /* Host (shareLocalAddr != null) advertises every LAN/hotspot address so
+         * the peer can pick a reachable one; the client shares only its public. */
+        if (shareLocalAddr != null)
+            for (String loc : getAllLocalIPv4())
+                sb.append(mm.getString(R.string.np_share_same_network, loc + ":" + port)).append('\n');
         String info = Emulator.netplayGetPublicAddr();
         if (info != null && info.length() > 0)
-            sb.append("Internet: ").append(info.split("\\|")[0]);
+            sb.append(mm.getString(R.string.np_share_internet, info.split("\\|")[0]));
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType("text/plain");
         i.putExtra(Intent.EXTRA_TEXT, sb.toString().trim());
         try {
-            mm.startActivity(Intent.createChooser(i, "Share netplay address"));
+            mm.startActivity(Intent.createChooser(i, mm.getString(R.string.np_share_title)));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    /* Pulls a usable ip[:port] out of pasted text (Share messages carry
-     * labels and possibly BOTH addresses).  A private address on our own
-     * /24 wins (same-network play), then a public one, else raw input. */
-    protected String extractAddress(String s) {
-        if (s == null) return "";
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
-                "(\\d{1,3}(?:\\.\\d{1,3}){3})(:\\d{1,5})?").matcher(s);
-        String pub = null, priv = null;
-        while (m.find()) {
-            String ipOnly = m.group(1);
-            if (!isIPv4Address(ipOnly)) continue;
-            if (isPrivateIPv4(ipOnly)) {
-                if (priv == null) priv = m.group();
-            } else if (pub == null) {
-                pub = m.group();
+    /* Both ip[:port] candidates in pasted text: [private, public], each null if
+     * absent.  Labels are ignored (classification is by IP value), so it works
+     * whatever locale the shared invite was written in. */
+    private String[] addressCandidates(String s) {
+        String privFirst = null, privOnSubnet = null, pub = null;
+        if (s != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                    "(\\d{1,3}(?:\\.\\d{1,3}){3})(:\\d{1,5})?").matcher(s);
+            while (m.find()) {
+                String ipStr = m.group(1);
+                if (!isIPv4Address(ipStr)) continue;
+                if (isPrivateIPv4(ipStr)) {
+                    if (privFirst == null) privFirst = m.group();
+                    if (privOnSubnet == null && sameSubnet24(m.group())) privOnSubnet = m.group();
+                } else if (pub == null) pub = m.group();
             }
         }
-        if (priv != null) {
-            String own = getMainLocalIPv4();
-            String privIp = priv.indexOf(':') > 0 ? priv.substring(0, priv.indexOf(':')) : priv;
-            if (own != null && own.substring(0, own.lastIndexOf('.') + 1)
-                    .equals(privIp.substring(0, privIp.lastIndexOf('.') + 1)))
-                return priv;
-        }
+        /* Prefer a private on OUR /24 (reachable) when the host shared several. */
+        return new String[]{ privOnSubnet != null ? privOnSubnet : privFirst, pub };
+    }
+
+    /* Strip an optional ":port" -> bare IPv4. */
+    private static String ipOnly(String ipWithPort) {
+        if (ipWithPort == null) return null;
+        int c = ipWithPort.indexOf(':');
+        return c > 0 ? ipWithPort.substring(0, c) : ipWithPort;
+    }
+
+    /* Whether a private ip[:port] shares our own /24 (very likely same LAN). */
+    private boolean sameSubnet24(String privWithPort) {
+        String own = getMainLocalIPv4();
+        String priv = ipOnly(privWithPort);
+        if (own == null || priv == null) return false;
+        return own.substring(0, own.lastIndexOf('.') + 1)
+                .equals(priv.substring(0, priv.lastIndexOf('.') + 1));
+    }
+
+    /* Pulls a usable ip[:port] out of pasted text: private on our /24 wins
+     * (same-network), then public, else raw.  Synchronous heuristic, also the
+     * fallback when the public-IP probe can't run (see resolveAndJoin). */
+    protected String extractAddress(String s) {
+        if (s == null) return "";
+        String[] c = addressCandidates(s);
+        String priv = c[0], pub = c[1];
+        if (priv != null && sameSubnet24(priv)) return priv;
         if (pub != null) return pub;
         if (priv != null) return priv;
         return s.trim();
+    }
+
+    /* Decide LAN vs internet for a pasted invite, then join.  With BOTH host
+     * IPs, a STUN probe compares publics: equal = same site -> LAN, else
+     * internet; probe empty (offline / blocked) -> /24 heuristic. */
+    private void resolveAndJoin(final String pasted) {
+        String[] c = addressCandidates(pasted);
+        final String priv = c[0], pub = c[1];
+        if (priv != null && pub != null) {
+            final String hostPubIp = ipOnly(pub);
+            new Thread(new Runnable() { public void run() {
+                String myPub = Emulator.netplayProbePublicIp();
+                final String chosen = (myPub != null && myPub.length() > 0)
+                        ? (myPub.equals(hostPubIp) ? priv : pub)  /* same public IP -> same site -> LAN */
+                        : extractAddress(pasted);                 /* probe failed -> /24 heuristic      */
+                mm.runOnUiThread(new Runnable() { public void run() { joinGame(chosen); } });
+            } }).start();
+        } else {
+            joinGame(extractAddress(pasted));
+        }
     }
 
     /* Any non-loopback IPv4 at all (mobile data included): getMainLocalIPv4()
@@ -367,9 +446,9 @@ public class NetPlayHelper {
         rollbackMode = sp.getBoolean(PREF_NETPLAY_ROLLBACK_MODE, false);
 
         new AlertDialog.Builder(mm)
-            .setTitle("NetPlay Mode")
+            .setTitle(mm.getString(R.string.np_mode_title))
             .setSingleChoiceItems(
-                new String[]{"Lockstep  (guaranteed sync)", "Rollback  (low-latency, ideal for NeoGeo/CPS)"},
+                new String[]{mm.getString(R.string.np_mode_lockstep), mm.getString(R.string.np_mode_rollback)},
                 rollbackMode ? 1 : 0,
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
@@ -377,7 +456,7 @@ public class NetPlayHelper {
                     }
                 }
             )
-            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            .setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
                     // Persist choice
                     SharedPreferences sp = mm.getPrefsHelper().getSharedPreferences();
@@ -387,7 +466,7 @@ public class NetPlayHelper {
                     action.run();
                 }
             })
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(mm.getString(R.string.cancel), null)
             .show();
     }
 
@@ -404,15 +483,48 @@ public class NetPlayHelper {
      * netplaySetPunchAddr, which the network thread applies within ~500ms. */
     protected void promptHotPunchAddr(final int gamePort) {
         AlertDialog.Builder alert = new AlertDialog.Builder(mm);
-        alert.setTitle("Peer public IP[:port]");
+        alert.setTitle(mm.getString(R.string.np_peer_ip_title));
 
         final EditText input = new EditText(mm);
-        alert.setView(input);
         String punch = mm.getPrefsHelper().getSharedPreferences().getString(PrefsHelper.PREF_NETPLAY_PUNCHADDR, "");
         input.setText(punch);
         input.setSelection(input.getText().length());
 
-        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        /* Custom view: hint + field + a Clear/Paste row (same as the join dialog). */
+        float d = mm.getResources().getDisplayMetrics().density;
+        LinearLayout box = new LinearLayout(mm);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding((int) (20 * d), (int) (8 * d), (int) (20 * d), 0);
+        TextView hint = new TextView(mm);
+        hint.setText(mm.getString(R.string.np_peer_ip_hint));
+        hint.setPadding(0, 0, 0, (int) (8 * d));
+        box.addView(hint);
+        box.addView(input);
+        LinearLayout btnRow = new LinearLayout(mm);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(android.view.Gravity.END);
+        Button clearBtn = new Button(mm);
+        clearBtn.setText(mm.getString(R.string.clear));
+        clearBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View b) { input.setText(""); }
+        });
+        Button pasteBtn = new Button(mm);
+        pasteBtn.setText(mm.getString(R.string.paste));
+        pasteBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View b) {
+                String clip = readClipboard();
+                if (clip != null && clip.length() > 0) {
+                    input.setText(clip);
+                    input.setSelection(input.getText().length());
+                }
+            }
+        });
+        btnRow.addView(clearBtn);
+        btnRow.addView(pasteBtn);
+        box.addView(btnRow);
+        alert.setView(box);
+
+        alert.setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 /* Tolerates a pasted Share message (labels included). */
                 String s = extractAddress(input.getText().toString());
@@ -428,7 +540,7 @@ public class NetPlayHelper {
                 Emulator.netplaySetPunchAddr(host, p);
             }
         });
-        alert.setNegativeButton("Cancel", null);
+        alert.setNegativeButton(mm.getString(R.string.cancel), null);
         alert.show();
     }
 
@@ -503,11 +615,11 @@ public class NetPlayHelper {
             String info = Emulator.netplayGetPublicAddr();
             if (info != null && info.length() > 0) {
                 String[] parts = info.split("\\|");
-                sb.append("\nYour public IP (for internet play): ").append(parts[0]);
+                sb.append('\n').append(mm.getString(R.string.np_public_ip, parts[0]));
                 if (info.contains("sym=1"))
-                    sb.append("\nSymmetric NAT detected. Internet play may fail.");
+                    sb.append('\n').append(mm.getString(R.string.np_symmetric_nat));
             } else if (warnUnavailable) {
-                sb.append("\nYour public IP: unavailable (internet play may need port forwarding)");
+                sb.append('\n').append(mm.getString(R.string.np_public_unavailable));
             }
         }
         return sb.toString();
@@ -517,23 +629,56 @@ public class NetPlayHelper {
         public void onClick(View v) {
             AlertDialog.Builder alert = new AlertDialog.Builder(mm);
 
-            alert.setTitle("Enter peer IP address (ip or ip:port):");
+            alert.setTitle(mm.getString(R.string.np_enter_peer_ip));
 
             final EditText input = new EditText(mm);
-            alert.setView(input);
-
             String ip = mm.getPrefsHelper().getSharedPreferences().getString(PrefsHelper.PREF_NETPLAY_PEERADDR, "");
-
             input.setText(ip);
             input.setSelection(input.getText().length());
 
-                    alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            /* Custom view: hint + field + a Clear/Paste row (pasting the shared
+             * invite by hand is fiddly, so give it a one-tap button). */
+            float d = mm.getResources().getDisplayMetrics().density;
+            LinearLayout box = new LinearLayout(mm);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding((int) (20 * d), (int) (8 * d), (int) (20 * d), 0);
+            TextView hint = new TextView(mm);
+            hint.setText(mm.getString(R.string.np_join_hint));
+            hint.setPadding(0, 0, 0, (int) (8 * d));
+            box.addView(hint);
+            box.addView(input);
+            LinearLayout btnRow = new LinearLayout(mm);
+            btnRow.setOrientation(LinearLayout.HORIZONTAL);
+            btnRow.setGravity(android.view.Gravity.END);
+            Button clearBtn = new Button(mm);
+            clearBtn.setText(mm.getString(R.string.clear));
+            clearBtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View b) { input.setText(""); }
+            });
+            Button pasteBtn = new Button(mm);
+            pasteBtn.setText(mm.getString(R.string.paste));
+            pasteBtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View b) {
+                    String clip = readClipboard();
+                    if (clip != null && clip.length() > 0) {
+                        input.setText(clip);
+                        input.setSelection(input.getText().length());
+                    }
+                }
+            });
+            btnRow.addView(clearBtn);
+            btnRow.addView(pasteBtn);
+            box.addView(btnRow);
+            alert.setView(box);
+
+                    alert.setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int whichButton) {
                     /* Tolerates a pasted Share message (labels, both lines). */
-                    final String ip = extractAddress(input.getText().toString());
+                    final String raw = input.getText().toString();
+                    final String ip = extractAddress(raw);
 
                     if (ip.length() == 0) {
-                        new WarnWidget.WarnWidgetHelper(mm, "Connection canceled: Invalid IP address.", 3, Color.RED, false);
+                        new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_invalid_ip), 3, Color.RED, false);
                         return;
                     }
 
@@ -545,11 +690,14 @@ public class NetPlayHelper {
                     edit.putString(PrefsHelper.PREF_NETPLAY_PEERADDR, ip);
                     edit.commit();
 
-                    joinGame(ip);
+                    /* Only when BOTH addresses are present (our Share text) does
+                     * resolveAndJoin probe our public IP; a single pasted IP is
+                     * used as-is. */
+                    resolveAndJoin(raw);
                 }
             });
 
-            alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            alert.setNegativeButton(mm.getString(R.string.cancel), new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int whichButton) {
                     // Canceled.
                 }
@@ -567,7 +715,7 @@ public class NetPlayHelper {
             releaseWifiLock();
             deleteUpnpMappingAsync();
             com.seleuco.mame4droid.widgets.StatsWidget.hide(mm);
-            new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Disconnected from the game.", 3, Color.YELLOW, false);
+            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_disconnected_game), 3, Color.YELLOW, false);
             prepareButtons();
         }
     };
@@ -581,7 +729,7 @@ public class NetPlayHelper {
                 netplayDlg.dismiss();
                 Emulator.resume();
             } else {
-                new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Resync not available.", 3, Color.YELLOW, false);
+                new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_resync_unavailable), 3, Color.YELLOW, false);
                 prepareButtons();
             }
         }
@@ -596,7 +744,7 @@ public class NetPlayHelper {
         } catch (Exception e) {
         }
         if (!(port >= 1024 && port <= 32768 * 2)) {
-            new WarnWidget.WarnWidgetHelper(mm, "Connection canceled: Invalid port.", 3, Color.RED, false);
+            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_invalid_port), 3, Color.RED, false);
             return;
         }
         final int gamePort = port;
@@ -611,8 +759,8 @@ public class NetPlayHelper {
 
         canceled = false;
         AlertDialog.Builder waitBld = new AlertDialog.Builder(mm);
-        waitBld.setTitle("Press back to cancel");
-        waitBld.setView(buildProgressView("Waiting for peer...", "Getting network info..."));
+        waitBld.setTitle(mm.getString(R.string.np_press_back_cancel));
+        waitBld.setView(buildProgressView(mm.getString(R.string.np_waiting_peer), mm.getString(R.string.np_getting_info)));
         waitBld.setCancelable(true);
         waitBld.setOnCancelListener(new DialogInterface.OnCancelListener() {
             @Override
@@ -624,29 +772,35 @@ public class NetPlayHelper {
          * buttons auto-dismiss otherwise.  Share = system share sheet with
          * the addresses; Peer IP = hot punch-target entry (each side only
          * learns its own public tuple once its flow starts). */
-        waitBld.setPositiveButton("Share", (DialogInterface.OnClickListener) null);
-        waitBld.setNeutralButton("Peer IP", (DialogInterface.OnClickListener) null);
+        waitBld.setPositiveButton(mm.getString(R.string.np_btn_share), (DialogInterface.OnClickListener) null);
+        waitBld.setNeutralButton(mm.getString(R.string.np_btn_peer_ip), (DialogInterface.OnClickListener) null);
         progressDialog = waitBld.create();
         progressDialog.show();
-        Button peerBtn = progressDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
+        final Button peerBtn = progressDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
         if (peerBtn != null) {
+            /* Off until init is done: a punch target set before the worker's
+             * netplaySetPunchAddr(null,0) clear would be wiped, and internet
+             * viability isn't known until STUN.  Re-enabled (or hidden) below. */
+            peerBtn.setEnabled(false);
             peerBtn.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     promptHotPunchAddr(gamePort);
                 }
             });
         }
-        Button shareBtn = progressDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+        final Button shareBtn = progressDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         if (shareBtn != null) {
+            /* Off until the worker has BOTH addresses (local IP + STUN): an
+             * early tap would share a half-empty or stale (previous-session)
+             * message.  Re-enabled once postHostMessage() runs below. */
+            shareBtn.setEnabled(false);
             shareBtn.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     shareAddresses(gamePort);
                 }
             });
         }
-        upnpFallbackHint = "\nInternet play: if the other player can't reach your public IP,"
-                + " tap Peer IP and enter THEIR public address, or forward UDP "
-                + gamePort + " on your router.";
+        upnpFallbackHint = "\n" + mm.getString(R.string.np_upnp_fallback_hint, gamePort);
 
         Thread t = new Thread(new Runnable() {
             public void run() {
@@ -663,7 +817,7 @@ public class NetPlayHelper {
                                     UpnpHelper.deletePortMapping();
                                     return;
                                 }
-                                upnpLine = "\nRouter port mapped (UPnP): peers can join your public IP directly.";
+                                upnpLine = "\n" + mm.getString(R.string.np_upnp_mapped);
                                 postHostMessage();
                             }
                         }
@@ -681,7 +835,7 @@ public class NetPlayHelper {
                     canceled = true;
                     mm.runOnUiThread(new Runnable() {
                         public void run() {
-                            new WarnWidget.WarnWidgetHelper(mm, "Connection canceled: No network available.", 4, Color.RED, false);
+                            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_no_network), 4, Color.RED, false);
                         }
                     });
                 }
@@ -700,7 +854,7 @@ public class NetPlayHelper {
                         canceled = true;
                         mm.runOnUiThread(new Runnable() {
                             public void run() {
-                                new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Critical error initializing network.", 3, Color.RED, false);
+                                new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_error_init), 3, Color.RED, false);
                             }
                         });
                     } else {
@@ -721,11 +875,22 @@ public class NetPlayHelper {
                     }
 
                     hostBaseMsg = (ip != null
-                                    ? "Your local IP (for same-network play): " + ip
-                                    : "Mobile data only: no local network (internet play only)")
+                                    ? mm.getString(R.string.np_local_ip, ip)
+                                    : mm.getString(R.string.np_mobile_only))
                             + publicInfoLines(true, ip == null)
-                            + "\nTap Share to send these addresses via any messenger.";
+                            + "\n" + mm.getString(R.string.np_tap_share);
                     postHostMessage();
+
+                    /* Data ready: enable the buttons (kept off until here so an
+                     * early tap can't share a stale message or set a punch
+                     * target that init's clear would wipe).  peerBtn may already
+                     * be hidden above when there is no public IP. */
+                    mm.runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (shareBtn != null) shareBtn.setEnabled(true);
+                            if (peerBtn != null) peerBtn.setEnabled(true);
+                        }
+                    });
                 }
 
                 while (Emulator.getValue(Emulator.NETPLAY_HAS_JOINED) == 0 && !canceled) {
@@ -752,7 +917,7 @@ public class NetPlayHelper {
                         if (!canceled) {
                             if (netplayDlg.isShowing())
                                 netplayDlg.hide();
-                            new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Connected successfully! Starting game...", 3, Color.GREEN, false);
+                            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_connected), 3, Color.GREEN, false);
                             Emulator.resume();
                         }
                     }
@@ -771,7 +936,7 @@ public class NetPlayHelper {
         } catch (Exception e) {
         }
         if (!(port >= 1024 && port <= 32768 * 2)) {
-            new WarnWidget.WarnWidgetHelper(mm, "Connection canceled: Invalid port.", 3, Color.RED, false);
+            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_invalid_port), 3, Color.RED, false);
             return;
         }
 
@@ -796,9 +961,9 @@ public class NetPlayHelper {
         canceled = false;
         shareLocalAddr = null; /* the client only shares its public tuple */
         AlertDialog.Builder joinBld = new AlertDialog.Builder(mm);
-        joinBld.setTitle("Press back to cancel");
-        joinBld.setView(buildProgressView("Connecting to :" + addr,
-                inetMode ? "" : LAN_CONNECT_BODY));
+        joinBld.setTitle(mm.getString(R.string.np_press_back_cancel));
+        joinBld.setView(buildProgressView(mm.getString(R.string.np_connecting_to, addr),
+                inetMode ? "" : lanConnectBody()));
         joinBld.setCancelable(true);
         joinBld.setOnCancelListener(new DialogInterface.OnCancelListener() {
             @Override
@@ -807,7 +972,7 @@ public class NetPlayHelper {
             }
         });
         if (inetMode) /* a LAN join has nothing to share */
-            joinBld.setPositiveButton("Share", (DialogInterface.OnClickListener) null);
+            joinBld.setPositiveButton(mm.getString(R.string.np_btn_share), (DialogInterface.OnClickListener) null);
         progressDialog = joinBld.create();
         progressDialog.show();
         Button shareBtn = progressDialog.getButton(DialogInterface.BUTTON_POSITIVE);
@@ -832,7 +997,7 @@ public class NetPlayHelper {
                     canceled = true;
                     mm.runOnUiThread(new Runnable() {
                         public void run() {
-                            new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Critical error initializing network.", 3, Color.RED, false);
+                            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_error_init), 3, Color.RED, false);
                         }
                     });
                 } else {
@@ -849,14 +1014,12 @@ public class NetPlayHelper {
                         int c = myPubIp.indexOf(':');
                         if (c > 0) myPubIp = myPubIp.substring(0, c);
                         if (myPubIp.equals(destHost))
-                            sameNet = "\nSame public IP as the host: you seem to be on"
-                                    + " their network -- join their LOCAL IP instead.";
+                            sameNet = "\n" + mm.getString(R.string.np_same_public_ip);
                     }
                     final String msg = inetMode
                             ? pub + sameNet
-                              + "\n\nIf the connection won't land: tap Share and send this"
-                              + " address to the host (their Peer IP button)."
-                            : LAN_CONNECT_BODY;
+                              + "\n\n" + mm.getString(R.string.np_share_hint_client)
+                            : lanConnectBody();
                     mm.runOnUiThread(new Runnable() {
                         public void run() {
                             if (progressText != null)
@@ -891,7 +1054,7 @@ public class NetPlayHelper {
                         if (!canceled) {
                             if (netplayDlg.isShowing())
                                 netplayDlg.hide();
-                            new WarnWidget.WarnWidgetHelper(mm, "NetPlay: Connected successfully! Starting game...", 3, Color.GREEN, false);
+                            new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_connected), 3, Color.GREEN, false);
                             Emulator.resume();
                         }
                     }

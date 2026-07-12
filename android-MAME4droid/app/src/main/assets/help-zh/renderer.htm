@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid Reloaded 帮助</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">渲染器和着色器</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <p>MAME4droid 可以用两种不同的渲染器绘制游戏。在<em>选项-&gt;设置-&gt;渲染器和着色器-&gt;原生渲染器
+      （着色器和 HDR）</em>中进行选择。</p>
+
+      <h3>两种渲染器</h3>
+      <ul>
+        <li><strong>传统（软件）渲染器 &mdash; 默认：</strong>较旧的、经过极其充分测试的渲染路径。它不支持
+            着色器和 HDR，但在所有设备（包括低端或较旧硬件）上是最安全、最兼容的选择。如果您只想以最少的麻烦
+            让一切正常工作，或者您的设备难以运行原生渲染器，请选择这个。
+        </li>
+        <li><strong>原生渲染器（着色器和 HDR）：</strong>MAME 自己的现代渲染管线。开启它可解锁着色器效果、
+            矢量游戏的 True HDR、普通（光栅）游戏的 Auto HDR，以及总体上矢量游戏更高质量的外观（见下文）。
+            它比传统渲染器需要更多 GPU 性能，但在任何较现代的设备上，当您使用高分辨率 artwork/边框时它也
+            <em>更快</em>，因为其管线专门针对该情况进行了优化。
+        </li>
+      </ul>
+      <p><strong>重要：</strong>启用原生渲染器后，还请将<em>选项-&gt;设置-&gt;模拟-&gt;模拟分辨率</em>设为
+      <strong>原生</strong>。这让高分辨率 artwork/边框以全质量渲染而无性能损失 &mdash; 在使用原生渲染器时
+      将其保持在较低的固定分辨率，会浪费您刚刚解锁的额外图像质量。</p>
+
+      <h3>着色器</h3>
+      <p>启用原生渲染器后，<em>渲染器和着色器-&gt;效果着色器</em>让您选择一个后处理效果（扫描线/CRT 风格
+      滤镜等），应用在模拟画面之上。可用列表取决于您的设备/构建；选择<strong>无</strong>可禁用它。着色器
+      只影响实际的游戏画面 &mdash; MAME 自己的菜单和屏幕显示保持清晰且不受滤镜影响，因此更改此项绝不会
+      使 MAME 的界面更难阅读。</p>
+
+      <h3>矢量游戏：高级 CRT 模拟</h3>
+      <p>矢量游戏（Asteroids、Tempest、Star Wars、Battlezone 等，用线条而非像素网格绘制画面）从原生渲染器
+      中受益最多。启用<em>矢量高级效果</em>后，MAME4droid 会运行一个基于物理的模拟，还原真实矢量 CRT 显示器
+      实际绘制这些线条的方式，而非仅绘制平坦的抗锯齿线条：</p>
+      <ul>
+        <li><strong>光学泛光：</strong>明亮矢量周围管玻璃内部的光散射/光晕。
+        </li>
+        <li><strong>荧光粉持久性（拖尾）：</strong>电子束留下的逐渐消退的余辉，就像真实的荧光屏。
+        </li>
+        <li><strong>电子束动态：</strong>短笔画（文本、飞船小细节）燃烧得更亮，与真实硬件完全一致。
+        </li>
+        <li><strong>边角灼烧：</strong>光束在锐角处减速的明亮「焊点」。
+        </li>
+        <li><strong>磁性抖动/闪烁：</strong>细微的线圈噪声和电压波动，呈现真实的不完美 CRT 外观，而非过于
+            完美的矢量图像。
+        </li>
+      </ul>
+      <p>如果您想微调外观，这些效果每一个在<em>矢量效果校准（专家模式）</em>中都有自己的校准滑块；如果您
+      迷失了方向，<strong>恢复 CRT 默认值</strong>会将它们全部重置。<strong>FBO 半分辨率</strong>以半分辨率
+      渲染矢量辉光通道以节省 GPU/电池，代价是核心线条略微不那么清晰 &mdash; 在性能较弱的设备上是一个不错的
+      权衡。</p>
+
+      <h3>HDR</h3>
+      <p>如果您的设备和显示器支持 HDR，<em>HDR 设置-&gt;启用 HDR 显示</em>可解锁面板峰值亮度和更宽的色域：</p>
+      <ul>
+        <li><strong>矢量游戏（True HDR）：</strong>荧光粉亮度以真实的 HDR 亮度渲染，而非被限制在标准动态
+            范围的白色，更接近原始 CRT 荧光粉实际看起来的强烈程度。<em>CRT 基础/最大亮度</em>校准基准和峰值
+            亮度（以尼特为单位）；<em>调暗矢量 artworks</em>使游戏周围的边框变暗，使该对比度更加突出。
+        </li>
+        <li><strong>光栅游戏（Auto HDR）：</strong>普通（非矢量）游戏及其 artwork 是标准动态范围内容，因此
+            MAME4droid 可以选择使用逆色调映射将它们提升到 HDR 亮度（<em>启用 Auto HDR（光栅）</em>），其中
+            <em>Auto HDR 强度</em>控制高光扩展的激进程度，<em>光栅纸白参考</em>设置舒适的基准亮度。
+        </li>
+      </ul>
+      <p><strong>注意：</strong>HDR 质量在不同设备/面板之间差异很大 &mdash; 结果主要围绕表现良好的实现
+      （例如 Google Pixel）进行调整，在其他硬件上可能看起来不同，或更好或更差。如果您的校准出错，
+      <strong>恢复 HDR 默认值</strong>可供使用。</p>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">返回</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

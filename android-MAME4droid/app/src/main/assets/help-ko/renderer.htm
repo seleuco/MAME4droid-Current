@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>MAME4Droid Reloaded 도움말</title>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+	<div class="header">
+<h1 class="title">렌더러 및 셰이더</h1>
+  </div><!-- /header -->
+	<div class="content">
+      <p>MAME4droid는 두 가지 다른 렌더러로 게임을 그릴 수 있습니다.
+      <em>옵션-&gt;설정-&gt;렌더러 및 셰이더-&gt;네이티브 렌더러(셰이더 및 HDR)</em>에서 선택하세요.</p>
+
+      <h3>두 가지 렌더러</h3>
+      <ul>
+        <li><strong>레거시(소프트웨어) 렌더러 &mdash; 기본값:</strong>더 오래되고 극도로 잘 테스트된 렌더링
+            경로입니다. 셰이더 지원과 HDR은 없지만, 저사양이나 오래된 하드웨어를 포함한 모든 기기에서 가장 안전하고
+            호환성 높은 선택입니다. 최소한의 번거로움으로 작동하기만 원하거나 기기가 네이티브 렌더러에 어려움을 겪는
+            경우 이것을 사용하세요.
+        </li>
+        <li><strong>네이티브 렌더러(셰이더 및 HDR):</strong>MAME 자체의 현대적인 렌더링 파이프라인입니다. 켜면
+            셰이더 효과, 벡터 게임의 True HDR, 일반(래스터) 게임의 Auto HDR, 그리고 전반적으로 벡터 게임의 훨씬
+            높은 품질의 외관이 잠금 해제됩니다(아래 참조). 레거시 렌더러보다 더 많은 GPU 성능이 필요하지만, 어느
+            정도 현대적인 기기에서는 고해상도 artwork/베젤을 사용할 때 <em>더 빠르기</em>도 합니다. 그 파이프라인이
+            그 경우에 맞게 특별히 최적화되었기 때문입니다.
+        </li>
+      </ul>
+      <p><strong>중요:</strong>네이티브 렌더러를 활성화한 후에는 <em>옵션-&gt;설정-&gt;에뮬레이션-&gt;에뮬레이트
+      해상도</em>도 <strong>네이티브</strong>로 설정하세요. 이렇게 하면 고해상도 artwork/베젤이 성능 저하 없이
+      전체 품질로 렌더링됩니다 &mdash; 네이티브 렌더러를 사용하면서 낮은 고정 해상도로 두면 방금 잠금 해제한 추가
+      이미지 품질을 낭비하게 됩니다.</p>
+
+      <h3>셰이더</h3>
+      <p>네이티브 렌더러를 활성화하면 <em>렌더러 및 셰이더-&gt;효과 셰이더</em>에서 에뮬레이트된 그림 위에 적용되는
+      후처리 효과(스캔라인/CRT 스타일 필터 등)를 선택할 수 있습니다. 사용 가능한 목록은 기기/빌드에 따라 다릅니다.
+      비활성화하려면 <strong>없음</strong>을 선택하세요. 셰이더는 실제 게임 화면에만 영향을 줍니다 &mdash; MAME
+      자체의 메뉴와 화면 표시는 선명하고 필터 없이 유지되므로, 이를 변경해도 MAME의 UI가 읽기 어려워지지 않습니다.</p>
+
+      <h3>벡터 게임: 고급 CRT 시뮬레이션</h3>
+      <p>벡터 게임(Asteroids, Tempest, Star Wars, Battlezone 등, 픽셀 격자가 아닌 선으로 그림을 그림)은 네이티브
+      렌더러로부터 가장 큰 혜택을 받습니다. <em>벡터 고급 효과</em>를 활성화하면, MAME4droid는 단순히 평평한
+      안티앨리어싱 선을 그리는 대신, 실제 벡터 CRT 모니터가 그 선들을 실제로 어떻게 그렸는지를 물리 기반으로
+      시뮬레이션합니다:</p>
+      <ul>
+        <li><strong>광학 블룸:</strong>밝은 벡터 주변의 관 유리 내부 광 산란/후광.
+        </li>
+        <li><strong>인광체 잔상(꼬리):</strong>전자빔이 남기는 사라져 가는 잔광. 실제 인광 스크린처럼.
+        </li>
+        <li><strong>전자빔 역학:</strong>짧은 스트로크(텍스트, 작은 우주선 디테일)가 실제 하드웨어와 똑같이 더 밝게
+            타오릅니다.
+        </li>
+        <li><strong>코너 번:</strong>빔이 날카로운 코너에서 감속하는 밝은 "용접점".
+        </li>
+        <li><strong>자기 지터/깜박임:</strong>미묘한 코일 노이즈와 전압 변동. 너무 완벽한 벡터 이미지가 아니라
+            진짜 같은 불완전한 CRT 외관을 위해.
+        </li>
+      </ul>
+      <p>외관을 미세 조정하고 싶다면 이들 각각은 <em>벡터 효과 보정(전문가 모드)</em>에 자체 보정 슬라이더가
+      있습니다. 길을 잃으면 <strong>CRT 기본값 복원</strong>이 모두 재설정합니다. <strong>FBO 절반 해상도</strong>는
+      벡터 글로우 패스를 절반 해상도로 렌더링해 GPU/배터리를 절약하지만, 코어 선이 약간 덜 선명해지는 대가가
+      있습니다 &mdash; 덜 강력한 기기에서 좋은 절충입니다.</p>
+
+      <h3>HDR</h3>
+      <p>기기와 디스플레이가 HDR을 지원하면 <em>HDR 설정-&gt;HDR 디스플레이 활성화</em>가 패널 최대 밝기와 더 넓은
+      색 영역을 잠금 해제합니다:</p>
+      <ul>
+        <li><strong>벡터 게임(True HDR):</strong>인광체 밝기가 표준 다이내믹 레인지 흰색으로 제한되는 대신 실제
+            HDR 휘도로 렌더링되어, 원래 CRT 인광체가 실제로 얼마나 강렬해 보였는지에 더 가까워집니다. <em>CRT
+            기본/최대 휘도</em>가 기준과 최대 밝기(니트 단위)를 보정합니다. <em>벡터 artworks 어둡게</em>는 게임
+            주변의 베젤을 어둡게 해 그 대비를 더욱 돋보이게 합니다.
+        </li>
+        <li><strong>래스터 게임(Auto HDR):</strong>일반(비벡터) 게임과 그 artwork는 표준 다이내믹 레인지 콘텐츠
+            이므로, MAME4droid는 역 톤 매핑을 사용해 이를 HDR 휘도로 선택적으로 업그레이드할 수 있습니다(<em>Auto
+            HDR 활성화(래스터)</em>). <em>Auto HDR 강도</em>가 하이라이트가 얼마나 공격적으로 확장되는지 제어하고,
+            <em>래스터 페이퍼 화이트 기준</em>이 편안함을 위한 기준 밝기를 설정합니다.
+        </li>
+      </ul>
+      <p><strong>참고:</strong>HDR 품질은 기기/패널에 따라 크게 다릅니다 &mdash; 결과는 주로 잘 동작하는 구현
+      (예: Google Pixel)을 중심으로 조정되며, 다른 하드웨어에서는 더 좋거나 나쁘게, 다르게 보일 수 있습니다.
+      보정이 잘못되면 <strong>HDR 기본값 복원</strong>이 있습니다.</p>
+
+  </div><!-- /content -->
+
+<div class="header">
+<h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">뒤로</a></h4>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

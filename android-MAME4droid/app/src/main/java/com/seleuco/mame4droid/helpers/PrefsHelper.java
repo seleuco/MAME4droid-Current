@@ -94,6 +94,8 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_BITMAP_FILTERING = "PREF_BITMAP_FILTERING";
 	final static public String PREF_VECTOR_IMPROVED = "PREF_VECTOR_IMPROVED";
 	final static public String PREF_HDR_DISPLAY = "PREF_HDR";
+	final static public String PREF_FORCE_UNIFONT = "PREF_FORCE_UNIFONT";
+	final static public String PREF_MAME_LANGUAGE = "PREF_MAME_LANGUAGE";
 
 	final static public String PREF_PORTRAIT_SCALING_MODE = "PREF_PORTRAIT_SCALING_MODE";
 	final static public String PREF_PORTRAIT_TOUCH_CONTROLLER = "PREF_PORTRAIT_TOUCH_CONTROLLER";
@@ -256,6 +258,17 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 	public boolean isHDRDisplayEnabled() {
 		return getSharedPreferences().getBoolean(PREF_HDR_DISPLAY, false);
+	}
+
+	public boolean isForceUnifont() {
+		return getSharedPreferences().getBoolean(PREF_FORCE_UNIFONT, false);
+	}
+
+	/* Whether MAME's own core UI is shown in the app language. When off, the
+	 * native core stays in English (its translations are patchy) while the
+	 * Android app UI keeps the chosen language. Default on. */
+	public boolean isMameCoreTranslated() {
+		return getSharedPreferences().getBoolean(PREF_MAME_LANGUAGE, true);
 	}
 
 	public int getPortraitScaleMode() {
