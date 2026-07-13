@@ -151,6 +151,14 @@
     <string name="saf_caching_wait">읽는 중, 잠시 기다려 주세요…</string>
     <string name="saf_no_permission">MAME4droid에 %1$s의 ROM 파일을 읽을 권한이 없습니다.\n\n권한을 다시 부여하거나 다른 ROM 폴더를 선택하세요. 둘 다 MAME4droid 메뉴 \'옵션 -> 설정 -> 일반 -> ROM 경로 변경\'에서 할 수 있습니다.</string>
     <string name="saf_selected_folder">선택한 폴더</string>
+    <string name="saf_cache_stale">ROM 폴더가 캐시된 이후 변경되었습니다.\nMAME4droid를 다시 시작하는 것이 좋습니다.</string>
+    <string name="saf_cache_reading">SAF 캐시를 읽는 중…</string>
+    <string name="pref_saf_cache_title">ROM 폴더 색인 캐시</string>
+    <string name="pref_saf_cache_summary">시작 시 캐시된 ROM 폴더 색인을 재사용해 더 빠르게 불러옵니다. 비활성화하면 시작할 때마다 폴더 전체를 다시 스캔합니다.</string>
+    <string name="pref_saf_rescan_title">ROM 폴더 다시 스캔</string>
+    <string name="pref_saf_rescan_summary">다음 시작 시 ROM 폴더 캐시를 완전히 다시 만듭니다(실행 후 이 옵션은 자동으로 꺼집니다).</string>
+    <string name="pref_saf_lazy_title">일반 시작에서도 지연 로딩</string>
+    <string name="pref_saf_lazy_summary">일반 시작에서도 색인 전체를 스캔하거나 불러오지 않고 SD 파일을 필요할 때 해석합니다. 시작이 가장 빠르며 파일 목록은 필요에 따라 읽습니다.</string>
 
     <string name="confirm_restore_data">복원하시겠습니까? 이렇게 하면 모든 MAME cfg 및 nvram 파일이 삭제됩니다. 게임을 기본값으로 복원해 MAME 키 매핑을 수정하는 데 유용합니다.</string>
     <string name="confirm_restore_crt">CRT 설정을 공장 기본값으로 복원하시겠습니까?</string>

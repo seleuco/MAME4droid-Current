@@ -166,6 +166,14 @@
     <string name="saf_caching_wait">Reading, please wait...</string>
     <string name="saf_no_permission">MAME4droid doesn\'t have permission to read the roms files on %1$s.\n\nPlease grant permissions again or select another ROMs folder, both in MAME4droid menu \'Options -> Settings -> General -> Change ROMs path\'.</string>
     <string name="saf_selected_folder">the selected folder</string>
+    <string name="saf_cache_stale">The ROMs folder has changed since it was cached.\nRestarting MAME4droid is recommended.</string>
+    <string name="saf_cache_reading">Reading SAF cache…</string>
+    <string name="pref_saf_cache_title">Cache ROMs folder index</string>
+    <string name="pref_saf_cache_summary">Reuse the cached ROMs folder index at startup for faster loading. Disable to fully rescan the folder on every launch.</string>
+    <string name="pref_saf_rescan_title">Rescan ROMs folder</string>
+    <string name="pref_saf_rescan_summary">Force a full rebuild of the ROMs folder cache on the next start (the option switches itself off afterwards).</string>
+    <string name="pref_saf_lazy_title">Lazy loading on normal startup</string>
+    <string name="pref_saf_lazy_summary">Also on normal startup, resolve SD files on demand instead of scanning or loading the whole index. Fastest boot; file lists are read as needed.</string>
 
     <!-- Preference confirm dialogs -->
     <string name="confirm_restore_data">Are you sure to restore? This will remove all your MAME cfg and nvram files. This is useful to restore games to defaults to fixup mame key mappings.</string>

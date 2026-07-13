@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>MAME4Droid Reloaded Help</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">External Controllers</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <p>All of this applies to physical gamepads, joysticks and arcade sticks connected via USB or
+            Bluetooth. Everything described here lives under <em>Options-&gt;Settings-&gt;Input-&gt;Game
+            controller</em>.</p>
+
+        <h3>Two Ways a Controller Gets Recognized</h3>
+        <p>Every time a physical controller sends a key or a meaningful stick movement for the first
+            time in a session, MAME4droid decides how to handle it, in this order:</p>
+        <ol>
+            <li><strong>You already mapped it yourself.</strong> If any button of this controller was
+                bound by hand in <em>Map Buttons</em> (see below), that custom mapping is used, always
+                &mdash; even if the pad would otherwise match a known profile below. A custom mapping
+                always wins.</li>
+            <li><strong>Autodetect</strong> (<em>Autodetect controllers</em>, on by default). MAME4droid
+                keeps a large built-in list of known controller names (e.g. Sixaxis/PS3, Xbox,
+                NVIDIA Shield, MOGA, OUYA, several Logitech/DragonRise/ipega/etc. models) and, if the
+                Android name of your device matches one of them, applies that model's factory-known
+                button layout automatically, no setup needed. This only inspects the device's reported
+                name; it doesn't touch any mapping you defined by hand for a different pad.</li>
+            <li><strong>Generic controller.</strong> If nothing above claimed it, but Android still
+                reports it as a real gamepad or joystick (not a keyboard, remote or random HID device),
+                MAME4droid assigns it the next free player slot anyway and falls back to a sensible
+                factory default layout (standard D-Pad/A/B/X/Y/L1/R1/L2/R2 button codes). You'll see a
+                yellow notice asking you to map its buttons manually for a proper layout. Devices that
+                don't identify themselves as gaming hardware never take a player slot; only their
+                Android Back/Menu keys (and Start, on Android TV) still work as UI shortcuts.</li>
+        </ol>
+        <p>Turning <em>Autodetect controllers</em> off skips step 2 entirely: every pad becomes a
+            "generic" one (step 3) unless you map it by hand.</p>
+
+        <h3>Player Slots: Connecting and Disconnecting</h3>
+        <p>Up to 4 controllers can be seated as Player 1 to 4 at the same time. A slot is hardware
+            state, not something you configure: it's simply the first free slot (0 to 3) at the moment
+            the controller first sends input, whichever detection path claimed it. This means the same
+            physical pad can land on a different player number from one session to the next, depending
+            on the order things were turned on or plugged in &mdash; the button mapping itself doesn't
+            move though, since it's tied to the controller's own identity (see <em>Persistent ID</em>
+            below), not to the slot.</p>
+        <p>Unplugging or disconnecting a controller immediately frees its slot, clears any button/stick
+            state it had (so nothing stays "stuck" pressed), and shows a short notice
+            (<em>"Disconnected controller (Pn)"</em>). Reconnecting the same pad later re-seats it in
+            the next free slot and, thanks to the Persistent ID, immediately reapplies whatever custom
+            mapping you had already made for it, with no extra setup.</p>
+        <p>Leaving the game and coming back to MAME4droid's own interface re-evaluates every currently
+            connected controller from scratch (bans from failed autodetect attempts are cleared, slots
+            are handed out again), but never forgets your saved custom mappings.</p>
+
+        <h3>Persistent ID: Why It Matters</h3>
+        <p>Android assigns every input device a numeric ID when it connects, but that number is
+            volatile: it changes across reconnects, reboots, or even between USB and Bluetooth mode on
+            the same pad. Binding your mapping to that number would mean redoing it constantly, so
+            MAME4droid doesn't: instead it asks Android for the device's hardware <em>descriptor</em>
+            (a fingerprint Android derives from the device itself, not from the connection) and turns it
+            into a small sequential <em>Virtual ID</em> starting at 1000, the very first time it sees
+            that descriptor. From then on, that same physical controller always gets that same Virtual
+            ID, and it's this Virtual ID &mdash; not Android's connection-time number &mdash; that your
+            custom key mappings are actually bound to. The table of descriptor&#8594;Virtual ID is saved
+            to the app's private preferences and survives app restarts and device reboots.</p>
+        <p><strong>Implications:</strong></p>
+        <ul>
+            <li>Map a controller once, and it keeps working correctly forever, on any USB port, over
+                Bluetooth, after a reboot, mixed in any order with other pads.</li>
+            <li>Two genuinely different physical controllers always get two different Virtual IDs (1000,
+                1001, 1002...), so each can have its own independent layout, even if they're the exact
+                same model.</li>
+            <li>If a controller reports a missing, too short, or literally "unknown" descriptor (some
+                cheap or badly-implemented clones do), MAME4droid cannot form a stable fingerprint for
+                it and falls back to a volatile Android-provided number instead. A mapping made for such
+                a pad may stop matching after a reconnect or reboot, since that fallback number isn't
+                guaranteed to stay the same. If you run into this, see <em>Share mapping profile</em>
+                below.</li>
+        </ul>
+        <p><strong>Share mapping profile</strong> (off by default): forces every controller, regardless
+            of its real descriptor, to share one single Virtual ID (shown as <em>ID 9999</em> in the
+            <em>Map Buttons</em> screen). Turn it on if you own several identical clone gamepads and
+            want to map buttons only once for all of them, or as a workaround for a pad with an unstable
+            descriptor. The trade-off: since all controllers now resolve to the same ID, they all use
+            the exact same button layout &mdash; you can't give Player 1 and Player 2 different mappings
+            while this is on. Multiplayer itself still works fine, only the layout is shared.</p>
+
+        <h3>Map Buttons</h3>
+        <p><em>Map Buttons</em> opens a list of 4 entries, <em>Controller 1</em> to <em>Controller 4</em>
+            &mdash; these are the 4 player slots, not specific physical devices. Picking one shows the
+            16 MAME arcade inputs (Up/Down/Left/Right, Button A to H, Coin, Start, Exit, Option) and, for
+            each, what is currently bound to it: either <em>Not mapped</em>, or something like
+            <em>"ID 1000 : BUTTON_A"</em> (the controller's Virtual ID and the raw Android key name).
+            Tapping an input opens a capture screen ("Waiting for input...") that grabs the very next
+            physical key you press, reads which controller sent it, computes its Virtual ID, and binds
+            that (controller, key) pair to that player slot's input. If that exact same physical button
+            on that exact same controller was already bound to a different action anywhere else, that
+            older binding is silently cleared first &mdash; one physical button can only ever trigger one
+            arcade input at a time. Use <em>Clear</em> in that same screen to unmap just that one input.</p>
+        <p>Since mapping is keyed by Virtual ID and not by connection order, you don't need any
+            controller plugged in a specific slot while mapping it: just press its buttons when asked,
+            for whichever player slot you want it to control.</p>
+
+        <h3>Restore Defaults</h3>
+        <p><em>Restore Defaults</em> is a full factory reset, not a per-controller one: it wipes every
+            custom mapping for all 4 player slots back to the built-in defaults, and also forgets every
+            Virtual ID ever assigned (the descriptor table is cleared and numbering restarts at 1000).
+            Every controller you own will be treated as brand new the next time it's used: autodetect and
+            generic-slot assignment run again from scratch for all of them.</p>
+
+        <h3>Analog Sticks</h3>
+        <p>Three settings shape how an analog stick's raw X/Y is turned into arcade input:</p>
+        <ul>
+            <li><strong>Controller type</strong> (Digital DPAD / Digital Stick / Analog Stick): with
+                either digital option, stick movement is converted into 2/4/8-way digital directions,
+                same as a real arcade joystick would give MAME. With <em>Analog Stick</em>, the raw
+                analog value is instead sent straight through, for games that support analog input
+                (e.g. driving games).</li>
+            <li><strong>Stick type</strong> (Auto/2-way/4-way/8-way): how many directions the digital
+                conversion above snaps to. <em>Auto</em> asks the currently running game itself how many
+                ways its joystick supports.</li>
+            <li><strong>Analog dead zone</strong> (under <em>Game controller</em>, not to be confused
+                with the identically-named one under <em>Touch controller</em>, which is for the
+                on-screen stick): how far a physical stick has to move off-center before it registers at
+                all, to ignore small drift on worn or cheap sticks.</li>
+        </ul>
+        <p>The right analog stick and analog triggers, when present, are always sent through as raw
+            analog data (not digitized), for games and light-gun-style controls that use them.</p>
+
+        <h3>Hiding the On-Screen Controls</h3>
+        <p>Once any physical controller is active (seated in a slot, or simply moving its stick), you can
+            have MAME4droid automatically hide the on-screen touch buttons, either in the frontend UI
+            (<em>Hide touch controls in MAME UI</em>) or during actual gameplay
+            (<em>Hide touch controls in-game</em>); both only apply in fullscreen mode. This is purely
+            visual and doesn't disable touch input, it just gets the on-screen pad out of the way while
+            you're using a real one.</p>
+
+        <h3>Troubleshooting Tips</h3>
+        <ul>
+            <li><strong>Autodetect got it wrong</strong> (wrong buttons for a pad it does recognize by
+                name): don't fight it, just override it. Go to <em>Map Buttons</em> and set the buttons
+                you actually want for that controller &mdash; a custom mapping always takes priority over
+                autodetect, button by button, so you only need to remap the ones that feel wrong.</li>
+            <li><strong>Pad isn't detected at all</strong> (no green/yellow notice ever appears, buttons
+                do nothing): Android itself isn't reporting it as gaming hardware, which MAME4droid can't
+                override. This is common with cheap HID adapters or pads stuck in "keyboard emulation"
+                mode. Check whether the pad or its dongle has a different USB/Bluetooth/mode switch, or
+                try a generic USB-HID-to-gamepad adapter.</li>
+            <li><strong>A mapping you made keeps "disappearing"</strong> after unplugging and plugging
+                the pad back in, swapping its batteries, or switching it between USB and Bluetooth: the
+                controller most likely has an unstable or missing hardware descriptor, so MAME4droid can't
+                recognize it as the same device twice. Turn on <em>Share mapping profile</em> as a
+                workaround (see <em>Persistent ID</em> above) &mdash; every pad then always resolves to
+                the same shared mapping, descriptor or not.</li>
+            <li><strong>You own two or more identical pads</strong> and don't want to map each one
+                separately: same fix, <em>Share mapping profile</em>. Just remember it also means every
+                pad is forced to use that one shared layout.</li>
+            <li><strong>Wrong player got the input</strong> (e.g. your pad controls P2 instead of P1):
+                slots are handed out in connect order, first-come-first-served, not by any setting. Turn
+                controllers on, or plug them in, in the order you want them seated as P1, P2, P3, P4.</li>
+            <li><strong>A direction or button feels stuck, or fires by itself</strong>: this usually means
+                a worn/loose stick reporting tiny movement even at rest. Raise <em>Analog dead zone</em>
+                under <em>Game controller</em> one or two steps.</li>
+            <li><strong>Starting completely fresh</strong> (a pad is behaving strangely and nothing above
+                helps): <em>Restore Defaults</em> wipes every custom mapping and every remembered
+                controller identity, so the very next input from any pad is treated as brand new.</li>
+        </ul>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Go
+            Back</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -151,6 +151,14 @@
     <string name="saf_caching_wait">読み込み中、お待ちください……</string>
     <string name="saf_no_permission">MAME4droid には %1$s の ROM ファイルを読み取る権限がありません。\n\n権限を再度付与するか、別の ROM フォルダを選択してください。いずれも MAME4droid メニュー \'オプション -> 設定 -> 一般 -> ROM パスを変更\' で行えます。</string>
     <string name="saf_selected_folder">選択したフォルダ</string>
+    <string name="saf_cache_stale">ROM フォルダがキャッシュ後に変更されました。\nMAME4droid の再起動をおすすめします。</string>
+    <string name="saf_cache_reading">SAF キャッシュを読み込み中……</string>
+    <string name="pref_saf_cache_title">ROM フォルダの索引をキャッシュ</string>
+    <string name="pref_saf_cache_summary">起動時にキャッシュ済みの ROM フォルダ索引を再利用して読み込みを高速化します。無効にすると起動のたびにフォルダ全体を再スキャンします。</string>
+    <string name="pref_saf_rescan_title">ROM フォルダを再スキャン</string>
+    <string name="pref_saf_rescan_summary">次回起動時に ROM フォルダのキャッシュを完全に再構築します（実行後、このオプションは自動的にオフになります）。</string>
+    <string name="pref_saf_lazy_title">通常起動でも遅延読み込み</string>
+    <string name="pref_saf_lazy_summary">通常起動でも、索引全体をスキャン/読み込みせず SD のファイルを必要時に解決します。起動が最速になり、ファイル一覧は必要に応じて読み込まれます。</string>
 
     <string name="confirm_restore_data">復元してもよろしいですか？これにより、すべての MAME cfg および nvram ファイルが削除されます。ゲームをデフォルトに戻して MAME のキーマッピングを修正するのに役立ちます。</string>
     <string name="confirm_restore_crt">CRT 設定を工場出荷時のデフォルトに復元してもよろしいですか？</string>

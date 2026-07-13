@@ -24,6 +24,11 @@
                 almacenamiento privado y la usa. Luego copias tú mismo tus ROMs allí, ya sea desde un
                 PC por USB/ADB, o con una app de gestor de archivos que pueda explorar la carpeta
                 privada de la app. Estos datos se eliminan automáticamente al desinstalar la app.
+                <br><strong>No recomendado:</strong> esta carpeta vive en el sandbox privado de la app,
+                así que lanzadores/frontends externos y la mayoría de gestores de archivos casi
+                seguro no podrán acceder a ella &mdash; el modelo de seguridad de almacenamiento de
+                Android está pensado para carpetas concedidas vía SAF (ver más abajo), no para el
+                almacenamiento privado de la app.
             </li>
             <li><strong>Almacenamiento externo:</strong> eliges una carpeta existente en cualquier
                 lugar de tu dispositivo (una tarjeta SD, una carpeta que ya uses para ROMs, una
@@ -58,8 +63,11 @@
             concede explícitamente a través del propio selector de Android (esto se llama Storage
             Access Framework, o SAF). Es el selector que se abre al elegir <em>Almacenamiento
             externo</em> arriba, o al cambiar tu carpeta de ROMs más adelante. Es un poco más lento
-            que el acceso directo a archivos, pero MAME4droid cachea los listados de archivos para que
-            siga siendo rápido en el uso diario una vez indexadas tus ROMs.</p>
+            que el acceso directo a archivos, así que MAME4droid cachea el listado de la carpeta para
+            que siga siendo rápido en el uso diario una vez indexadas tus ROMs. Si una ROM que acabas
+            de meter no aparece, o notas cualquier otro problema raro con la carpeta, puedes desactivar
+            <em>Cachear el índice de la carpeta de ROMs</em> o forzar un <em>Reescanear carpeta de
+            ROMs</em> en <em>Opciones-&gt;Ajustes-&gt;General</em>.</p>
         <p><strong>Consejo:</strong> mantén tu carpeta de ROMs plana (sin ROMs enterradas en
             subcarpetas) y no mezcles archivos no relacionados ni sin comprimir &mdash; la carpeta
             debería contener realmente solo tus conjuntos de ROMs de MAME comprimidos en ZIP.</p>

@@ -859,6 +859,7 @@ galaxy sde	   --> 2560x1600 16:10
             mm.getMainHelper().setInstallationDirType(MainHelper.INSTALLATION_DIR_FILES_DIR);
             mm.getPrefsHelper().setROMsDIR(romsPath);
             mm.getPrefsHelper().setSAF_Uri(uri.toString());
+            mm.getSAFHelper().deleteCacheFile();//the persisted cache belongs to the old tree
 
 			Thread t = new Thread(new Runnable() { public void run() {
 				try {

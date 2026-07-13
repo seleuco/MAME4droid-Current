@@ -24,6 +24,10 @@
                 app storage and uses that. You then copy your ROMs into it yourself, either from a PC
                 over USB/ADB, or with a file manager app that can browse the app's private folder.
                 This data is deleted automatically when you uninstall the app.
+                <br><strong>Not recommended:</strong> this folder lives in the app's private sandbox,
+                so external launchers/frontends and most file managers most likely won't be able to
+                reach it &mdash; Android's storage security model is built around SAF-granted folders
+                (see below), not private app storage.
             </li>
             <li><strong>External Storage:</strong> you pick an existing folder anywhere on your
                 device (an SD card, a folder you already use for ROMs, a cloud-synced folder, etc.)
@@ -53,8 +57,11 @@
             storage &mdash; they only get access to folders the user explicitly grants through
             Android's own picker (this is called the Storage Access Framework, or SAF). That's the
             picker that opens when you choose <em>External Storage</em> above, or when you change your
-            ROMs folder later. It's a bit slower than direct file access, but MAME4droid caches file
-            listings so it stays fast in day-to-day use once your ROMs are indexed.</p>
+            ROMs folder later. It's a bit slower than direct file access, so MAME4droid caches the
+            folder's file listing to stay fast in day-to-day use once your ROMs are indexed. If a ROM
+            you just added doesn't show up, or you run into any other odd folder issue, you can turn
+            off <em>Cache ROMs folder index</em> or force a <em>Rescan ROMs folder</em> under
+            <em>Options-&gt;Settings-&gt;General</em>.</p>
         <p><strong>Tip:</strong> keep your ROMs folder flat (no ROMs buried in subfolders) and don't
             mix in unrelated, unzipped files &mdash; the folder should really only contain your ZIPped
             MAME ROM sets.</p>

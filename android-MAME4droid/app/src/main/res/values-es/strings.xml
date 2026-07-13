@@ -151,6 +151,14 @@
     <string name="saf_caching_wait">Leyendo, espera por favor...</string>
     <string name="saf_no_permission">MAME4droid no tiene permiso para leer los archivos de ROM en %1$s.\n\nPor favor, concede los permisos de nuevo o selecciona otra carpeta de ROMs, ambos en el menú de MAME4droid \'Opciones -> Ajustes -> General -> Cambiar ruta de ROMs\'.</string>
     <string name="saf_selected_folder">la carpeta seleccionada</string>
+    <string name="saf_cache_stale">La carpeta de ROMs ha cambiado desde que se cacheó.\nSe recomienda reiniciar MAME4droid.</string>
+    <string name="saf_cache_reading">Leyendo la caché SAF…</string>
+    <string name="pref_saf_cache_title">Cachear el índice de la carpeta de ROMs</string>
+    <string name="pref_saf_cache_summary">Reutiliza al arrancar el índice cacheado de la carpeta de ROMs para cargar más rápido. Desactívalo para reescanear la carpeta entera en cada arranque.</string>
+    <string name="pref_saf_rescan_title">Reescanear carpeta de ROMs</string>
+    <string name="pref_saf_rescan_summary">Fuerza una reconstrucción completa de la caché de la carpeta de ROMs en el próximo arranque (la opción se desactiva sola después).</string>
+    <string name="pref_saf_lazy_title">Carga perezosa en arranque normal</string>
+    <string name="pref_saf_lazy_summary">También en el arranque normal, resuelve los archivos de la SD bajo demanda en vez de escanear o cargar el índice completo. Arranque más rápido; las listas de archivos se leen según se necesitan.</string>
 
     <string name="confirm_restore_data">¿Seguro que quieres restaurar? Esto eliminará todos tus archivos cfg y nvram de MAME. Es útil para restaurar los juegos a sus valores por defecto y corregir las asignaciones de teclas de MAME.</string>
     <string name="confirm_restore_crt">¿Seguro que quieres restaurar los ajustes CRT a los valores de fábrica?</string>

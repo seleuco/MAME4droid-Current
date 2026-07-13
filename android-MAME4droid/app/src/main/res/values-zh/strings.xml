@@ -151,6 +151,14 @@
     <string name="saf_caching_wait">正在读取，请稍候……</string>
     <string name="saf_no_permission">MAME4droid 没有权限读取 %1$s 中的 ROM 文件。\n\n请重新授予权限或选择另一个 ROM 文件夹，两者均可在 MAME4droid 菜单 \'选项 -> 设置 -> 常规 -> 更改 ROM 路径\' 中操作。</string>
     <string name="saf_selected_folder">所选文件夹</string>
+    <string name="saf_cache_stale">ROM 文件夹在缓存后发生了变化。\n建议重新启动 MAME4droid。</string>
+    <string name="saf_cache_reading">正在读取 SAF 缓存……</string>
+    <string name="pref_saf_cache_title">缓存 ROM 文件夹索引</string>
+    <string name="pref_saf_cache_summary">启动时重用已缓存的 ROM 文件夹索引以加快加载。禁用后每次启动都会重新扫描整个文件夹。</string>
+    <string name="pref_saf_rescan_title">重新扫描 ROM 文件夹</string>
+    <string name="pref_saf_rescan_summary">在下次启动时强制完全重建 ROM 文件夹缓存（完成后该选项会自动关闭）。</string>
+    <string name="pref_saf_lazy_title">正常启动也使用按需加载</string>
+    <string name="pref_saf_lazy_summary">正常启动时也按需解析 SD 卡文件，而不扫描或加载整个索引。启动最快；文件列表按需读取。</string>
 
     <string name="confirm_restore_data">确定要恢复吗？这将删除您所有的 MAME cfg 和 nvram 文件。这有助于将游戏恢复为默认值以修复 MAME 按键映射。</string>
     <string name="confirm_restore_crt">确定要将 CRT 设置恢复为出厂默认值吗？</string>

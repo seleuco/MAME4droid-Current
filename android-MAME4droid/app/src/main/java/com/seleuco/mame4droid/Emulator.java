@@ -764,23 +764,31 @@ public class Emulator {
 						: "English";
 				Emulator.setValueStr(Emulator.LANGUAGE, mameLanguage);
 
+				Intent intent = mm.getIntent();
+				String action = intent.getAction();
+				boolean viewIntent = Intent.ACTION_VIEW.equals(action);
+
 				boolean isUsingSaf = mm.getPrefsHelper().getROMsDIR() != null && mm.getPrefsHelper().getROMsDIR().length() != 0;
 				if (isUsingSaf) {
 					Emulator.setValue(Emulator.USING_SAF, 1);
 					Emulator.setValueStr(Emulator.SAF_PATH, mm.getPrefsHelper().getROMsDIR());
-					mm.getSAFHelper().listUriFiles(true);
+					if (viewIntent || mm.getPrefsHelper().isSAFLazyNormalBoot())
+						// Direct game launch (or lazy boot preference): don't block
+						// on a full scan; SAF paths are resolved lazily (or from the
+						// persisted cache) on demand.
+						mm.getSAFHelper().initLazy();
+					else
+						mm.getSAFHelper().listUriFiles(false);
 					if(mm.getPrefsHelper().isScrapingEnabled())
 						mm.getScraperHelper().initMediaScrap();
 				}
 
-				Intent intent = mm.getIntent();
-				String action = intent.getAction();
 				//Uri pkg = null;
 				String fileName = null;
 				String cliParams = null;
 				String path = null;
 				boolean delete = false;
-				if (Intent.ACTION_VIEW.equals(action)) {
+				if (viewIntent) {
 					//android.os.Debug.waitForDebugger();
 					//pkg = mm.getReferrer();
 					//System.out.println("PKG: "+pkg.getHost());
@@ -864,6 +872,10 @@ public class Emulator {
 
 				isEmulating = true;
 				runT();
+
+				// Persist SAF cache changes made during the session (savestates,
+				// created dirs) in one shot, now that the emulator is done.
+				mm.getSAFHelper().persistCacheIfDirty();
 
 				if (extROM) {
 

@@ -56,6 +56,9 @@ import com.seleuco.mame4droid.input.GameController;
 public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_ROMsDIR = "PREF_ROMsDIR_2";
 	final static public String PREF_SAF_URI = "PREF_SAF_URI";
+	final static public String PREF_SAF_CACHE_ENABLED = "PREF_SAF_CACHE_ENABLED";
+	final static public String PREF_SAF_FORCE_RESCAN = "PREF_SAF_FORCE_RESCAN";
+	final static public String PREF_SAF_LAZY_NORMAL_BOOT = "PREF_SAF_LAZY_NORMAL_BOOT";
 	final static public String PREF_INSTALLATION_DIR = "PREF_INSTALLATION_DIR";
 	final static public String PREF_OLD_INSTALLATION_DIR = "PREF_OLD_INSTALLATION_DIR";
 
@@ -73,7 +76,9 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_EMU_DRC_USR_C = "PREF_EMU_DRC_USE_C_4";
 	final static public String PREF_EMU_NUM_PROCESSORS = "PREF_EMU_NUM_PROCESSORS";
 	final static public String PREF_MAMEINI = "PREF_MAMEINI";
-	final static public String PREF_SPEED_HACKS = "PREF_SPEED_HACKS";
+	// Key bumped: users with the old key set to true get reset to the default
+	// (off), since leaving it enabled is a known source of netplay desyncs.
+	final static public String PREF_SPEED_HACKS = "PREF_SPEED_HACKS_2";
 	final static public String PREF_HISCORE = "PREF_HISCORE";
 	final static public String PREF_INPUTMACRO = "PREF_INPUTMACRO";
 	final static public String PREF_AUTOFIRE = "PREF_AUTOFIRE";
@@ -536,6 +541,24 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 		//PreferenceManager.getDefaultSharedPreferences(this);
 		SharedPreferences.Editor editor = getSharedPreferences().edit();
 		editor.putString(PREF_SAF_URI, value);
+		editor.commit();
+	}
+
+	public boolean isSAFCacheEnabled() {
+		return getSharedPreferences().getBoolean(PREF_SAF_CACHE_ENABLED, true);
+	}
+
+	public boolean isSAFLazyNormalBoot() {
+		return getSharedPreferences().getBoolean(PREF_SAF_LAZY_NORMAL_BOOT, false);
+	}
+
+	public boolean isSAFRescanPending() {
+		return getSharedPreferences().getBoolean(PREF_SAF_FORCE_RESCAN, false);
+	}
+
+	public void setSAFRescanPending(boolean value) {
+		SharedPreferences.Editor editor = getSharedPreferences().edit();
+		editor.putBoolean(PREF_SAF_FORCE_RESCAN, value);
 		editor.commit();
 	}
 

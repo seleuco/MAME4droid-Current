@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Ajuda do MAME4Droid Reloaded</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">Controles externos</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <p>Tudo isto se aplica a gamepads, joysticks e arcade sticks físicos conectados por USB ou
+            Bluetooth. Tudo o que é descrito aqui vive em <em>Opções-&gt;Configurações-&gt;Entrada-&gt;Controle
+            de jogo</em>.</p>
+
+        <h3>Duas formas de reconhecer um controle</h3>
+        <p>Toda vez que um controle físico envia uma tecla ou um movimento de stick significativo pela
+            primeira vez em uma sessão, o MAME4droid decide como tratá-lo, nesta ordem:</p>
+        <ol>
+            <li><strong>Você já o mapeou você mesmo.</strong> Se algum botão desse controle foi vinculado
+                manualmente em <em>Mapear botões</em> (veja abaixo), esse mapeamento personalizado é
+                sempre usado &mdash; mesmo que o controle combine com um perfil conhecido dos de baixo.
+                Um mapeamento personalizado sempre vence.</li>
+            <li><strong>Detecção automática</strong> (<em>Detectar controles automaticamente</em>, ativada
+                por padrão). O MAME4droid mantém uma grande lista interna de nomes de controles conhecidos
+                (Sixaxis/PS3, Xbox, NVIDIA Shield, MOGA, OUYA, vários modelos Logitech/DragonRise/ipega/
+                etc.) e, se o nome relatado pelo Android para o seu dispositivo corresponder a algum
+                deles, aplica automaticamente o layout de botões conhecido daquele modelo, sem precisar
+                configurar nada. Isso só examina o nome relatado pelo dispositivo; não mexe em nenhum
+                mapeamento que você tenha feito manualmente para outro controle.</li>
+            <li><strong>Controle genérico.</strong> Se nada do acima o reivindicou, mas o Android ainda
+                assim o relata como um gamepad ou joystick de verdade (não um teclado, controle remoto ou
+                dispositivo HID qualquer), o MAME4droid atribui a ele mesmo assim a próxima vaga de
+                jogador livre e recorre a um layout padrão razoável (os códigos de botão padrão
+                D-Pad/A/B/X/Y/L1/R1/L2/R2). Você verá um aviso amarelo pedindo para mapear os botões dele
+                manualmente para um layout adequado. Dispositivos que não se identificam como hardware de
+                jogo nunca ocupam uma vaga de jogador; só as teclas Voltar/Menu do Android (e Start, no
+                Android TV) continuam funcionando como atalhos da interface.</li>
+        </ol>
+        <p>Desativar <em>Detectar controles automaticamente</em> pula o passo 2 por completo: todo
+            controle vira "genérico" (passo 3), a menos que você o mapeie manualmente.</p>
+
+        <h3>Vagas de jogador: conectar e desconectar</h3>
+        <p>Até 4 controles podem ocupar os postos de Jogador 1 a 4 ao mesmo tempo. A vaga é estado de
+            hardware, não algo que você configura: é simplesmente a primeira vaga livre (0 a 3) no
+            momento em que o controle envia sua primeira entrada, seja qual for o caminho de detecção que
+            o reivindicou. Isso significa que o mesmo controle físico pode cair em um número de jogador
+            diferente de uma sessão para outra, dependendo da ordem em que as coisas foram ligadas ou
+            conectadas &mdash; o mapeamento de botões em si não muda, porque está ligado à identidade do
+            próprio controle (veja <em>ID persistente</em> abaixo), não à vaga.</p>
+        <p>Desconectar um controle libera sua vaga imediatamente, limpa qualquer estado de botão/stick
+            que ele tinha (para que nada fique "preso"), e mostra um aviso breve
+            (<em>"Controle desconectado (Pn)"</em>). Reconectar o mesmo controle depois o reassenta na
+            próxima vaga livre e, graças ao ID persistente, reaplica imediatamente qualquer mapeamento
+            personalizado que você já tinha feito para ele, sem configurar nada de novo.</p>
+        <p>Sair do jogo e voltar para a própria interface do MAME4droid reavalia do zero todos os
+            controles conectados no momento (rejeições de tentativas de detecção automática que
+            falharam são esquecidas, as vagas são distribuídas de novo), mas nunca esquece seus
+            mapeamentos personalizados salvos.</p>
+
+        <h3>ID persistente: por que isso importa</h3>
+        <p>O Android atribui a cada dispositivo de entrada um número ao conectar, mas esse número é
+            volátil: muda entre reconexões, reinicializações, ou até entre o modo USB e Bluetooth do
+            mesmo controle. Vincular seu mapeamento a esse número significaria refazê-lo o tempo todo,
+            então o MAME4droid não faz isso: em vez disso, ele pede ao Android o <em>descritor</em> de
+            hardware do dispositivo (uma impressão digital que o Android obtém do próprio dispositivo,
+            não da conexão) e o transforma em um pequeno <em>ID Virtual</em> sequencial que começa em
+            1000, na primeiríssima vez que vê esse descritor. A partir daí, esse mesmo controle físico
+            sempre recebe esse mesmo ID Virtual, e é esse ID Virtual &mdash; não o número de conexão do
+            Android &mdash; ao qual seus mapeamentos de botões personalizados estão de fato vinculados. A
+            tabela descritor&#8594;ID Virtual é salva nas preferências privadas do app e sobrevive a
+            reinicializações do app e do dispositivo.</p>
+        <p><strong>Implicações:</strong></p>
+        <ul>
+            <li>Mapeie um controle uma vez, e ele continua funcionando corretamente para sempre, em
+                qualquer porta USB, via Bluetooth, depois de reiniciar, misturado em qualquer ordem com
+                outros controles.</li>
+            <li>Dois controles físicos genuinamente diferentes sempre recebem dois ID Virtuais diferentes
+                (1000, 1001, 1002...), então cada um pode ter seu próprio layout independente, mesmo que
+                sejam exatamente o mesmo modelo.</li>
+            <li>Se um controle relatar um descritor ausente, curto demais, ou literalmente "unknown"
+                (alguns clones baratos ou mal implementados fazem isso), o MAME4droid não consegue formar
+                uma impressão digital estável para ele e recorre a um número volátil fornecido pelo
+                Android. Um mapeamento feito para um controle assim pode parar de corresponder após
+                reconectar ou reiniciar, já que esse número reserva não tem garantia de permanecer o
+                mesmo. Se você encontrar isso, veja <em>Compartilhar perfil de mapeamento</em> abaixo.</li>
+        </ul>
+        <p><strong>Compartilhar perfil de mapeamento</strong> (desativado por padrão): força todos os
+            controles, seja qual for o descritor real deles, a compartilhar um único ID Virtual (mostrado
+            como <em>ID 9999</em> na tela de <em>Mapear botões</em>). Ative se você tem vários gamepads
+            clone idênticos e quer mapear os botões apenas uma vez para todos eles, ou como solução para
+            um controle com descritor instável. A contrapartida: como todos os controles agora resolvem
+            para o mesmo ID, todos usam exatamente o mesmo layout de botões &mdash; você não pode dar ao
+            Jogador 1 e ao Jogador 2 mapeamentos diferentes enquanto isso estiver ativo. O multiplayer em
+            si continua funcionando bem, só o layout é compartilhado.</p>
+
+        <h3>Mapear botões</h3>
+        <p><em>Mapear botões</em> abre uma lista de 4 entradas, <em>Controle 1</em> a <em>Controle 4</em>
+            &mdash; essas são as 4 vagas de jogador, não dispositivos físicos específicos. Escolher uma
+            mostra as 16 entradas de arcade do MAME (Cima/Baixo/Esquerda/Direita, Botão A a H, Coin,
+            Start, Exit, Option) e, para cada uma, o que está atribuído a ela agora: ou
+            <em>Não mapeado</em>, ou algo como <em>"ID 1000 : BUTTON_A"</em> (o ID Virtual do controle e
+            o nome bruto da tecla no Android). Tocar em uma entrada abre uma tela de captura ("Aguardando
+            entrada...") que pega a próxima tecla física que você pressionar, lê qual controle a enviou,
+            calcula seu ID Virtual, e vincula esse par (controle, tecla) à entrada daquela vaga de
+            jogador. Se esse mesmo botão físico daquele mesmo controle já estava vinculado a outra ação
+            em qualquer outro lugar, esse vínculo antigo é apagado silenciosamente primeiro &mdash; um
+            botão físico só pode disparar uma entrada de arcade por vez. Use <em>Limpar</em> nessa mesma
+            tela para desmapear apenas aquela entrada.</p>
+        <p>Como o mapeamento é identificado pelo ID Virtual e não pela ordem de conexão, você não precisa
+            ter um controle específico conectado em uma vaga específica enquanto o mapeia: basta apertar
+            os botões dele quando solicitado, para a vaga de jogador que você quiser que ele controle.</p>
+
+        <h3>Restaurar padrões</h3>
+        <p><em>Restaurar padrões</em> é uma reinicialização de fábrica completa, não uma por controle:
+            apaga todo mapeamento personalizado das 4 vagas de jogador de volta para os padrões, e também
+            esquece todos os ID Virtuais atribuídos até agora (a tabela de descritores é limpa e a
+            numeração recomeça em 1000). Cada controle que você tem será tratado como novinho na próxima
+            vez que for usado: a detecção automática e a atribuição de vaga genérica rodam de novo do
+            zero para todos eles.</p>
+
+        <h3>Sticks analógicos</h3>
+        <p>Três ajustes determinam como o X/Y bruto de um stick analógico é convertido em entrada de
+            arcade:</p>
+        <ul>
+            <li><strong>Modo</strong> (D-Pad Digital / Stick Digital / Stick Analógico): com qualquer das
+                duas opções digitais, o movimento do stick é convertido em direções digitais de 2/4/8
+                vias, igual ao que um joystick de arcade de verdade daria ao MAME. Com
+                <em>Stick Analógico</em>, o valor analógico bruto é enviado direto, para jogos que
+                suportam entrada analógica (ex.: jogos de corrida).</li>
+            <li><strong>Tipo de stick</strong> (Auto/2 vias/4 vias/8 vias): para quantas direções a
+                conversão digital acima se ajusta. <em>Auto</em> pergunta ao próprio jogo em execução
+                quantas vias seu joystick suporta.</li>
+            <li><strong>Zona morta analógica</strong> (em <em>Controle de jogo</em>, não confundir com a
+                de nome idêntico em <em>Controle de toque</em>, que é para o stick na tela): quanto um
+                stick físico precisa se mover do centro antes de registrar algo, para ignorar pequenas
+                derivas em sticks gastos ou baratos.</li>
+        </ul>
+        <p>O stick analógico direito e os gatilhos analógicos, quando existem, sempre são enviados como
+            dados analógicos brutos (não digitalizados), para jogos e controles do tipo pistola de luz
+            que os usam.</p>
+
+        <h3>Ocultando os controles na tela</h3>
+        <p>Assim que qualquer controle físico está ativo (sentado em uma vaga, ou simplesmente movendo
+            seu stick), você pode fazer o MAME4droid ocultar automaticamente os botões de toque na tela,
+            tanto na interface do frontend (<em>Ocultar controles de toque na interface do MAME</em>)
+            quanto durante a partida (<em>Ocultar controles de toque no jogo</em>); ambos só se aplicam
+            no modo tela cheia. Isso é puramente visual e não desativa a entrada por toque, só tira o
+            controle na tela do caminho enquanto você usa um de verdade.</p>
+
+        <h3>Dicas de solução de problemas</h3>
+        <ul>
+            <li><strong>A detecção automática errou</strong> (botões trocados em um controle que ela
+                reconhece pelo nome): não brigue com ela, apenas sobrescreva. Vá em
+                <em>Mapear botões</em> e coloque os botões que você realmente quer para esse controle
+                &mdash; um mapeamento personalizado sempre tem prioridade sobre a detecção automática,
+                botão por botão, então você só precisa remapear os que estiverem errados.</li>
+            <li><strong>O controle não é detectado de jeito nenhum</strong> (o aviso verde ou amarelo
+                nunca aparece, os botões não fazem nada): é o próprio Android que não o relata como
+                hardware de jogo, algo que o MAME4droid não pode contornar. É comum em adaptadores HID
+                baratos ou controles presos em modo "emulação de teclado". Veja se o controle ou seu
+                receptor têm um interruptor de modo USB/Bluetooth diferente, ou tente um adaptador
+                genérico HID-para-gamepad.</li>
+            <li><strong>Um mapeamento que você fez fica "desaparecendo"</strong> ao desconectar e
+                reconectar o controle, trocar as pilhas dele, ou alternar entre USB e Bluetooth: o
+                controle provavelmente tem um descritor de hardware instável ou ausente, então o
+                MAME4droid não consegue reconhecê-lo como o mesmo dispositivo duas vezes. Ative
+                <em>Compartilhar perfil de mapeamento</em> como solução (veja <em>ID persistente</em>
+                acima) &mdash; assim todo controle sempre resolve para o mesmo mapeamento compartilhado,
+                com ou sem descritor.</li>
+            <li><strong>Você tem dois ou mais controles idênticos</strong> e não quer mapear cada um
+                separadamente: mesma solução, <em>Compartilhar perfil de mapeamento</em>. Só lembre que
+                isso também força todos a usar aquele único layout compartilhado.</li>
+            <li><strong>O jogador errado recebeu a entrada</strong> (ex.: seu controle comanda P2 em vez
+                de P1): as vagas são distribuídas por ordem de conexão, quem chega primeiro leva, não por
+                nenhuma configuração. Ligue ou conecte os controles na ordem em que você quer que sejam
+                sentados como P1, P2, P3, P4.</li>
+            <li><strong>Uma direção ou botão parece preso, ou dispara sozinho</strong>: isso geralmente
+                significa um stick gasto ou frouxo relatando um movimento mínimo mesmo em repouso. Aumente
+                a <em>Zona morta analógica</em> em <em>Controle de jogo</em> um ou dois níveis.</li>
+            <li><strong>Recomeçar do zero</strong> (um controle está se comportando de forma estranha e
+                nada acima ajuda): <em>Restaurar padrões</em> apaga todo mapeamento personalizado e toda
+                identidade de controle lembrada, então a próxima entrada de qualquer controle é tratada
+                como novinha.</li>
+        </ul>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Voltar</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

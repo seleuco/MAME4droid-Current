@@ -24,7 +24,7 @@
 			android:entryValues="@array/pref_osd_resolution_values"
 			android:defaultValue="9" />
 
-		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_SPEED_HACKS"
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn  android:key="PREF_SPEED_HACKS_2"
 			android:title="@string/pref_speed_hacks_title" android:summary="@string/pref_speed_hacks_summary"
 			android:defaultValue="False" />
 
@@ -826,6 +826,20 @@
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="SAVESATES_IN_ROM_PATH"
 			android:title="@string/pref_savestates_rom_path_title" android:summary="@string/pref_savestates_rom_path_summary"
 			android:defaultValue="true" />
+
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_SAF_CACHE_ENABLED"
+			android:title="@string/pref_saf_cache_title" android:summary="@string/pref_saf_cache_summary"
+			android:defaultValue="true" />
+
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_SAF_FORCE_RESCAN"
+			android:title="@string/pref_saf_rescan_title" android:summary="@string/pref_saf_rescan_summary"
+			android:defaultValue="false" android:dependency="PREF_SAF_CACHE_ENABLED" />
+
+		<!-- Hidden in production: not ready for general use yet.
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_SAF_LAZY_NORMAL_BOOT"
+			android:title="@string/pref_saf_lazy_title" android:summary="@string/pref_saf_lazy_summary"
+			android:defaultValue="false" />
+		-->
 
 		<com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:title="@string/pref_orientation_title"

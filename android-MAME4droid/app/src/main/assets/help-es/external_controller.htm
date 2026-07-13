@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Ayuda de MAME4Droid Reloaded</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="mystyle.css">
+
+</head>
+<body class="view">
+<div class="page">
+    <div class="header">
+        <h1 class="title">Mandos externos</h1>
+    </div><!-- /header -->
+    <div class="content">
+        <p>Todo esto se aplica a mandos, joysticks y arcade sticks físicos conectados por USB o
+            Bluetooth. Todo lo descrito aquí vive en <em>Opciones-&gt;Ajustes-&gt;Entrada-&gt;Mando de
+            juego</em>.</p>
+
+        <h3>Dos formas de reconocer un mando</h3>
+        <p>Cada vez que un mando físico envía una tecla o un movimiento de stick significativo por
+            primera vez en una sesión, MAME4droid decide cómo tratarlo, en este orden:</p>
+        <ol>
+            <li><strong>Ya lo has asignado tú mismo.</strong> Si algún botón de este mando se vinculó a
+                mano en <em>Asignar botones</em> (ver más abajo), esa asignación personalizada se usa
+                siempre &mdash; incluso si el mando encajaría con un perfil conocido de los de abajo.
+                Una asignación personalizada siempre gana.</li>
+            <li><strong>Autodetección</strong> (<em>Autodetectar mandos</em>, activada por defecto).
+                MAME4droid mantiene una lista interna extensa de nombres de mandos conocidos (Sixaxis/PS3,
+                Xbox, NVIDIA Shield, MOGA, OUYA, varios modelos Logitech/DragonRise/ipega/etc.) y, si el
+                nombre que reporta Android para tu dispositivo coincide con alguno, aplica automáticamente
+                la disposición de botones conocida de ese modelo, sin configurar nada. Esto solo mira el
+                nombre reportado por el dispositivo; no toca ninguna asignación que hayas hecho a mano
+                para otro mando.</li>
+            <li><strong>Mando genérico.</strong> Si nada de lo anterior lo reclamó, pero Android sigue
+                reportándolo como un mando o joystick real (no un teclado, mando a distancia o dispositivo
+                HID cualquiera), MAME4droid le asigna igualmente el siguiente hueco de jugador libre y
+                recurre a una disposición por defecto razonable (los códigos de botón estándar
+                D-Pad/A/B/X/Y/L1/R1/L2/R2). Verás un aviso amarillo pidiéndote que asignes sus botones a
+                mano para una disposición correcta. Los dispositivos que no se identifican como hardware
+                de juego nunca ocupan un hueco de jugador; solo sus teclas Atrás/Menú de Android (y Start,
+                en Android TV) siguen funcionando como atajos de la interfaz.</li>
+        </ol>
+        <p>Desactivar <em>Autodetectar mandos</em> se salta el paso 2 por completo: todo mando pasa a
+            ser "genérico" (paso 3) a menos que lo asignes a mano.</p>
+
+        <h3>Huecos de jugador: conexión y desconexión</h3>
+        <p>Hasta 4 mandos pueden ocupar los puestos de Jugador 1 a 4 al mismo tiempo. El hueco es estado
+            de hardware, no algo que configures: es sencillamente el primer hueco libre (0 a 3) en el
+            momento en que el mando envía su primera entrada, sea cual sea la vía de detección que lo
+            reclamó. Esto significa que el mismo mando físico puede caer en un número de jugador distinto
+            de una sesión a otra, según el orden en que se encendieron o conectaron las cosas &mdash; la
+            asignación de botones en sí no se mueve, porque está ligada a la identidad propia del mando
+            (ver <em>ID persistente</em> más abajo), no al hueco.</p>
+        <p>Desconectar un mando libera su hueco al instante, limpia cualquier estado de botón/stick que
+            tuviera (para que nada se quede "pegado"), y muestra un aviso breve
+            (<em>"Mando desconectado (Pn)"</em>). Reconectar el mismo mando después lo vuelve a sentar en
+            el siguiente hueco libre y, gracias al ID persistente, reaplica de inmediato cualquier
+            asignación personalizada que ya le hubieras hecho, sin configurar nada de nuevo.</p>
+        <p>Salir del juego y volver a la interfaz de MAME4droid reevalúa desde cero todos los mandos
+            conectados en ese momento (se olvidan los rechazos de intentos de autodetección fallidos, se
+            reparten huecos de nuevo), pero nunca olvida tus asignaciones personalizadas guardadas.</p>
+
+        <h3>ID persistente: por qué importa</h3>
+        <p>Android asigna a cada dispositivo de entrada un número al conectarse, pero ese número es
+            volátil: cambia entre reconexiones, reinicios, o incluso entre el modo USB y Bluetooth del
+            mismo mando. Ligar tu asignación a ese número significaría rehacerla constantemente, así que
+            MAME4droid no lo hace: en su lugar, le pide a Android el <em>descriptor</em> de hardware del
+            dispositivo (una huella que Android obtiene del propio dispositivo, no de la conexión) y lo
+            convierte en un pequeño <em>ID Virtual</em> secuencial que empieza en 1000, la primerísima vez
+            que ve ese descriptor. A partir de ahí, ese mismo mando físico siempre obtiene ese mismo ID
+            Virtual, y es este ID Virtual &mdash; no el número de conexión de Android &mdash; al que
+            realmente están ligadas tus asignaciones de botones personalizadas. La tabla
+            descriptor&#8594;ID Virtual se guarda en las preferencias privadas de la app y sobrevive a
+            reinicios de la app y del dispositivo.</p>
+        <p><strong>Implicaciones:</strong></p>
+        <ul>
+            <li>Asigna un mando una vez, y sigue funcionando correctamente para siempre, en cualquier
+                puerto USB, por Bluetooth, tras reiniciar, mezclado en cualquier orden con otros mandos.</li>
+            <li>Dos mandos físicos realmente distintos siempre obtienen dos ID Virtuales distintos (1000,
+                1001, 1002...), así que cada uno puede tener su propia disposición independiente, aunque
+                sean exactamente el mismo modelo.</li>
+            <li>Si un mando reporta un descriptor ausente, demasiado corto, o literalmente "unknown"
+                (algunos clones baratos o mal implementados lo hacen), MAME4droid no puede formar una
+                huella estable para él y recurre a un número volátil que da Android. Una asignación hecha
+                para un mando así puede dejar de coincidir tras reconectarlo o reiniciar, ya que ese
+                número de repuesto no tiene garantizado mantenerse igual. Si te encuentras con esto, mira
+                <em>Compartir perfil de asignación</em> más abajo.</li>
+        </ul>
+        <p><strong>Compartir perfil de asignación</strong> (desactivada por defecto): fuerza a que todos
+            los mandos, sea cual sea su descriptor real, compartan un único ID Virtual (se muestra como
+            <em>ID 9999</em> en la pantalla de <em>Asignar botones</em>). Actívala si tienes varios mandos
+            clon idénticos y quieres asignar los botones una sola vez para todos, o como solución si un
+            mando tiene un descriptor inestable. La contrapartida: como todos los mandos resuelven ahora
+            al mismo ID, todos usan exactamente la misma disposición de botones &mdash; no puedes dar al
+            Jugador 1 y al Jugador 2 asignaciones distintas mientras esto esté activo. El multijugador en
+            sí sigue funcionando bien, solo la disposición es compartida.</p>
+
+        <h3>Asignar botones</h3>
+        <p><em>Asignar botones</em> abre una lista de 4 entradas, <em>Mando 1</em> a <em>Mando 4</em>
+            &mdash; son los 4 huecos de jugador, no dispositivos físicos concretos. Al elegir uno se
+            muestran las 16 entradas arcade de MAME (Arriba/Abajo/Izquierda/Derecha, Botón A a H, Coin,
+            Start, Exit, Option) y, para cada una, qué tiene asignado ahora mismo: o bien
+            <em>Sin asignar</em>, o algo como <em>"ID 1000 : BUTTON_A"</em> (el ID Virtual del mando y el
+            nombre de tecla en bruto de Android). Al tocar una entrada se abre una pantalla de captura
+            ("Esperando entrada...") que agarra la siguientísima tecla física que pulses, lee qué mando la
+            envió, calcula su ID Virtual, y liga ese par (mando, tecla) a la entrada de ese hueco de
+            jugador. Si ese mismo botón físico de ese mismo mando ya estaba asignado a otra acción en
+            cualquier otro sitio, esa asignación anterior se borra en silencio primero &mdash; un botón
+            físico solo puede disparar una entrada arcade a la vez. Usa <em>Borrar</em> en esa misma
+            pantalla para quitar la asignación de solo esa entrada.</p>
+        <p>Como la asignación se identifica por ID Virtual y no por orden de conexión, no necesitas tener
+            un mando concreto enchufado en un hueco específico mientras lo asignas: solo pulsa sus botones
+            cuando te lo pida, para el hueco de jugador que quieras que controle.</p>
+
+        <h3>Restaurar valores por defecto</h3>
+        <p><em>Restaurar valores por defecto</em> es un reinicio de fábrica completo, no uno por mando:
+            borra toda asignación personalizada de los 4 huecos de jugador y vuelve a las de por defecto,
+            y también olvida todos los ID Virtuales asignados hasta ahora (se borra la tabla de
+            descriptores y la numeración vuelve a empezar en 1000). Cada mando que tengas se tratará como
+            si fuera nuevo la próxima vez que se use: la autodetección y la asignación de hueco genérico
+            se ejecutan de nuevo desde cero para todos.</p>
+
+        <h3>Sticks analógicos</h3>
+        <p>Tres ajustes determinan cómo se convierte el X/Y en bruto de un stick analógico en entrada
+            arcade:</p>
+        <ul>
+            <li><strong>Modo</strong> (D-Pad Digital / Stick Digital / Stick Analógico): con cualquiera de
+                las dos opciones digitales, el movimiento del stick se convierte en direcciones digitales
+                de 2/4/8 vías, igual que daría un joystick arcade real a MAME. Con
+                <em>Stick Analógico</em>, el valor analógico en bruto se envía directamente, para juegos
+                que admiten entrada analógica (p. ej. juegos de conducción).</li>
+            <li><strong>Tipo de stick</strong> (Auto/2 vías/4 vías/8 vías): a cuántas direcciones se
+                ajusta la conversión digital de arriba. <em>Auto</em> le pregunta al propio juego en
+                marcha cuántas vías admite su joystick.</li>
+            <li><strong>Zona muerta analógica</strong> (bajo <em>Mando de juego</em>, no confundir con la
+                de nombre idéntico bajo <em>Mando táctil</em>, que es para el stick en pantalla): cuánto
+                tiene que moverse un stick físico desde el centro antes de registrarse, para ignorar
+                pequeñas derivas en sticks gastados o baratos.</li>
+        </ul>
+        <p>El stick derecho y los gatillos analógicos, cuando existen, siempre se envían como datos
+            analógicos en bruto (no digitalizados), para juegos y controles tipo pistola óptica que los
+            usan.</p>
+
+        <h3>Ocultar los controles en pantalla</h3>
+        <p>En cuanto un mando físico está activo (sentado en un hueco, o simplemente moviendo su stick),
+            puedes hacer que MAME4droid oculte automáticamente los botones táctiles en pantalla, tanto en
+            la interfaz del frontend (<em>Ocultar controles táctiles en la interfaz de MAME</em>) como
+            durante la partida (<em>Ocultar controles táctiles en el juego</em>); ambas solo se aplican en
+            modo pantalla completa. Esto es puramente visual y no desactiva la entrada táctil, solo aparta
+            el mando en pantalla mientras usas uno real.</p>
+
+        <h3>Consejos de resolución de problemas</h3>
+        <ul>
+            <li><strong>La autodetección lo hace mal</strong> (botones equivocados en un mando que sí
+                reconoce por nombre): no luches contra ella, simplemente sobrescríbela. Ve a
+                <em>Asignar botones</em> y pon los botones que realmente quieres para ese mando &mdash;
+                una asignación personalizada siempre tiene prioridad sobre la autodetección, botón a
+                botón, así que solo necesitas reasignar los que no te cuadren.</li>
+            <li><strong>El mando no se detecta en absoluto</strong> (nunca aparece el aviso verde o
+                amarillo, los botones no hacen nada): es el propio Android el que no lo reporta como
+                hardware de juego, algo que MAME4droid no puede anular. Es habitual con adaptadores HID
+                baratos o mandos atascados en modo "emulación de teclado". Comprueba si el mando o su
+                receptor tienen un interruptor de modo USB/Bluetooth distinto, o prueba con un adaptador
+                genérico HID-a-mando.</li>
+            <li><strong>Una asignación que hiciste "desaparece"</strong> al desenchufar y volver a
+                enchufar el mando, cambiarle las pilas, o alternarlo entre USB y Bluetooth: lo más probable
+                es que el mando tenga un descriptor de hardware inestable o ausente, así que MAME4droid no
+                puede reconocerlo dos veces como el mismo dispositivo. Activa
+                <em>Compartir perfil de asignación</em> como solución (ver <em>ID persistente</em> más
+                arriba) &mdash; así todo mando resuelve siempre a la misma asignación compartida, tenga o
+                no descriptor.</li>
+            <li><strong>Tienes dos o más mandos idénticos</strong> y no quieres asignar cada uno por
+                separado: mismo arreglo, <em>Compartir perfil de asignación</em>. Solo recuerda que
+                también obliga a que todos usen esa única disposición compartida.</li>
+            <li><strong>El jugador equivocado recibió la entrada</strong> (p. ej. tu mando controla a P2
+                en vez de a P1): los huecos se reparten por orden de conexión, el primero que llega se lo
+                lleva, no por ningún ajuste. Enciende o conecta los mandos en el orden en que quieras que
+                se sienten como P1, P2, P3, P4.</li>
+            <li><strong>Una dirección o botón se nota pegado, o se dispara solo</strong>: normalmente es
+                un stick gastado o suelto que reporta un movimiento mínimo incluso en reposo. Sube la
+                <em>Zona muerta analógica</em> bajo <em>Mando de juego</em> uno o dos escalones.</li>
+            <li><strong>Empezar completamente de cero</strong> (un mando se comporta de forma rara y nada
+                de lo anterior ayuda): <em>Restaurar valores por defecto</em> borra toda asignación
+                personalizada y toda identidad de mando recordada, así que la siguiente entrada de
+                cualquier mando se trata como si fuera nueva.</li>
+        </ul>
+
+    </div><!-- /content -->
+
+    <div class="header">
+        <h4 class="title"><a class="link" href="javascript:history.go(-1)" data-direction="reverse">Volver</a></h4>
+    </div>
+
+</div><!-- /page -->
+</body>
+</html>

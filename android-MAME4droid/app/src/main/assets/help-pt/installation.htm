@@ -25,6 +25,11 @@
                 própria, seja de um PC via USB/ADB, ou com um app gerenciador de arquivos que consiga
                 navegar na pasta privada do app. Esses dados são excluídos automaticamente ao
                 desinstalar o app.
+                <br><strong>Não recomendado:</strong> essa pasta vive no sandbox privado do app, então
+                lançadores/frontends externos e a maioria dos gerenciadores de arquivos muito
+                provavelmente não conseguirão acessá-la &mdash; o modelo de segurança de armazenamento
+                do Android é construído em torno de pastas concedidas via SAF (veja abaixo), não do
+                armazenamento privado do app.
             </li>
             <li><strong>Armazenamento externo:</strong> você escolhe uma pasta existente em qualquer
                 lugar do seu dispositivo (um cartão SD, uma pasta que você já usa para ROMs, uma pasta
@@ -58,8 +63,11 @@
             usuário concede explicitamente através do próprio seletor do Android (isso se chama Storage
             Access Framework, ou SAF). É o seletor que abre quando você escolhe <em>Armazenamento
             externo</em> acima, ou quando muda sua pasta de ROMs mais tarde. É um pouco mais lento que
-            o acesso direto a arquivos, mas o MAME4droid armazena em cache as listagens de arquivos, de
-            modo que permanece rápido no uso diário depois que suas ROMs são indexadas.</p>
+            o acesso direto a arquivos, então o MAME4droid armazena em cache a listagem da pasta para
+            permanecer rápido no uso diário depois que suas ROMs são indexadas. Se uma ROM que você
+            acabou de adicionar não aparecer, ou notar qualquer outro problema estranho na pasta, você
+            pode desativar <em>Armazenar em cache o índice da pasta de ROMs</em> ou forçar um
+            <em>Reexaminar pasta de ROMs</em> em <em>Opções-&gt;Configurações-&gt;Geral</em>.</p>
         <p><strong>Dica:</strong> mantenha sua pasta de ROMs plana (sem ROMs enterradas em subpastas) e
             não misture arquivos não relacionados e descompactados &mdash; a pasta deve realmente conter
             apenas seus conjuntos de ROMs do MAME compactados em ZIP.</p>
