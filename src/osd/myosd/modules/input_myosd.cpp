@@ -10,6 +10,7 @@
 
 // MAME headers
 #include "emu.h"
+#include "input.h"
 #include "inputdev.h"
 
 #include "modules/input/input_module.h"
