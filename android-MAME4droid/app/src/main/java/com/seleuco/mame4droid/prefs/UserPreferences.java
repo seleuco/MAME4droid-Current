@@ -556,11 +556,21 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 			finish();
 		}
 
+	@Override
+	protected void onRestoreInstanceState(Bundle state) {
+		// the shader ListPreference gets its entries dynamically in onResume, but a
+		// saved-open dialog is restored before that; populate now or it throws
+		// IllegalStateException (requires entries/entryValues) re-showing the dialog
+		if (mPrefShader != null) updateShaderEntries();
+		super.onRestoreInstanceState(state);
+	}
+
 	/**
 	 * Update shader effects entries with current selected renderer supported shaders
 	 */
 	private void updateShaderEntries() {
 		String[] origShaders = Emulator.getShaders();
+		if (origShaders == null) origShaders = new String[0];
 
 		String[] shaders = new String[origShaders.length+1];
 		shaders[0] = "none";

@@ -105,6 +105,13 @@ public class ScraperHelper implements Runnable {
 			isScraping = false;
 			current =0;
             ArrayList<String> fileNames = mm.getSAFHelper().getRomsFileNames();
+            // null (not empty) = SAF root couldn't be listed, e.g. all ROMs
+            // deleted or the tree URI went stale; nothing to scrape, don't crash
+            if (fileNames == null) {
+                Log.d(TAG, "No ROMs to scrape (SAF root unavailable)");
+                isRunning = false;
+                return;
+            }
             for (String name : fileNames) {
                 if (name.toLowerCase().endsWith(".7z") || name.toLowerCase().endsWith(".zip"))
                     names.add(name.substring(0, name.indexOf(".")));

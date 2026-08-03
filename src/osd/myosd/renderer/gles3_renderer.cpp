@@ -2372,12 +2372,17 @@ void gles3_renderer::update_texture_cache(const render_primitive& prim, std::sha
 	{
 		if (texture->texinfo.seqid != prim.texture.seqid)
 		{
-			texture->texinfo.seqid = prim.texture.seqid;
 			if (texture->base_back == nullptr) {
-				texture->base_back = std::malloc((texture->texinfo.width * 4) * texture->texinfo.height);
+				size_t sz = (size_t)texture->texinfo.width * 4 * texture->texinfo.height;
+				texture->base_back = (sz != 0) ? std::malloc(sz) : nullptr;
 			}
-			texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
-            texture->needs_gl_update = true;
+			// on OOM keep the old pixels and don't advance seqid (retry next
+			// frame) rather than let texture_copy_data write into a null buffer
+			if (texture->base_back != nullptr) {
+				texture->texinfo.seqid = prim.texture.seqid;
+				texture_copy_data(texture->base_back, prim.texture, PRIMFLAG_GET_TEXFORMAT(prim.flags));
+				texture->needs_gl_update = true;
+			}
 		}
         out_tex = texture;
 	}
@@ -2386,6 +2391,14 @@ void gles3_renderer::update_texture_cache(const render_primitive& prim, std::sha
 std::shared_ptr<gles3_renderer::gles_texture> gles3_renderer::texture_create(const render_primitive& prim)
 {
 	const render_texinfo& texinfo = prim.texture;
+
+	// allocate first and bail on OOM/degenerate dims: texture_copy_data would
+	// segfault writing into a null buffer. Caller guards with if (lp.texture).
+	size_t sz = (size_t)texinfo.width * 4 * texinfo.height;
+	void* base = (sz != 0) ? std::malloc(sz) : nullptr;
+	if (base == nullptr)
+		return nullptr;
+
     std::shared_ptr<gles_texture> texture = std::make_shared<gles_texture>();
 	m_texlist.push_front(texture);
 
@@ -2393,7 +2406,7 @@ std::shared_ptr<gles3_renderer::gles_texture> gles3_renderer::texture_create(con
 	texture->texinfo = texinfo;
 	texture->prim_flags = prim.flags;
 
-	texture->base = std::malloc((texinfo.width * 4) * texinfo.height);
+	texture->base = base;
 	texture->owned = true;
 
 	texture_copy_data(texture->base, texinfo, PRIMFLAG_GET_TEXFORMAT(prim.flags));

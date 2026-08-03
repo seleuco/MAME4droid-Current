@@ -533,8 +533,10 @@ public class SAFHelper {
 		}
 
 		if (fresh) {
-			pw.end();
-			pw = null;
+			if (pw != null) {
+				pw.end();
+				pw = null;
+			}
 			Log.i(TAG, "Using persisted SAF cache.");
 			cacheComplete = true;
 			return true;
@@ -559,7 +561,8 @@ public class SAFHelper {
 		AtomicBoolean hadErrors = new AtomicBoolean(false);
 		boolean success = true;
 		if (!refreshed) {
-			pw.notifyText(mm.getString(com.seleuco.mame4droid.R.string.saf_caching_wait));
+			if (pw != null)
+				pw.notifyText(mm.getString(com.seleuco.mame4droid.R.string.saf_caching_wait));
 			initMaps();
 			success = scanAll(hadErrors);
 		}

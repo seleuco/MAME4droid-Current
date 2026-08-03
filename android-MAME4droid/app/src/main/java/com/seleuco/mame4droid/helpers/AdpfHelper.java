@@ -61,6 +61,12 @@ public class AdpfHelper {
 
 	private final MAME4droid mm;
 
+	// Kill-switch for the ADPF hint session. The pure_virtual aborts seen in the
+	// field were the report()/close() thread race (Session isn't thread-safe),
+	// now fixed by synchronizing them. Left as a flag: set false to disable if a
+	// residual vendor-HAL crash ever shows up (frame pacing/thermal stay on).
+	private static final boolean HINT_SESSION_ENABLED = true;
+
 	// ---- hint session (API 31+) ----
 	private volatile Object hintSession; // android.os.PerformanceHintManager.Session
 	private boolean sessionTried = false;
@@ -119,6 +125,8 @@ public class AdpfHelper {
 	}
 
 	private synchronized void tryCreateSession() {
+		if (!HINT_SESSION_ENABLED) return; // never create it: hintSession stays null,
+		                                   // so reportActualWorkDuration no-ops via its null check
 		if (Build.VERSION.SDK_INT < 31 || hintSession != null || sessionTried) return;
 		if (emuTid <= 0 || glTid <= 0 || targetNs <= 0) return;
 		createSession();
@@ -140,13 +148,18 @@ public class AdpfHelper {
 		}
 	}
 
-	private void updateTarget(long ns) {
+	// synchronized + null re-check under the lock: the Session is NOT thread-safe
+	// and a concurrent close()/dropSession() (onDestroy main thread, GL tid change)
+	// would tear down the native session mid-call -> __cxa_pure_virtual abort.
+	private synchronized void updateTarget(long ns) {
+		if (hintSession == null) return;
 		try {
 			((android.os.PerformanceHintManager.Session) hintSession).updateTargetWorkDuration(ns);
 		} catch (Throwable ignored) {}
 	}
 
-	private void report(long ns) {
+	private synchronized void report(long ns) {
+		if (hintSession == null) return;
 		try {
 			((android.os.PerformanceHintManager.Session) hintSession).reportActualWorkDuration(ns);
 		} catch (Throwable ignored) {}
@@ -200,8 +213,10 @@ public class AdpfHelper {
 	// Lifecycle
 	// =====================================================================
 
-	/** Release the hint session (thermal is released via stopThermal). */
-	public void close() {
+	/** Release the hint session (thermal is released via stopThermal).
+	 *  synchronized so it can't tear down the session while report()/updateTarget()
+	 *  (emu thread) is mid-call - see the race note on report(). */
+	public synchronized void close() {
 		stopThermal();
 		if (hintSession != null && Build.VERSION.SDK_INT >= 31) {
 			try { ((android.os.PerformanceHintManager.Session) hintSession).close(); }

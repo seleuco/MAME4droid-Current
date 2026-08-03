@@ -2,7 +2,7 @@
 <resources>
     <!-- App -->
     <string name="app_name" translatable="false">MAME4droid (Current)</string>
-    <string name="mame_version" translatable="false">0.288</string>
+    <string name="mame_version" translatable="false">0.289</string>
     <string name="label_settings">MAME4droid Settings</string>
     <string name="label_help">MAME4droid Help</string>
     <string name="label_define_buttons">MAME4droid Define Buttons</string>

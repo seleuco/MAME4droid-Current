@@ -1,11 +1,11 @@
 # MAME4droid (Current)
 
-![Release: v1.37.6](https://img.shields.io/badge/Release-v1.37.6-blue)
-![MAME Core: 0.288](https://img.shields.io/badge/MAME_Core-0.288-orange)
+![Release: v1.38](https://img.shields.io/badge/Release-v1.38-blue)
+![MAME Core: 0.289](https://img.shields.io/badge/MAME_Core-0.289-orange)
 ![Platform: Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)
 
-**MAME4droid (Current)** is an Android port of the **MAME 0.288** emulator. Developed by **David Valdeita (Seleuco)**, this project aims to provide a highly optimized, native Android experience for arcade and classic computer emulation. It supports over 40,000 ROMs and introduces several custom features and architectural improvements specifically tailored for modern mobile hardware.
+**MAME4droid (Current)** is an Android port of the **MAME 0.289** emulator. Developed by **David Valdeita (Seleuco)**, this project aims to provide a highly optimized, native Android experience for arcade and classic computer emulation. It supports over 40,000 ROMs and introduces several custom features and architectural improvements specifically tailored for modern mobile hardware.
 
 ---
 
@@ -44,7 +44,7 @@ To save internal space and ensure fast boot times, it is highly recommended to s
 2. **Initial Launch**: Open the app for the first time.
 3. **Path Selection**: When asked for your ROMs location, select **EXTERNAL STORAGE**.
 4. **Grant Permission**: The Android file picker will open. Navigate to your created folder, tap **"Use this folder"**, and allow access.
-5. **Romset Version**: Ensure you are using the **0.288 romset** for proper compatibility.
+5. **Romset Version**: Ensure you are using the **0.289 romset** for proper compatibility.
 
 *Note: You can change the path anytime in **Options > Settings > General > Change ROMs path**.*
 
