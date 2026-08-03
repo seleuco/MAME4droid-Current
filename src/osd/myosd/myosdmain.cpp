@@ -172,14 +172,13 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
 
         switch(event.type) {
             case event.MYOSD_KEY_EVENT:
-                osdInterface->machine().ui_input().push_char_event(osdInterface->target(), event.data.key_char);
+                osdInterface->target()->push_char_event(event.data.key_char);
                 break;
             case event.MYOSD_MOUSE_MOVE_EVENT:
             {
                 if (buttons & 1)
                     check_hold_drag(mouse_clicks, mouse_px, mouse_py, click_dist, mouse_t0);
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::MOUSE,
                         0,
                         1,
@@ -195,8 +194,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                 mouse_px = event.data.pointer_data.x;
                 mouse_py = event.data.pointer_data.y;
                 mouse_t0 = now;
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::MOUSE,
                         0,
                         1,
@@ -209,8 +207,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                 unsigned released = (1) << 0;
                 buttons &= ~released;
                 check_hold_drag(mouse_clicks, mouse_px, mouse_py, click_dist, mouse_t0);
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::MOUSE,
                         0,
                         1,
@@ -221,8 +218,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
             case event.MYOSD_MOUSE_BT2_DOWN: {
                 unsigned pressed = (1) << 1;
                 buttons |= pressed;
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::MOUSE,
                         0,
                         1,
@@ -234,8 +230,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
             case event.MYOSD_MOUSE_BT2_UP: {
                 unsigned released = (1) << 1;
                 buttons &= ~released;
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::MOUSE,
                         0,
                         1,
@@ -251,8 +246,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                 if (!touch_down)
                     break;
                 check_hold_drag(touch_clicks, touch_px, touch_py, tap_dist, touch_t0);
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::TOUCH,
                         1,
                         1,
@@ -269,8 +263,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                 touch_px = event.data.pointer_data.x;
                 touch_py = event.data.pointer_data.y;
                 touch_t0 = now;
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::TOUCH,
                         1,
                         1,
@@ -285,8 +278,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                     break;
                 touch_down = false;
                 check_hold_drag(touch_clicks, touch_px, touch_py, tap_dist, touch_t0);
-                osdInterface->machine().ui_input().push_pointer_update(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_update(
                         osd::ui_event_handler::pointer::TOUCH,
                         1,
                         1,
@@ -294,8 +286,7 @@ extern "C" void myosd_pushEvent(myosd_inputevent event)
                         0, 0, 1, touch_clicks);
                 /* the finger is gone: release first (update), then leave with
                  * released=0 or menu.cpp asserts released == its button state */
-                osdInterface->machine().ui_input().push_pointer_leave(
-                        osdInterface->target(),
+                osdInterface->target()->push_pointer_leave(
                         osd::ui_event_handler::pointer::TOUCH,
                         1,
                         1,
