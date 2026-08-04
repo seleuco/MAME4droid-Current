@@ -491,6 +491,10 @@ public class MAME4droid extends Activity {
 					this.showDialog(DialogHelper.DIALOG_NO_PERMISSIONS);
 				}
 				break;
+			case 43: // NetPlayHelper.REQ_LOCAL_NETWORK (LNP, Android 17): proceed either way
+				if (NetPlayHelper != null)
+					NetPlayHelper.onLocalNetPermissionResult();
+				break;
 			default:
 				super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		}

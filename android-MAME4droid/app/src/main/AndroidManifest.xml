@@ -7,6 +7,11 @@
 	     during a netplay session; WifiLock.acquire() requires WAKE_LOCK) -->
 	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 	<uses-permission android:name="android.permission.WAKE_LOCK"/>
+	<!-- Local Network Protections (Android 17 / API 37): LAN netplay UDP
+	     (both send and receive) is blocked until this runtime permission is
+	     granted. Internet/mobile play is exempt. Requested in context when the
+	     user creates/joins a game; harmless (ignored) on older Android. -->
+	<uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
     <supports-screens
           android:largeScreens="true"
           android:normalScreens="true"

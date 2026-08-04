@@ -60,6 +60,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.util.Log;
@@ -86,6 +87,13 @@ public class NetPlayHelper {
 
     /** Shared-preference key for the rollback mode toggle. */
     public static final String PREF_NETPLAY_ROLLBACK_MODE = "netplay_rollback_mode";
+
+    /* Local Network Protections (Android 17 / API 37): LAN UDP send AND
+     * receive are blocked until ACCESS_LOCAL_NETWORK is granted; internet /
+     * mobile play is exempt. requestCode routed back through
+     * MAME4droid.onRequestPermissionsResult -> onLocalNetPermissionResult(). */
+    public static final int REQ_LOCAL_NETWORK = 43;
+    private Runnable pendingLocalNetAction = null;
 
     protected Dialog netplayDlg = null;
 
@@ -513,12 +521,43 @@ public class NetPlayHelper {
             .show();
     }
 
+    /* Ensures the ACCESS_LOCAL_NETWORK runtime permission before a LAN
+     * session (Android 17+). Returns true if the caller may run {@code action}
+     * inline right now; false means the system dialog was launched and
+     * {@code action} runs exactly once from onLocalNetPermissionResult() after
+     * the user answers (no re-gating, so a denial can't loop). Below API 37 the
+     * permission doesn't exist and LAN is granted implicitly, so we proceed. */
+    boolean ensureLocalNet(Runnable action) {
+        if (Build.VERSION.SDK_INT < 37)
+            return true;
+        if (mm.checkSelfPermission("android.permission.ACCESS_LOCAL_NETWORK")
+                == PackageManager.PERMISSION_GRANTED)
+            return true;
+        pendingLocalNetAction = action;
+        mm.requestPermissions(
+                new String[]{"android.permission.ACCESS_LOCAL_NETWORK"}, REQ_LOCAL_NETWORK);
+        return false;
+    }
+
+    /* Callback from MAME4droid.onRequestPermissionsResult. We proceed no
+     * matter the verdict: a denial only costs LAN (internet play never needed
+     * the permission), so the user continues and the LAN path fails the usual
+     * way rather than hard-blocking the whole netplay dialog. */
+    public void onLocalNetPermissionResult() {
+        Runnable a = pendingLocalNetAction;
+        pendingLocalNetAction = null;
+        if (a != null) a.run();
+    }
+
     /* Hosting goes straight to the waiting dialog: the punch target (hole
      * punching) is only ever armed later via its Peer IP button, and only
      * needed when the host isn't directly reachable (no UPnP/forward). */
     Button.OnClickListener createGameClick = new Button.OnClickListener() {
         public void onClick(View v) {
-            pickModeAndRun(new Runnable() { public void run() { createGame(); } });
+            Runnable action = new Runnable() { public void run() {
+                pickModeAndRun(new Runnable() { public void run() { createGame(); } });
+            } };
+            if (ensureLocalNet(action)) action.run();
         }
     };
 
@@ -894,6 +933,7 @@ public class NetPlayHelper {
 
     Button.OnClickListener joinGameClick = new Button.OnClickListener() {
         public void onClick(View v) {
+            Runnable action = new Runnable() { public void run() {
             AlertDialog.Builder alert = new AlertDialog.Builder(mm);
 
             alert.setTitle(mm.getString(R.string.np_enter_peer_ip));
@@ -973,6 +1013,8 @@ public class NetPlayHelper {
             AlertDialog dlg = alert.create();
             dlg.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
             dlg.show();
+            } };
+            if (ensureLocalNet(action)) action.run();
         }
     };
 
