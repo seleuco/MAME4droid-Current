@@ -47,10 +47,10 @@
 //============================================================
 // MYOSD globals
 //============================================================
-int myosd_display_width;
-int myosd_display_height;
-int myosd_display_width_osd;
-int myosd_display_height_osd;
+int myosd_display_width = 0;
+int myosd_display_height = 0;
+int myosd_display_width_osd = 0;
+int myosd_display_height_osd = 0;
 int myosd_bitmap_filtering;
 int myosd_vector_improved;
 

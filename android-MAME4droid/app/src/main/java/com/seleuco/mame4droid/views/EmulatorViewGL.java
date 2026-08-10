@@ -388,7 +388,7 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 	@Override
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 		super.onSizeChanged(w, h, oldw, oldh);
-		Emulator.setWindowSize(w, h);
+		Emulator.onWindowSizeChanged(w, h);
 	}
 
 	/**

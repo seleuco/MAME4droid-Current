@@ -1206,44 +1206,6 @@ galaxy sde	   --> 2560x1600 16:10
         return error;
     }
 
-	public Size getWindowSize(){
-		Size size;
-
-		if(Build.VERSION.SDK_INT < 30) {
-			Display display = mm.getWindowManager().getDefaultDisplay();
-			Point s = new Point();
-			display.getSize(s);
-			int width = s.x;
-			int height = s.y;
-			size= new Size(width,height);
-		}
-		else {
-			final WindowMetrics metrics = mm.getWindowManager().getCurrentWindowMetrics();
-			// Gets all excluding insets
-			final WindowInsets windowInsets = metrics.getWindowInsets();
-
-			final Rect bounds = metrics.getBounds();
-			size = new Size(bounds.width(), bounds.height());
-
-
-			if (!mm.getPrefsHelper().isNotchUsed()) {
-
-				Insets insets = windowInsets.getInsetsIgnoringVisibility(
-					//WindowInsets.Type.navigationBars()|
-					WindowInsets.Type.displayCutout());
-
-				int insetsWidth = insets.right + insets.left;
-				int insetsHeight = insets.top + insets.bottom;
-
-				size = new Size(size.getWidth() - insetsWidth, size.getHeight() - insetsHeight);
-			}
-		}
-
-		Log.d("SIZE","Window size is width:"+size.getWidth()+" height:"+size.getHeight());
-
-		return size;
-	}
-
 	public int getScreenOrientation(){
 		int orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR;
 		switch (mm.getPrefsHelper().getOrientationMode()){

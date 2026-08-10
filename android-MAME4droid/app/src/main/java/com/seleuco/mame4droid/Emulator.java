@@ -201,16 +201,9 @@ public class Emulator {
 	private static final Paint debugPaint = new Paint();
 
 	private static int window_width = 320;
-
-	public static int getWindow_width() {
-		return window_width;
-	}
-
 	private static int window_height = 240;
 
-	public static int getWindow_height() {
-		return window_height;
-	}
+
 
 	private static int emu_width = 320;
 	private static int emu_height = 240;
@@ -327,12 +320,12 @@ public class Emulator {
 	}
 
 	//VIDEO
-	public static void setWindowSize(int w, int h) {
-
+	public static void onWindowSizeChanged(int w, int h) {
 		//System.out.println("window size "+w+" "+h);
+		window_width = Math.max(320, w);
+		window_height = Math.max(240, h);
 
-		window_width = w;
-		window_height = h;
+		setNativeSize(window_width, window_height);
 	}
 
 	// --- frame pacing + ADPF (v1, Java only) ---
@@ -857,8 +850,7 @@ public class Emulator {
 				resetFpsEstimator();
 
 				boolean extROM = false;
-				Size sz = mm.getMainHelper().getWindowSize();
-				init(libPath, resPath, Math.max(sz.getWidth(), sz.getHeight()), Math.min(sz.getWidth(), sz.getHeight()));
+				init(libPath, resPath);
 				final String versionName = mm.getMainHelper().getVersion();
 				Emulator.setValueStr(Emulator.VERSION, versionName);
 
@@ -1072,7 +1064,7 @@ public class Emulator {
 	}
 
 	//native
-	protected static native void init(String libPath, String resPath, int nativeWidth, int nativeHeight);
+	protected static native void init(String libPath, String resPath);
 	protected static native void runT();
 	synchronized public static native void setDigitalData(int i, long data);
 	synchronized public static native void setAnalogData(int t, int i, float v1, float v2);
@@ -1093,6 +1085,8 @@ public class Emulator {
 	public static native String[] getShaders();
 	public static native boolean setShader(String shader);
 	public static native int loadShaders(String path);
+
+	private static native void setNativeSize(int width, int height);
 
 	public static native int getGameRefreshMilliHz();
 

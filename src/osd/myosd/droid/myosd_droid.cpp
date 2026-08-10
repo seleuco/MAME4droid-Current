@@ -57,8 +57,6 @@ static int myosd_droid_res_width = 1;
 static int myosd_droid_res_height = 1;
 static int myosd_droid_res_width_osd = 1;
 static int myosd_droid_res_height_osd = 1;
-static int myosd_droid_res_width_native = 1;
-static int myosd_droid_res_height_native = 1;
 
 //input - save
 static int myosd_droid_num_buttons = 0;
@@ -238,15 +236,9 @@ void myosd_droid_setSAFCallbacks(
 }
 
 
-void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight) {
-
-    __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "initMyOSD path: %s nativeWidth: %d nativeHeight: %d", path,
-                        nativeWidth, nativeHeight);
-
+void myosd_droid_initMyOSD(const char *path) {
+    __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "initMyOSD path: %s", path);
     /*ret = */chdir(path);
-
-    myosd_droid_res_width_native = nativeWidth;
-    myosd_droid_res_height_native = nativeHeight;
 }
 
 static void droid_myosd_check_pause(void){
@@ -1029,59 +1021,65 @@ static void droid_map_keyboard(){
 
 }
 
+static void droid_init_res(int nativeWidth, int nativeHeight) {
+    int reswidth = 640, resheight = 480;
+    int reswidth_osd = 640, resheight_osd = 480;
+
+    /* Auto game resolution implies the low-res OSD (400x300). Derive a
+     * local effective value instead of writing back into the Java-owned
+     * resolution_osd, so it can't desync with setValue ordering. */
+    int eff_resolution_osd = (myosd_droid_resolution == 0) ? 0 : myosd_droid_resolution_osd;
+
+    switch (myosd_droid_resolution)
+    {
+        case 0:{reswidth = 0;resheight = 0;break;}//400x300 (4/3)
+        case 1:{reswidth = 640;resheight = 480;break;}//640x480 (4/3)
+        case 2:{reswidth = 800;resheight = 600;break;}//800x600 (4/3)
+        case 3:{reswidth = 1024;resheight = 768;break;}//1024x768 (4/3)
+        case 4:{reswidth = 1280;resheight = 720;break;}//1280x720 (16/9)
+        case 5:{reswidth = 1440;resheight = 1080;break;}//1440x1080 (4/3)
+        case 6:{reswidth = 1920;resheight = 1080;break;}//1920x1080 (16/9)
+        case 7:{reswidth = (nativeHeight / 2) * 4 / 3.0f ;resheight = nativeHeight / 2;break;}//fullscreen/2 (4/3)
+        case 8:{reswidth = nativeWidth / 2;resheight = nativeHeight / 2;break;}//fullscreen/2
+        case 9:{reswidth = nativeHeight * 4 / 3.0f ;resheight = nativeHeight;break;}//fullscreen (4/3)
+        case 10:{reswidth = nativeWidth;resheight = nativeHeight;break;}//fullscreen
+    }
+
+    switch (eff_resolution_osd)
+    {
+        case 0:{reswidth_osd = 400;resheight_osd = 300;break;}
+            // case 11:{reswidth_osd = 450;resheight_osd = 300;break;}
+        case 11:{reswidth_osd = 500;resheight_osd = 333;break;}
+            //case 11:{reswidth_osd = 510;resheight_osd = 300;break;}
+        case 1:{reswidth_osd = 640;resheight_osd = 480;break;}//640x480 (4/3)
+        case 2:{reswidth_osd = 800;resheight_osd = 600;break;}//800x600 (4/3)
+        case 3:{reswidth_osd = 1024;resheight_osd = 768;break;}//1024x768 (4/3)
+        case 4:{reswidth_osd = 1280;resheight_osd = 720;break;}//1280x720 (16/9)
+        case 5:{reswidth_osd = 1440;resheight_osd = 1080;break;}//1440x1080 (4/3)
+        case 6:{reswidth_osd = 1920;resheight_osd = 1080;break;}//1920x1080 (16/9)
+        case 7:{reswidth_osd = (nativeHeight / 2) * 4 / 3.0f ;resheight_osd = nativeHeight / 2;break;}//fullscreen/2 (4/3)
+        case 8:{reswidth_osd = nativeWidth / 2;resheight_osd = nativeHeight / 2;break;}//fullscreen/2
+        case 9:{reswidth_osd = nativeHeight * 4 / 3.0f ;resheight_osd = nativeHeight;break;}//fullscreen (4/3)
+        case 10:{reswidth_osd = nativeWidth;resheight_osd = nativeHeight;break;}//fullscreen
+    }
+
+    myosd_droid_res_width = reswidth;
+    myosd_droid_res_height = resheight;
+    myosd_droid_res_width_osd = reswidth_osd;
+    myosd_droid_res_height_osd = resheight_osd;
+
+    droid_set_video_mode(myosd_droid_res_width_osd, myosd_droid_res_height_osd,
+                         myosd_droid_res_width_osd, myosd_droid_res_height_osd);
+
+    myosd_set(MYOSD_DISPLAY_WIDTH, myosd_droid_res_width);
+    myosd_set(MYOSD_DISPLAY_HEIGHT, myosd_droid_res_height);
+    myosd_set(MYOSD_DISPLAY_WIDTH_OSD, myosd_droid_res_width_osd);
+    myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, myosd_droid_res_height_osd);
+}
+
 static void droid_init(void) {
     if (!lib_inited) {
-
         __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "init");
-
-        int reswidth = 640, resheight = 480;
-        int reswidth_osd = 640, resheight_osd = 480;
-
-        /* Auto game resolution implies the low-res OSD (400x300). Derive a
-         * local effective value instead of writing back into the Java-owned
-         * resolution_osd, so it can't desync with setValue ordering. */
-        int eff_resolution_osd = (myosd_droid_resolution == 0) ? 0 : myosd_droid_resolution_osd;
-
-        switch (myosd_droid_resolution)
-        {
-            case 0:{reswidth = 0;resheight = 0;break;}//400x300 (4/3)
-            case 1:{reswidth = 640;resheight = 480;break;}//640x480 (4/3)
-            case 2:{reswidth = 800;resheight = 600;break;}//800x600 (4/3)
-            case 3:{reswidth = 1024;resheight = 768;break;}//1024x768 (4/3)
-            case 4:{reswidth = 1280;resheight = 720;break;}//1280x720 (16/9)
-            case 5:{reswidth = 1440;resheight = 1080;break;}//1440x1080 (4/3)
-            case 6:{reswidth = 1920;resheight = 1080;break;}//1920x1080 (16/9)
-            case 7:{reswidth = (myosd_droid_res_height_native/2) * 4/3.0f ;resheight = myosd_droid_res_height_native/2;break;}//fullscreen/2 (4/3)
-            case 8:{reswidth = myosd_droid_res_width_native/2;resheight = myosd_droid_res_height_native/2;break;}//fullscreen/2
-            case 9:{reswidth = myosd_droid_res_height_native * 4/3.0f ;resheight = myosd_droid_res_height_native;break;}//fullscreen (4/3)
-            case 10:{reswidth = myosd_droid_res_width_native;resheight = myosd_droid_res_height_native;break;}//fullscreen
-        }
-
-        switch (eff_resolution_osd)
-        {
-            case 0:{reswidth_osd = 400;resheight_osd = 300;break;}
-           // case 11:{reswidth_osd = 450;resheight_osd = 300;break;}
-            case 11:{reswidth_osd = 500;resheight_osd = 333;break;}
-            //case 11:{reswidth_osd = 510;resheight_osd = 300;break;}
-            case 1:{reswidth_osd = 640;resheight_osd = 480;break;}//640x480 (4/3)
-            case 2:{reswidth_osd = 800;resheight_osd = 600;break;}//800x600 (4/3)
-            case 3:{reswidth_osd = 1024;resheight_osd = 768;break;}//1024x768 (4/3)
-            case 4:{reswidth_osd = 1280;resheight_osd = 720;break;}//1280x720 (16/9)
-            case 5:{reswidth_osd = 1440;resheight_osd = 1080;break;}//1440x1080 (4/3)
-            case 6:{reswidth_osd = 1920;resheight_osd = 1080;break;}//1920x1080 (16/9)
-            case 7:{reswidth_osd = (myosd_droid_res_height_native/2) * 4/3.0f ;resheight_osd = myosd_droid_res_height_native/2;break;}//fullscreen/2 (4/3)
-            case 8:{reswidth_osd = myosd_droid_res_width_native/2;resheight_osd = myosd_droid_res_height_native/2;break;}//fullscreen/2
-            case 9:{reswidth_osd = myosd_droid_res_height_native * 4/3.0f ;resheight_osd = myosd_droid_res_height_native;break;}//fullscreen (4/3)
-            case 10:{reswidth_osd = myosd_droid_res_width_native;resheight_osd = myosd_droid_res_height_native;break;}//fullscreen
-        }
-
-        myosd_droid_res_width = reswidth;
-        myosd_droid_res_height = resheight;
-        myosd_droid_res_width_osd = reswidth_osd;
-        myosd_droid_res_height_osd = resheight_osd;
-
-        droid_set_video_mode(myosd_droid_res_width_osd, myosd_droid_res_height_osd,
-                             myosd_droid_res_width_osd, myosd_droid_res_height_osd);
 
         droid_init_input();
 
@@ -1097,6 +1095,30 @@ int myosd_safOpenFile(const char *pathName,const char *mode) {
         return safOpenFile_callback(pathName, mode);
     }
     return -1;
+}
+
+static bool res_inited = false;
+extern "C" void myosd_video_set_native_size(int nativeWidth, int nativeHeight) {
+    __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "set_native_size nativeWidth: %d nativeHeight: %d",
+                        nativeWidth, nativeHeight);
+
+    if (!res_inited) {
+        droid_init_res(nativeWidth, nativeHeight);
+        res_inited = true;
+    } else if (myosd_droid_resolution == 10 || myosd_droid_resolution_osd == 10) {
+        if (myosd_droid_resolution == 10) {
+            myosd_set(MYOSD_DISPLAY_WIDTH, nativeWidth);
+            myosd_set(MYOSD_DISPLAY_HEIGHT, nativeHeight);
+        }
+
+        if (myosd_droid_resolution_osd == 10) {
+            myosd_set(MYOSD_DISPLAY_WIDTH_OSD, nativeWidth);
+            myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, nativeHeight);
+        }
+
+        //It's already updated through window.cpp
+        //droid_set_video_mode(nativeWidth, nativeHeight, nativeWidth, nativeHeight);
+    }
 }
 
 int *myosd_safReadDir(const char *dirName, int reload) {
@@ -1446,11 +1468,6 @@ int myosd_droid_main(int argc, char **argv) {
             .game_exit = m4i_game_stop,
 */
     };
-
-    myosd_set(MYOSD_DISPLAY_WIDTH, myosd_droid_res_width);
-    myosd_set(MYOSD_DISPLAY_HEIGHT, myosd_droid_res_height);
-    myosd_set(MYOSD_DISPLAY_WIDTH_OSD, myosd_droid_res_width_osd);
-    myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, myosd_droid_res_height_osd);
 
     static const char *args[255];
     int n = 0;

@@ -156,7 +156,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;Ljava/lang/String;II)V
  */
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
-  (JNIEnv *, jclass, jstring, jstring, jint, jint);
+  (JNIEnv *, jclass, jstring, jstring);
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator
