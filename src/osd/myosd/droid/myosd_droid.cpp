@@ -235,7 +235,8 @@ void myosd_droid_setSAFCallbacks(
     safCloseDir_callback = safCloseDir_java;
 }
 
-
+//Prototype
+static void droid_init(int nativeWidth, int nativeHeight);
 void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight) {
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "initMyOSD path: %s", path);
     /*ret = */chdir(path);
