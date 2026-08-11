@@ -1114,6 +1114,9 @@ extern "C" void myosd_video_set_native_size(int nativeWidth, int nativeHeight) {
     if (myosd_droid_resolution_osd == 10) {
         myosd_set(MYOSD_DISPLAY_WIDTH_OSD, nativeWidth);
         myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, nativeHeight);
+    } else if (myosd_droid_resolution_osd == 9) { //fullscreen (4/3)
+        myosd_set(MYOSD_DISPLAY_WIDTH_OSD, nativeHeight * 4 / 3.0f);
+        myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, nativeHeight);
     }
 
     //It's already updated through window.cpp
