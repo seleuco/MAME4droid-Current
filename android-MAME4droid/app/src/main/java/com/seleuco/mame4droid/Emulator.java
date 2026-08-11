@@ -325,7 +325,8 @@ public class Emulator {
 		window_width = Math.max(320, w);
 		window_height = Math.max(240, h);
 
-		setNativeSize(window_width, window_height);
+		if (Emulator.isEmulating)
+			setNativeSize(window_width, window_height);
 	}
 
 	// --- frame pacing + ADPF (v1, Java only) ---
@@ -850,7 +851,7 @@ public class Emulator {
 				resetFpsEstimator();
 
 				boolean extROM = false;
-				init(libPath, resPath);
+				init(libPath, resPath, window_width, window_height);
 				final String versionName = mm.getMainHelper().getVersion();
 				Emulator.setValueStr(Emulator.VERSION, versionName);
 
@@ -1064,7 +1065,7 @@ public class Emulator {
 	}
 
 	//native
-	protected static native void init(String libPath, String resPath);
+	protected static native void init(String libPath, String resPath, int nativeWidth, int nativeHeight);
 	protected static native void runT();
 	synchronized public static native void setDigitalData(int i, long data);
 	synchronized public static native void setAnalogData(int t, int i, float v1, float v2);

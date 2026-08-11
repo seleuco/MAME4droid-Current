@@ -47,7 +47,7 @@ void (*setAudioCallbacks)(void *func1,void *func2,void *func3)= NULL;
 void (*setVideoCallbacks)(void *func1,void *func2) = NULL;
 void (*setInputCallbacks)(void *func1) = NULL;
 void (*setDigitalData)(int i, unsigned long digital_status) = NULL;
-void (*initMyOSD)(const char *path) = NULL;
+void (*initMyOSD)(const char *path, int nativeWidth, int nativeHeight) = NULL;
 int (*netplayInit)(const char *server, int port, int join) = NULL;
 void (*setNetplayWarnCallback)(void *func1) = NULL;
 void (*netplaySetMode)(int mode) = NULL;
@@ -695,7 +695,7 @@ void* app_Thread_Start(void* args)
 }
 
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
-  (JNIEnv *env, jclass c,  jstring s1, jstring s2)
+  (JNIEnv *env, jclass c,  jstring s1, jstring s2, jint nativeWidth, jint nativeHeight)
 {
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni", "init");
 
@@ -733,7 +733,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni", "path %s",str2);
 
     if(initMyOSD!=NULL) {
-        initMyOSD(str2);
+        initMyOSD(str2, nativeWidth, nativeHeight);
     } else{
         __android_log_print(ANDROID_LOG_ERROR, "mame4droid-jni","Not initMyOSD!!!");
     }

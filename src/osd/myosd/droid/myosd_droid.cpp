@@ -236,9 +236,11 @@ void myosd_droid_setSAFCallbacks(
 }
 
 
-void myosd_droid_initMyOSD(const char *path) {
+void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight) {
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "initMyOSD path: %s", path);
     /*ret = */chdir(path);
+
+    droid_init(nativeWidth, nativeHeight);
 }
 
 static void droid_myosd_check_pause(void){
@@ -1077,9 +1079,11 @@ static void droid_init_res(int nativeWidth, int nativeHeight) {
     myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, myosd_droid_res_height_osd);
 }
 
-static void droid_init(void) {
+static void droid_init(int nativeWidth, int nativeHeight) {
     if (!lib_inited) {
         __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "init");
+
+        droid_init_res(nativeWidth, nativeHeight);
 
         droid_init_input();
 
@@ -1097,28 +1101,22 @@ int myosd_safOpenFile(const char *pathName,const char *mode) {
     return -1;
 }
 
-static bool res_inited = false;
 extern "C" void myosd_video_set_native_size(int nativeWidth, int nativeHeight) {
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "set_native_size nativeWidth: %d nativeHeight: %d",
                         nativeWidth, nativeHeight);
 
-    if (!res_inited) {
-        droid_init_res(nativeWidth, nativeHeight);
-        res_inited = true;
-    } else if (myosd_droid_resolution == 10 || myosd_droid_resolution_osd == 10) {
-        if (myosd_droid_resolution == 10) {
-            myosd_set(MYOSD_DISPLAY_WIDTH, nativeWidth);
-            myosd_set(MYOSD_DISPLAY_HEIGHT, nativeHeight);
-        }
-
-        if (myosd_droid_resolution_osd == 10) {
-            myosd_set(MYOSD_DISPLAY_WIDTH_OSD, nativeWidth);
-            myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, nativeHeight);
-        }
-
-        //It's already updated through window.cpp
-        //droid_set_video_mode(nativeWidth, nativeHeight, nativeWidth, nativeHeight);
+     if (myosd_droid_resolution == 10) {
+        myosd_set(MYOSD_DISPLAY_WIDTH, nativeWidth);
+        myosd_set(MYOSD_DISPLAY_HEIGHT, nativeHeight);
     }
+
+    if (myosd_droid_resolution_osd == 10) {
+        myosd_set(MYOSD_DISPLAY_WIDTH_OSD, nativeWidth);
+        myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, nativeHeight);
+    }
+
+    //It's already updated through window.cpp
+    //droid_set_video_mode(nativeWidth, nativeHeight, nativeWidth, nativeHeight);
 }
 
 int *myosd_safReadDir(const char *dirName, int reload) {
@@ -1449,8 +1447,6 @@ int myosd_droid_adjust_ui_font_rows(int current) {
 int myosd_droid_main(int argc, char **argv) {
 
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "*********** ANDROID MAIN ********");
-
-    droid_init();
 
     myosd_callbacks callbacks = {
             .output_text  = droid_output_cb,
