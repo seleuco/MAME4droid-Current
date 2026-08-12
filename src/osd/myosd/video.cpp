@@ -41,6 +41,8 @@
 
 int myosd_fps;
 int myosd_zoom_to_window;
+//defaults to the whole target, which is the case with no artwork around
+float myosd_screen_rect[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
 
 float g_hack_offscreen_overdrive = 0.0f;
 

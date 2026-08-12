@@ -120,6 +120,13 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 		return getString(R.string.current_value_is, v);
 	}
 
+	/* Only does anything on "Device Native" (10), so grey it out otherwise. */
+	private void updateFullAreaEnabled() {
+		Preference p = getPreferenceScreen().findPreference(PrefsHelper.PREF_FULL_AREA_RESOLUTION);
+		if (p == null || mPrefResolution == null) return;
+		p.setEnabled("10".equals(mPrefResolution.getValue()));
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 
@@ -179,6 +186,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 
 	        mPrefResolution.setSummary(curVal(mPrefResolution.getEntry()));
 		    mPrefOSDResolution.setSummary(curVal(mPrefOSDResolution.getEntry()));
+			updateFullAreaEnabled();
 	        mPrefPortraitMode.setSummary(curVal(mPrefPortraitMode.getEntry()));
 	        mPrefLandsMode.setSummary(curVal(mPrefLandsMode.getEntry()));
 			mPrefOverlay.setSummary(curVal(mPrefOverlay.getEntry()));
@@ -262,6 +270,7 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 	        else if(key.equals(PrefsHelper.PREF_EMU_RESOLUTION))
 	        {
 	        	mPrefResolution.setSummary(curVal(mPrefResolution.getEntry()));
+				updateFullAreaEnabled();
 	        }
 			else if(key.equals(PrefsHelper.PREF_EMU_RESOLUTION_OSD))
 			{

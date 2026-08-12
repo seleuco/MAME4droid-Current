@@ -107,6 +107,9 @@ extern "C" {
 #undef com_seleuco_mame4droid_Emulator_NETPLAY_IN_ROLLBACK
 #define com_seleuco_mame4droid_Emulator_NETPLAY_IN_ROLLBACK 56L
 
+#undef com_seleuco_mame4droid_Emulator_NETPLAY_ALLOW_PLUGINS
+#define com_seleuco_mame4droid_Emulator_NETPLAY_ALLOW_PLUGINS 77L
+
 #undef com_seleuco_mame4droid_Emulator_SAF_PATH
 #define com_seleuco_mame4droid_Emulator_SAF_PATH 1L
 #undef com_seleuco_mame4droid_Emulator_ROM_NAME
@@ -149,6 +152,8 @@ extern "C" {
 #define com_seleuco_mame4droid_Emulator_TRIGGER_DATA 3L
 #undef com_seleuco_mame4droid_Emulator_LIGHTGUN_DATA
 #define com_seleuco_mame4droid_Emulator_LIGHTGUN_DATA 4L
+#undef com_seleuco_mame4droid_Emulator_SCREEN_RECT
+#define com_seleuco_mame4droid_Emulator_SCREEN_RECT 78L
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator
@@ -157,6 +162,14 @@ extern "C" {
  */
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
   (JNIEnv *, jclass, jstring, jstring, jint, jint);
+
+/*
+ * Class:     com_seleuco_mame4droid_Emulator
+ * Method:    setNativeSize
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setNativeSize
+  (JNIEnv *, jclass, jint, jint);
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator

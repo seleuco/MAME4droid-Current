@@ -144,6 +144,10 @@ public class Emulator {
 	final static public int NETPLAY_HAS_JOINED = 54;
 	final static public int NETPLAY_DELAY = 55;
 	final static public int NETPLAY_IN_ROLLBACK = 56;
+	final static public int NETPLAY_ALLOW_PLUGINS = 77;
+
+	//game screen inside the render target, normalized x10000 (i = 0..3)
+	final static public int SCREEN_RECT = 78;
 
 	//set str
 	final static public int SAF_PATH = 1;
@@ -335,6 +339,18 @@ public class Emulator {
 		window_height = h;
 	}
 
+	private static int lastNativeW = 0, lastNativeH = 0;
+
+	// Area the emu view can use (screen minus touch controller). Passing the whole
+	// screen leaves black bands. Fixed-aspect resolutions ignore it.
+	public static void onDrawableAreaChanged(int w, int h) {
+		if (!isEmulating || w <= 0 || h <= 0) return;
+		if (w == lastNativeW && h == lastNativeH) return;
+		lastNativeW = w; lastNativeH = h;
+		Log.d(TAG, "onDrawableAreaChanged " + w + "x" + h);
+		setNativeSize(w, h);
+	}
+
 	// --- frame pacing + ADPF (v1, Java only) ---
 	private static boolean framePacingEnabled = false;
 	private static long fpsLastNs = 0;
@@ -497,6 +513,9 @@ public class Emulator {
 				}
 
 				mm.getMainHelper().updateMAME4droid();
+
+				// the first measure ran before isEmulating and was dropped
+				mm.getEmuView().requestLayout();
 
 				mm.getEmuView().getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
 					@Override
@@ -1073,6 +1092,8 @@ public class Emulator {
 
 	//native
 	protected static native void init(String libPath, String resPath, int nativeWidth, int nativeHeight);
+
+	protected static native void setNativeSize(int nativeWidth, int nativeHeight);
 	protected static native void runT();
 	synchronized public static native void setDigitalData(int i, long data);
 	synchronized public static native void setAnalogData(int t, int i, float v1, float v2);

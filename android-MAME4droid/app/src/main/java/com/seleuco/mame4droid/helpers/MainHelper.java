@@ -474,8 +474,9 @@ public class MainHelper {
         Emulator.setValue(Emulator.SHOW_FPS,
                 prefsHelper.isFPSShowed() ? 1 : 0);
 
+		// inverted: the native flag still means "shrink target to game area"
 		Emulator.setValue(Emulator.ZOOM_TO_WINDOW,
-			prefsHelper.isZoomToWindow() ? 1 : 0);
+			prefsHelper.isFullAreaResolution() ? 0 : 1);
 
 		Emulator.setValue(Emulator.AUTO_FRAMESKIP,
 			prefsHelper.isAutoFrameSkip() ? 1 : 0);
@@ -587,6 +588,7 @@ public class MainHelper {
 		   Emulator.setValueStr(Emulator.OVERLAY_EFECT,mm.getPrefsHelper().getOverlayFilterValue());
 
         Emulator.setValue(Emulator.NETPLAY_DELAY, mm.getPrefsHelper().getNetplayDelayValue());
+        Emulator.setValue(Emulator.NETPLAY_ALLOW_PLUGINS, mm.getPrefsHelper().isNetplayAllowPluginsEnabled() ? 1 : 0);
     }
 
     public void updateMAME4droid() {

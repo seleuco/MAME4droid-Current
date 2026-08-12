@@ -24,6 +24,10 @@
 			android:entryValues="@array/pref_osd_resolution_values"
 			android:defaultValue="9" />
 
+		<CheckBoxPreference android:key="PREF_FULL_AREA_RESOLUTION"
+			android:title="@string/pref_full_area_res_title" android:summary="@string/pref_full_area_res_summary"
+			android:defaultValue="false" />
+
 	    <com.seleuco.mame4droid.prefs.ListPrefWithWarn
 			android:entries="@array/pref_sound_options"
 			android:title="@string/pref_sound_title"
@@ -61,10 +65,6 @@
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_FRAME_PACING"
 			android:title="@string/pref_frame_pacing_title" android:summary="@string/pref_frame_pacing_summary"
-			android:defaultValue="true" />
-
-		<CheckBoxPreference android:key="PREF_ZOOM_TO_WINDOW"
-			android:title="@string/pref_zoom_to_window_title" android:summary="@string/pref_zoom_to_window_summary"
 			android:defaultValue="true" />
 
 		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_EMU_DISABLE_DRC_4"
@@ -899,6 +899,9 @@
 		<CheckBoxPreference android:title="@string/pref_netplay_stats_title" android:summary="@string/pref_netplay_stats_summary" android:key="PREF_NETPLAY_STATS_ENABLED" android:defaultValue="false" />
 		<CheckBoxPreference android:title="@string/pref_netplay_desync_title" android:summary="@string/pref_netplay_desync_summary" android:key="PREF_NETPLAY_DESYNC_DETECTOR_ENABLED" android:defaultValue="true" />
 		<CheckBoxPreference android:title="@string/pref_netplay_upnp_title" android:summary="@string/pref_netplay_upnp_summary" android:key="PREF_NETPLAY_UPNP" android:defaultValue="true" />
+		<com.seleuco.mame4droid.prefs.CheckBoxPrefWithWarn android:key="PREF_NETPLAY_ALLOW_PLUGINS"
+			android:title="@string/pref_netplay_allow_plugins_title" android:summary="@string/pref_netplay_allow_plugins_summary"
+			android:defaultValue="false" />
 		<ListPreference android:entries="@array/pref_netplay_ip_protocol_options" android:title="@string/pref_netplay_ipproto_title" android:summary="@string/pref_netplay_ipproto_summary" android:key="PREF_NETPLAY_IP_PROTOCOL" android:entryValues="@array/pref_netplay_ip_protocol_values" android:defaultValue="0" />
     </PreferenceScreen>
 

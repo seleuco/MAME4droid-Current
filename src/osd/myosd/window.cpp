@@ -137,6 +137,39 @@ void myosd_window_info::update()
 	m_primlist = &target()->get_primitives();
 
 	m_primlist->acquire_lock();
+
+	//Where the game screen sits inside the target, so the touch lightgun can map
+	//against it instead of the whole canvas (they differ once artwork is around).
+	//Re-derived every frame because MAME's own video options (zoom to screen
+	//area, view) move it without changing the target size. Cheap: the loop stops
+	//at the screen quad, which comes early; if a game has none we give up.
+	if (in_game != m_screen_rect_in_game) {
+		m_screen_rect_in_game = in_game;
+		m_screen_rect_tries = 0;
+		myosd_screen_rect[0] = 0.0f; myosd_screen_rect[1] = 0.0f;
+		myosd_screen_rect[2] = 1.0f; myosd_screen_rect[3] = 1.0f;
+	}
+
+	if (in_game && m_min_width > 0 && m_min_height > 0 && m_screen_rect_tries < 120) {
+		bool found = false;
+
+		for (const render_primitive &prim : *m_primlist) {
+			//VECTORBUF is the vector games' equivalent of the screen quad
+			if (prim.type == render_primitive::QUAD &&
+				(PRIMFLAG_GET_SCREENTEX(prim.flags) || PRIMFLAG_GET_VECTORBUF(prim.flags))) {
+				myosd_screen_rect[0] = prim.bounds.x0 / (float)m_min_width;
+				myosd_screen_rect[1] = prim.bounds.y0 / (float)m_min_height;
+				myosd_screen_rect[2] = prim.bounds.x1 / (float)m_min_width;
+				myosd_screen_rect[3] = prim.bounds.y1 / (float)m_min_height;
+				found = true;
+				break;
+			}
+		}
+
+		//count only misses, so a game without a screen stops costing a full scan
+		m_screen_rect_tries = found ? 0 : m_screen_rect_tries + 1;
+	}
+
 	if (has_renderer())
 		renderer().draw(0);
 	m_primlist->release_lock();

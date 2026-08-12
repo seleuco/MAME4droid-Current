@@ -130,6 +130,9 @@ public class InputHandler implements OnTouchListener, OnKeyListener {
 			Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, 0.0f, 0.0f);
 		} catch (Throwable ignored) {}
 
+		//drops the anchored finger and any pending long press
+		if (digital) touchLightgun.reset();
+
 		Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 1, -1, -1);
 		Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 2, -1, -1);
 		Emulator.setMouseData(0, Emulator.MOUSE_BTN_UP, 3, -1, -1);

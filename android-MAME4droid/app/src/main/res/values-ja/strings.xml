@@ -205,8 +205,8 @@
     <string name="pref_autofire_summary">キーまたはボタンの組み合わせを押し続けることでエミュレートボタンの繰り返し押下をシミュレートできるようにするには有効にしてください。注意：このプラグインは MAME UI のプラグインオプションから利用できます</string>
     <string name="pref_skip_gameinfo_title">ゲーム情報をスキップ</string>
     <string name="pref_skip_gameinfo_summary">システム情報画面の表示を強制的にスキップします</string>
-    <string name="pref_zoom_to_window_title">ウィンドウにズーム</string>
-    <string name="pref_zoom_to_window_summary">縦・横のゲームがデバイスウィンドウ全体を使うようにエミュレート表示を自動的にズームします。固定方向とワイド解像度で MAME の映像オプションの artwork を使って画面領域をズームする場合は無効にしてください</string>
+    <string name="pref_full_area_res_title">エミュレーション領域全体</string>
+    <string name="pref_full_area_res_summary">デバイス本来の解像度でエミュレートする際、ゲーム領域だけでなく利用可能な解像度全体を MAME に渡します。多少遅くなり、画面の向きによってフォントサイズの差が大きくなりますが、エミュレーション領域へのズーム方法を選んで artwork を適切に切り取るなどの高度な効果が利用できます</string>
     <string name="pref_disable_drc_title">DRC を無効化</string>
     <string name="pref_disable_drc_summary">DRC（動的リコンパイラ）CPU コアを無効にします。フリーズしたり起動しない一部のゲームの互換性をテストするには、パフォーマンスを犠牲にして有効にしてください</string>
     <string name="pref_drc_use_c_title">DRC で C を使用</string>
@@ -482,6 +482,8 @@
     <string name="pref_netplay_desync_summary">ネットプレイの非同期を検出して警告します（ロールバックのみ）。追加の CPU コストを節約するには無効にしてください</string>
     <string name="pref_netplay_upnp_title">UPnP ポートマッピング（ホスト）</string>
     <string name="pref_netplay_upnp_summary">ホスト時に、インターネットの相手が直接参加できるよう、ルーターでネットプレイポートを自動的に転送します。切断時に削除されます</string>
+    <string name="pref_netplay_allow_plugins_title">ネットプレイでLuaプラグインを許可</string>
+    <string name="pref_netplay_allow_plugins_summary">チート・オートファイア・マクロをネットプレイ中に動作させます。特にrollbackでは同期ずれの恐れがあります。lockstepを使い、プラグインが必要な場合のみ有効にしてください。</string>
     <string name="pref_netplay_ipproto_title">ネットワークプロトコル</string>
     <string name="pref_netplay_ipproto_summary">IPv4、IPv6、または自動。IPv6 は NAT がないため、インターネット対戦は通常ポート開放なしで直接接続でき、接続の問題も少なくなります。自動は IPv6 を優先し、必要に応じて IPv4 に切り替えます</string>
     <string name="np_ipproto_auto">自動（IPv6 + IPv4）</string>

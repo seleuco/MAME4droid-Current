@@ -59,6 +59,13 @@ static int myosd_droid_res_width_osd = 1;
 static int myosd_droid_res_height_osd = 1;
 static int myosd_droid_res_width_native = 1;
 static int myosd_droid_res_height_native = 1;
+//screen quad inside the target, normalized. Defined in video.cpp (myosd.h pulls
+//in MAME headers, so it is declared here instead of including it)
+extern float myosd_screen_rect[4];
+
+//last drawable area reported by Java (0 = none yet)
+static int myosd_droid_area_width = 0;
+static int myosd_droid_area_height = 0;
 
 //input - save
 static int myosd_droid_num_buttons = 0;
@@ -166,6 +173,8 @@ std::string myosd_netplay_selected_game = "";
 int myosd_droid_is_netplay_active(void);
 /* Netplay session sample-rate override  */
 static int myosd_droid_netplay_forced_rate = 0;
+/* Opt-in: run Lua plugins during netplay (may desync, esp. in rollback) */
+static int myosd_droid_netplay_allow_plugins = 0;
 
 //Android callbacks
 static void (*dumpVideo_callback)(void) = nullptr;
@@ -247,6 +256,41 @@ void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight) 
 
     myosd_droid_res_width_native = nativeWidth;
     myosd_droid_res_height_native = nativeHeight;
+}
+
+//Only "Device Native" takes the panel aspect, so it's the only one to update on
+//rotation. Java sends the drawable area, not the view size (that would feed back).
+void myosd_droid_setNativeSize(int nativeWidth, int nativeHeight) {
+
+    if (nativeWidth <= 0 || nativeHeight <= 0)
+        return;
+
+    myosd_droid_res_width_native = nativeWidth;
+    myosd_droid_res_height_native = nativeHeight;
+
+    //myosd_droid_main overwrites this while starting, so keep it to re-apply
+    myosd_droid_area_width = nativeWidth;
+    myosd_droid_area_height = nativeHeight;
+
+    //res_* not computed yet; myosd_droid_main re-applies at the end
+    if (!lib_inited)
+        return;
+
+    //full area = raw display size branch in window.cpp, else restore the pref
+    bool game_full_area = (myosd_droid_resolution == 10 && !myosd_droid_zoom_to_window);
+    myosd_set(MYOSD_DISPLAY_WIDTH,  game_full_area ? nativeWidth  : myosd_droid_res_width);
+    myosd_set(MYOSD_DISPLAY_HEIGHT, game_full_area ? nativeHeight : myosd_droid_res_height);
+
+    //out of game the target is always the raw OSD size
+    bool osd_full_area = (myosd_droid_resolution_osd == 10);
+    myosd_set(MYOSD_DISPLAY_WIDTH_OSD,  osd_full_area ? nativeWidth  : myosd_droid_res_width_osd);
+    myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, osd_full_area ? nativeHeight : myosd_droid_res_height_osd);
+
+    __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so",
+                        "setNativeSize %dx%d (res:%d osd:%d zoom:%d game_full:%d osd_full:%d)",
+                        nativeWidth, nativeHeight,
+                        myosd_droid_resolution, myosd_droid_resolution_osd,
+                        myosd_droid_zoom_to_window, (int)game_full_area, (int)osd_full_area);
 }
 
 static void droid_myosd_check_pause(void){
@@ -350,6 +394,9 @@ void myosd_droid_setMyValue(int key, int i, int value) {
             break;
         case com_seleuco_mame4droid_Emulator_ZOOM_TO_WINDOW:
             myosd_droid_zoom_to_window = value;
+            //gates setNativeSize, so re-apply or it waits for a rotation
+            if (myosd_droid_area_width > 0)
+                myosd_droid_setNativeSize(myosd_droid_area_width, myosd_droid_area_height);
             break;
         case com_seleuco_mame4droid_Emulator_AUTO_FRAMESKIP:
             myosd_droid_auto_frameskip = value;
@@ -455,6 +502,9 @@ void myosd_droid_setMyValue(int key, int i, int value) {
         case com_seleuco_mame4droid_Emulator_HISCORE:
             myosd_plugin_hiscore = value;
             break;
+        case com_seleuco_mame4droid_Emulator_NETPLAY_ALLOW_PLUGINS:
+            myosd_droid_netplay_allow_plugins = value;
+            break;
         case com_seleuco_mame4droid_Emulator_NETPLAY_HAS_CONNECTION:
             netplay_ui_set_connection(netplay_get_handle(), value);
             break;
@@ -467,40 +517,44 @@ void myosd_droid_setMyValue(int key, int i, int value) {
 int myosd_droid_getMyValue(int key, int i) {
     //__android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "getMyValue  %d,%d",key,i);
 
-    if (i == 0) {
-        switch (key) {
-            case com_seleuco_mame4droid_Emulator_IN_MENU :
-                return myosd_droid_inMenu;
-            case com_seleuco_mame4droid_Emulator_IN_GAME:
-                return myosd_droid_inGame;
-            case com_seleuco_mame4droid_Emulator_NUMBTNS:
-                return myosd_droid_num_buttons;
-            case com_seleuco_mame4droid_Emulator_NUMWAYS:
-                return myosd_droid_num_ways;
-            case com_seleuco_mame4droid_Emulator_IS_LIGHTGUN:
-                return myosd_droid_light_gun;
-            case com_seleuco_mame4droid_Emulator_IS_MOUSE:
-                return myosd_droid_mouse;
-            case com_seleuco_mame4droid_Emulator_PAUSE:
-                return myosd_is_paused() ? 1 : 0;
-            case com_seleuco_mame4droid_Emulator_NETPLAY_HAS_CONNECTION:
-                return netplay_get_handle() ? netplay_get_handle()->has_connection : 0;
-            case com_seleuco_mame4droid_Emulator_NETPLAY_HAS_JOINED:
-                return netplay_get_handle() ? netplay_get_handle()->has_joined : 0;
-            case com_seleuco_mame4droid_Emulator_NETPLAY_IN_ROLLBACK: {
-                /* 1 only when a ROLLBACK session is live (gates the Resync
-                 * button).  rollback_enabled matters: the big-state fallback
-                 * may have silently switched the session to LOCKSTEP after
-                 * the mode was chosen in the UI.                           */
-                netplay_t *h = netplay_get_handle();
-                return (h && h->has_connection && h->has_begun_game &&
-                        h->mode == NETPLAY_MODE_ROLLBACK && h->rollback_enabled) ? 1 : 0;
-            }
-            default :
-                return -1;
+    //only SCREEN_RECT uses i, as a component index; the rest are single valued
+    if (i != 0 && key != com_seleuco_mame4droid_Emulator_SCREEN_RECT)
+        return -1;
+
+    switch (key) {
+        case com_seleuco_mame4droid_Emulator_SCREEN_RECT:
+            //normalized 0..1, fixed point since this returns int
+            return (i >= 0 && i <= 3) ? (int)(myosd_screen_rect[i] * 10000.0f) : 0;
+        case com_seleuco_mame4droid_Emulator_IN_MENU :
+            return myosd_droid_inMenu;
+        case com_seleuco_mame4droid_Emulator_IN_GAME:
+            return myosd_droid_inGame;
+        case com_seleuco_mame4droid_Emulator_NUMBTNS:
+            return myosd_droid_num_buttons;
+        case com_seleuco_mame4droid_Emulator_NUMWAYS:
+            return myosd_droid_num_ways;
+        case com_seleuco_mame4droid_Emulator_IS_LIGHTGUN:
+            return myosd_droid_light_gun;
+        case com_seleuco_mame4droid_Emulator_IS_MOUSE:
+            return myosd_droid_mouse;
+        case com_seleuco_mame4droid_Emulator_PAUSE:
+            return myosd_is_paused() ? 1 : 0;
+        case com_seleuco_mame4droid_Emulator_NETPLAY_HAS_CONNECTION:
+            return netplay_get_handle() ? netplay_get_handle()->has_connection : 0;
+        case com_seleuco_mame4droid_Emulator_NETPLAY_HAS_JOINED:
+            return netplay_get_handle() ? netplay_get_handle()->has_joined : 0;
+        case com_seleuco_mame4droid_Emulator_NETPLAY_IN_ROLLBACK: {
+            /* 1 only when a ROLLBACK session is live (gates the Resync
+             * button).  rollback_enabled matters: the big-state fallback
+             * may have silently switched the session to LOCKSTEP after
+             * the mode was chosen in the UI.                           */
+            netplay_t *h = netplay_get_handle();
+            return (h && h->has_connection && h->has_begun_game &&
+                    h->mode == NETPLAY_MODE_ROLLBACK && h->rollback_enabled) ? 1 : 0;
         }
+        default :
+            return -1;
     }
-    return -1;
 }
 
 void myosd_droid_setMyValueStr(int key, int i, const char *value) {
@@ -1452,6 +1506,10 @@ int myosd_droid_main(int argc, char **argv) {
     myosd_set(MYOSD_DISPLAY_WIDTH_OSD, myosd_droid_res_width_osd);
     myosd_set(MYOSD_DISPLAY_HEIGHT_OSD, myosd_droid_res_height_osd);
 
+    //the block above overwrites what Java may have already sent
+    if (myosd_droid_area_width > 0)
+        myosd_droid_setNativeSize(myosd_droid_area_width, myosd_droid_area_height);
+
     static const char *args[255];
     int n = 0;
     args[n] = "mame4x";
@@ -1883,6 +1941,10 @@ int myosd_droid_is_netplay_active(void) {
      * up" test lives in exactly one place.                                   */
     return myosd_netplay_is_active() ? 1 : 0;
 }
+
+/* Opt-in gate (Java pref): may the Lua plugin pump run during netplay? Read by
+ * luaengine (freeze) and ui.cpp (plugin/cheat option override). */
+int myosd_droid_netplay_plugins_allowed(void) { return myosd_droid_netplay_allow_plugins; }
 
 int myosd_droid_netplay_get_inMenu() { return myosd_droid_inMenu; }   /* whether the MAME menu is up */
 

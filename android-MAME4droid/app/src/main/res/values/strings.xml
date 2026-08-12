@@ -223,8 +223,8 @@
     <string name="pref_autofire_summary">Enable it to allows you to simulate repeatedly pressing an emulated button by holding down a key or button combination. Note: The plugin is available from MAME UI plugin options</string>
     <string name="pref_skip_gameinfo_title">Skip game info</string>
     <string name="pref_skip_gameinfo_summary">Forces to skip displaying the system info screen</string>
-    <string name="pref_zoom_to_window_title">Zoom to window</string>
-    <string name="pref_zoom_to_window_summary">Automatically zooms the emulated display so that portrait and landscape games use the entire device window. Disable if you use artwork to zoom into the screen area in MAME video options using fixed orientation and wide resolutions</string>
+    <string name="pref_full_area_res_title">Full emulation area</string>
+    <string name="pref_full_area_res_summary">When emulating at Device Native resolution, hands MAME the whole available resolution instead of just the game area. It is somewhat slower and font sizes become less consistent between orientations, but it enables advanced effects such as choosing how to zoom into the emulation area, so artworks are cropped intelligently</string>
     <string name="pref_disable_drc_title">Disable DRC</string>
     <string name="pref_disable_drc_summary">Disable DRC (dynamic recompiler) CPU core. Enable it to test compatibility in some games that freezes or not launch at the expense of performance</string>
     <string name="pref_drc_use_c_title">DRC use C</string>
@@ -500,6 +500,8 @@
     <string name="pref_netplay_desync_summary">Detect and warn about NetPlay desyncs (Rollback only); disable to save the extra CPU cost</string>
     <string name="pref_netplay_upnp_title">UPnP port mapping (host)</string>
     <string name="pref_netplay_upnp_summary">When hosting, automatically forward the netplay port on the router so internet peers can join directly. Removed on disconnect</string>
+    <string name="pref_netplay_allow_plugins_title">Allow Lua plugins in netplay</string>
+    <string name="pref_netplay_allow_plugins_summary">Lets cheats, autofire and macros run during netplay. May desync the game, especially in rollback — enable it only if you will use lockstep and need the plugins.</string>
     <string name="pref_netplay_ipproto_title">Network protocol</string>
     <string name="pref_netplay_ipproto_summary">IPv4, IPv6 or automatic. IPv6 has no NAT: internet play usually connects directly, with no port forwarding and fewer connection problems. Auto prefers IPv6 and falls back to IPv4</string>
     <string name="np_ipproto_v4">IPv4</string>

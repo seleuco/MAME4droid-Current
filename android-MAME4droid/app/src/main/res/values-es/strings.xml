@@ -205,8 +205,8 @@
     <string name="pref_autofire_summary">Actívalo para simular la pulsación repetida de un botón emulado manteniendo pulsada una combinación de teclas o botones. Nota: el plugin está disponible en las opciones de plugins de la interfaz de MAME</string>
     <string name="pref_skip_gameinfo_title">Omitir info del juego</string>
     <string name="pref_skip_gameinfo_summary">Fuerza a omitir la pantalla de información del sistema</string>
-    <string name="pref_zoom_to_window_title">Ajustar a la ventana</string>
-    <string name="pref_zoom_to_window_summary">Amplía automáticamente la imagen emulada para que los juegos verticales y horizontales usen toda la ventana del dispositivo. Desactívalo si usas artwork para ampliar el área de pantalla en las opciones de vídeo de MAME con orientación fija y resoluciones anchas</string>
+    <string name="pref_full_area_res_title">Área de emulación completa</string>
+    <string name="pref_full_area_res_summary">Al emular con resolución Nativa del dispositivo, entrega a MAME toda la resolución disponible en lugar de solo el área del juego. Es algo más lento y el tamaño de las fuentes es menos consistente entre orientaciones, pero habilita efectos avanzados como elegir cómo hacer zoom en el área de emulación para que los artworks se recorten de forma inteligente</string>
     <string name="pref_disable_drc_title">Desactivar DRC</string>
     <string name="pref_disable_drc_summary">Desactiva el núcleo de CPU DRC (recompilador dinámico). Actívalo para probar la compatibilidad en algunos juegos que se congelan o no arrancan, a costa del rendimiento</string>
     <string name="pref_drc_use_c_title">DRC usa C</string>
@@ -482,6 +482,8 @@
     <string name="pref_netplay_desync_summary">Detecta y avisa de desincronizaciones de NetPlay (solo Rollback); desactívalo para ahorrar el coste extra de CPU</string>
     <string name="pref_netplay_upnp_title">Mapeo de puertos UPnP (anfitrión)</string>
     <string name="pref_netplay_upnp_summary">Al hacer de anfitrión, abre automáticamente el puerto de netplay en el router para que los compañeros de internet puedan unirse directamente. Se elimina al desconectar</string>
+    <string name="pref_netplay_allow_plugins_title">Permitir plugins Lua en netplay</string>
+    <string name="pref_netplay_allow_plugins_summary">Deja funcionar cheats, autofire y macros durante el netplay. Puede desincronizar la partida, sobre todo en rollback: actívalo solo si vas a usar lockstep y necesitas los plugins.</string>
     <string name="pref_netplay_ipproto_title">Protocolo de red</string>
     <string name="pref_netplay_ipproto_summary">IPv4, IPv6 o automático. IPv6 no usa NAT: el juego por internet suele conectar directamente, sin abrir puertos y con menos problemas de conexión. Auto prefiere IPv6 y cae a IPv4</string>
     <string name="np_ipproto_auto">Automático (IPv6 + IPv4)</string>

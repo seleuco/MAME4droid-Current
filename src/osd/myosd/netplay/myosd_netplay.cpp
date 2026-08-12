@@ -51,6 +51,30 @@ extern my_osd_interface *osdInterface;
  * linkage, same as the declarations netplay.cpp uses for this family.        */
 int  myosd_droid_netplay_restart_pending(void);
 void myosd_droid_netplay_set_exitPause(int val);
+extern unsigned long myosd_droid_netplay_joystick_read(int i);
+
+/* Local menu-combo interception (kept here, not in the agnostic netplay.cpp):
+ * START+SELECT requests the MAME menu (one-shot flag for ui.cpp) and is STRIPPED
+ * from the value netplay both applies locally AND sends -> symmetric, no desync;
+ * the peer neither opens a menu nor credits a coin.  netplay.cpp calls this to
+ * read the local player's digital input. */
+static volatile int s_netplay_menu_request = 0;
+uint32_t myosd_netplay_read_local_digital(void) {
+    uint32_t d = (uint32_t)myosd_droid_netplay_joystick_read(0);
+    const uint32_t MENU_COMBO = (1u << 8) | (1u << 9);   /* MYOSD_START | MYOSD_SELECT */
+    if ((d & MENU_COMBO) == MENU_COMBO) {
+        s_netplay_menu_request = 1;
+        d &= ~MENU_COMBO;
+    }
+    return d;
+}
+
+/* One-shot test-and-clear consumed by ui.cpp handler_ingame to open the menu. */
+int myosd_netplay_consume_menu_request(void) {
+    int v = s_netplay_menu_request;
+    s_netplay_menu_request = 0;
+    return v;
+}
 
 /* ============================================================
  * SECTION 1 -- Core shared state

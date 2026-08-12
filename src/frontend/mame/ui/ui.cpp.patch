@@ -2,7 +2,7 @@ diff --git a/ui.cpp b/ui.cpp
 index a9982cd..29293ec 100644
 --- a/ui.cpp
 +++ b/ui.cpp
-@@ -51,6 +51,13 @@
+@@ -52,6 +52,13 @@
  #include <functional>
  #include <type_traits>
  
@@ -16,7 +16,7 @@ index a9982cd..29293ec 100644
  
  /***************************************************************************
      LOCAL VARIABLES
-@@ -923,8 +930,162 @@ void mame_ui_manager::set_startup_text(const char *text, bool force)
+@@ -925,8 +932,168 @@
  //  render it; called by video.c
  //-------------------------------------------------
  
@@ -28,6 +28,8 @@ index a9982cd..29293ec 100644
 +struct netplay *netplay_get_handle(void);
 +void myosd_droid_netplay_warn(const char* msg);
 +int myosd_droid_get_netplay_session_sound_rate(void);
++int myosd_droid_netplay_plugins_allowed(void);
++int myosd_netplay_consume_menu_request(void);
 +#include <string>
 +extern std::string myosd_netplay_selected_game;
 +// END DAV HACK
@@ -94,8 +96,12 @@ index a9982cd..29293ec 100644
 +				opts.set_value(OPTION_THROTTLE, "1", OPTION_PRIORITY_CMDLINE);
 +				opts.set_value(OPTION_SKIP_GAMEINFO, "1", OPTION_PRIORITY_CMDLINE);
 +				opts.set_value(OPTION_CFG_DIRECTORY, "/dev/null", OPTION_PRIORITY_CMDLINE);
-+				opts.set_value(OPTION_PLUGINS, "0", OPTION_PRIORITY_CMDLINE);
-+				opts.set_value(OPTION_CHEAT,   "0", OPTION_PRIORITY_CMDLINE);
++				// Netplay disables plugins/cheats for determinism, unless the user
++				// opts in (Settings) -- then keep their values (may desync rollback).
++				if (!myosd_droid_netplay_plugins_allowed()) {
++					opts.set_value(OPTION_PLUGINS, "0", OPTION_PRIORITY_CMDLINE);
++					opts.set_value(OPTION_CHEAT,   "0", OPTION_PRIORITY_CMDLINE);
++				}
 +
 +				// Netplay determinism: CHD games (e.g. Killer Instinct) write to their
 +				// hard disk through a persistent per-device .dif overlay.
@@ -179,7 +185,32 @@ index a9982cd..29293ec 100644
  	// always start clean
  	for (auto &target : machine().render().targets())
  	{
-@@ -1882,8 +2043,14 @@ uint32_t mame_ui_manager::handler_ingame()
+@@ -1726,6 +1893,24 @@
+ 		return 0;
+ 	}
+ 
++	// DAV HACK: netplay side-channel menu open.  The menu combo is stripped from
++	// the synced input, so open the menu here for the local presser only; the
++	// pause freezes both peers (menu_pause / is_peer_paused).
++	if (myosd_netplay_consume_menu_request())
++	{
++		m_ui_target = &current_ui_target();
++		if (!machine().paused())
++		{
++			machine().pause();
++			m_paused_for_menu = true;
++		}
++		if (ui::menu::stack_empty(*this))
++			ui::menu::stack_push<ui::menu_main>(*this, *m_ui_target);
++		activate_menu();
++		return 0;
++	}
++	// END DAV HACK
++
+ 	// turn on menus if requested
+ 	if (inp.pressed(IPT_UI_MENU))
+ 	{
+@@ -1885,8 +2070,14 @@
  		machine().video().set_fastforward(true);
  		show_fps_temp(0.5);
  	}
@@ -196,7 +227,7 @@ index a9982cd..29293ec 100644
  
  	// update mute when unthrottled
  	if (m_unthrottle_mute)
-@@ -2717,6 +2884,15 @@ void mame_ui_manager::load_ui_options()
+@@ -2720,6 +2911,15 @@
  			osd_printf_error("**Error loading ui.ini**\n");
  		}
  	}

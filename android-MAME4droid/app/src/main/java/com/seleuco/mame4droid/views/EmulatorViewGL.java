@@ -375,6 +375,9 @@ public class EmulatorViewGL extends GLSurfaceView implements IEmuView {
 			// If the app isn't ready, use default dimensions.
 			setMeasuredDimension(widthMeasureSpec, heightMeasureSpec);
 		} else {
+			// available space, before measureWindow fits the emulated aspect
+			Emulator.onDrawableAreaChanged(MeasureSpec.getSize(widthMeasureSpec),
+										   MeasureSpec.getSize(heightMeasureSpec));
 			// If ready, ask the MainHelper to calculate the optimal dimensions.
 			ArrayList<Integer> l = mm.getMainHelper().measureWindow(widthMeasureSpec, heightMeasureSpec, scaleType);
             		setMeasuredDimension(l.get(0).intValue(), l.get(1).intValue());

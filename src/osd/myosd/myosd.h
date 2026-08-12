@@ -38,6 +38,8 @@ extern int myosd_display_width_osd;
 extern int myosd_display_height_osd;
 extern int myosd_fps;
 extern int myosd_zoom_to_window;
+//screen quad inside the render target, normalized 0..1 (x0,y0,x1,y1)
+extern float myosd_screen_rect[4];
 
 // input state shared with the input modules and myosd_netplay.cpp
 extern myosd_input_state g_input;

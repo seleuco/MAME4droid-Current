@@ -72,7 +72,8 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_EMU_RESOLUTION_OSD = "PREF_EMU_RESOLUTION_OSD_3";
 	final static public String PREF_EMU_SOUND = "PREF_EMU_SOUND";
 	final static public String PREF_EMU_SHOW_FPS = "PREF_EMU_SHOW_FPS";
-	final static public String PREF_ZOOM_TO_WINDOW = "PREF_ZOOM_TO_WINDOW";
+	// was PREF_ZOOM_TO_WINDOW, inverted meaning and new key to reset it
+	final static public String PREF_FULL_AREA_RESOLUTION = "PREF_FULL_AREA_RESOLUTION";
 	final static public String PREF_EMU_AUTO_FRAMESKIP = "PREF_EMU_AUTO_FRAMESKIP";
 	final static public String CHEATS = "CHEATS";
 	final static public String SKIP_GAMEINFO = "SKIP_GAMEINFO";
@@ -195,6 +196,7 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_NETPLAY_PUNCHADDR = "PREF_NETPLAY_PUNCHADDR";
 	final static public String PREF_NETPLAY_UPNP = "PREF_NETPLAY_UPNP";
 	final static public String PREF_NETPLAY_IP_PROTOCOL = "PREF_NETPLAY_IP_PROTOCOL";
+	final static public String PREF_NETPLAY_ALLOW_PLUGINS = "PREF_NETPLAY_ALLOW_PLUGINS";
 
 	final static public int LOW = 1;
 	final static public int NORMAL = 2;
@@ -390,8 +392,8 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 		return getSharedPreferences().getBoolean(PREF_EMU_SHOW_FPS, false);
 	}
 
-	public boolean isZoomToWindow() {
-		return getSharedPreferences().getBoolean(PREF_ZOOM_TO_WINDOW, true);
+	public boolean isFullAreaResolution() {
+		return getSharedPreferences().getBoolean(PREF_FULL_AREA_RESOLUTION, false);
 	}
 
 	public boolean isAutoFrameSkip() {
@@ -862,6 +864,12 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 
 	public boolean isNetplayUpnpEnabled() {
 		return getSharedPreferences().getBoolean(PREF_NETPLAY_UPNP, true);
+	}
+
+	/** Opt-in: run Lua plugins (cheat/autofire/macro/hiscore) during netplay.
+	 *  Off by default -- may desync, especially in rollback (safe-ish in lockstep). */
+	public boolean isNetplayAllowPluginsEnabled() {
+		return getSharedPreferences().getBoolean(PREF_NETPLAY_ALLOW_PLUGINS, false);
 	}
 
 	/** 0 = IPv4 (default), 1 = IPv6, 2 = Auto (matches Emulator.netplaySetIpFamily). */

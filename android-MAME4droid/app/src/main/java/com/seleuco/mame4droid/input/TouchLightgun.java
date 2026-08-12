@@ -56,10 +56,49 @@ public class TouchLightgun implements IController {
 
 	protected int lightgun_pid = -1;
 
-	protected long millis_pressed = 0;
 	protected boolean press_on = false;
 
+	//pointer holding cover with a second finger, -1 if none. Tells our own B
+	//apart from a pedal held on a physical or virtual button.
+	protected int cover_pid = -1;
+
+	//game screen inside the view, normalized. Whole view when there is no artwork.
+	private float screen_x0 = 0.0f, screen_y0 = 0.0f, screen_w = 1.0f, screen_h = 1.0f;
+
 	protected MAME4droid mm = null;
+
+	//long press has to run on a timer: a still finger sends no MOVE events, so
+	//checking the elapsed time inside the handler depends on the touch rate.
+	private final android.os.Handler longPressHandler =
+		new android.os.Handler(android.os.Looper.getMainLooper());
+	private int[] digital_data_ref = null;
+
+	private final Runnable longPressRunnable = new Runnable() {
+		public void run() {
+			if (lightgun_pid == -1 || press_on || digital_data_ref == null) return;
+			press_on = true;
+			digital_data_ref[0] |= B_VALUE;
+			digital_data_ref[0] &= ~A_VALUE;
+			Emulator.setDigitalData(0, digital_data_ref[0]);
+		}
+	};
+
+	private void cancelLongPress() {
+		longPressHandler.removeCallbacks(longPressRunnable);
+	}
+
+	private void refreshScreenRect() {
+		try {
+			float x0 = Emulator.getValue(Emulator.SCREEN_RECT, 0) / 10000.0f;
+			float y0 = Emulator.getValue(Emulator.SCREEN_RECT, 1) / 10000.0f;
+			float x1 = Emulator.getValue(Emulator.SCREEN_RECT, 2) / 10000.0f;
+			float y1 = Emulator.getValue(Emulator.SCREEN_RECT, 3) / 10000.0f;
+			if (x1 - x0 > 0.01f && y1 - y0 > 0.01f) {
+				screen_x0 = x0; screen_y0 = y0;
+				screen_w = x1 - x0; screen_h = y1 - y0;
+			}
+		} catch (Throwable ignored) {}
+	}
 
 	public void setMAME4droid(MAME4droid value) {
 		mm = value;
@@ -70,7 +109,10 @@ public class TouchLightgun implements IController {
 	}
 
 	public void reset() {
+		cancelLongPress();
 		lightgun_pid = -1;
+		cover_pid = -1;
+		press_on = false;
 	}
 
 	public void handleTouchLightgun(View v, MotionEvent event, int[] digital_data) {
@@ -86,15 +128,23 @@ public class TouchLightgun implements IController {
 
 			if (pid == lightgun_pid) {
 				// Primary trigger released
-				millis_pressed = 0;
+				cancelLongPress();
+				boolean cover_was_ours = press_on || cover_pid != -1;
 				press_on = false;
 				lightgun_pid = -1;
 				digital_data[0] &= ~A_VALUE;
-				digital_data[0] &= ~B_VALUE;
+				//leave B alone if a pedal button is holding it
+				if (cover_was_ours) {
+					digital_data[0] &= ~B_VALUE;
+					cover_pid = -1;
+				}
 			} else {
 				// Secondary touch released
 				if (!press_on) {
-					digital_data[0] &= ~B_VALUE;
+					if (pid == cover_pid) {
+						cover_pid = -1;
+						digital_data[0] &= ~B_VALUE;
+					}
 				} else {
 					digital_data[0] &= ~A_VALUE;
 				}
@@ -103,6 +153,8 @@ public class TouchLightgun implements IController {
 			Emulator.setDigitalData(0, digital_data[0]);
 
 		} else { // DOWN or MOVE events
+
+			refreshScreenRect();
 
 			// Snapshot button state to vibrate only on new engagements below
 			int oldButtons = digital_data[0] & (A_VALUE | B_VALUE);
@@ -133,9 +185,14 @@ public class TouchLightgun implements IController {
 					// Prevent division by zero if layout isn't fully initialized
 					if (viewWidth > 0 && viewHeight > 0) {
 
-						// Map absolute screen coordinates to MAME's analog range [-1.0, 1.0]
-						float xf = (float) (x - (viewWidth / 2)) / (viewWidth / 2);
-						float yf = (float) (y - (viewHeight / 2)) / (viewHeight / 2);
+						// MAME's [-1,1] is the game screen, not the whole canvas: with
+						// the full emulation area the screen is a sub-rect of the view.
+						// All normalized, so the render resolution doesn't matter.
+						float u = x / viewWidth;
+						float w = y / viewHeight;
+
+						float xf = ((u - screen_x0) / screen_w) * 2.0f - 1.0f;
+						float yf = ((w - screen_y0) / screen_h) * 2.0f - 1.0f;
 
 						// Clamp core values to prevent sending invalid out-of-bounds data to the emulator
 						xf = Math.max(-1.0f, Math.min(1.0f, xf));
@@ -144,6 +201,12 @@ public class TouchLightgun implements IController {
 						// Anchor the primary touch to the Lightgun reticle
 						if (lightgun_pid == -1) {
 							lightgun_pid = pointerId;
+							if (mm.getPrefsHelper().isLightgunLongPress()) {
+								int wait = (mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_METAQUEST) ? 300 : 125;
+								digital_data_ref = digital_data;
+								cancelLongPress();
+								longPressHandler.postDelayed(longPressRunnable, wait);
+							}
 						}
 
 						if (lightgun_pid == pointerId) {
@@ -161,22 +224,10 @@ public class TouchLightgun implements IController {
 									Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, xf, -yf);
 								}
 
-								// Fire main trigger
-								if ((digital_data[0] & B_VALUE) == 0) {
+								// Fire main trigger. Only a second finger holding cover
+								// blocks it; a pedal button does not.
+								if (cover_pid == -1) {
 									digital_data[0] |= A_VALUE;
-								}
-
-								// Long-press detection to swap to alternate fire (e.g. Machine Gun / Grenade)
-								if (mm.getPrefsHelper().isLightgunLongPress()) {
-									int wait = (mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_METAQUEST) ? 300 : 125;
-
-									if (millis_pressed == 0) {
-										millis_pressed = System.currentTimeMillis();
-									} else if (System.currentTimeMillis() - millis_pressed > wait && !press_on) {
-										press_on = true;
-										digital_data[0] |= B_VALUE;
-										digital_data[0] &= ~A_VALUE;
-									}
 								}
 							}
 						} else {
@@ -184,6 +235,7 @@ public class TouchLightgun implements IController {
 							if (!press_on) {
 								digital_data[0] &= ~A_VALUE;
 								digital_data[0] |= B_VALUE; // Engage secondary button (Reload/Cover)
+								cover_pid = pointerId;
 							} else {
 								if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
 									Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, xf, -yf);

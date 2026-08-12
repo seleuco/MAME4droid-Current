@@ -205,8 +205,8 @@
     <string name="pref_autofire_summary">키 또는 버튼 조합을 누른 채로 에뮬레이트 버튼을 반복해서 누르는 것을 시뮬레이션할 수 있도록 하려면 활성화하세요. 참고: 이 플러그인은 MAME UI 플러그인 옵션에서 사용할 수 있습니다</string>
     <string name="pref_skip_gameinfo_title">게임 정보 건너뛰기</string>
     <string name="pref_skip_gameinfo_summary">시스템 정보 화면 표시를 강제로 건너뜁니다</string>
-    <string name="pref_zoom_to_window_title">창에 맞게 확대</string>
-    <string name="pref_zoom_to_window_summary">세로 및 가로 게임이 전체 기기 창을 사용하도록 에뮬레이트 화면을 자동으로 확대합니다. 고정 방향과 와이드 해상도로 MAME 비디오 옵션에서 artwork를 사용해 화면 영역을 확대하는 경우 비활성화하세요</string>
+    <string name="pref_full_area_res_title">전체 에뮬레이션 영역</string>
+    <string name="pref_full_area_res_summary">기기 고유 해상도로 에뮬레이트할 때 게임 영역만이 아니라 사용 가능한 전체 해상도를 MAME에 전달합니다. 다소 느리고 화면 방향에 따른 글꼴 크기 차이가 커지지만, 에뮬레이션 영역을 확대하는 방식을 선택해 artwork를 알맞게 잘라내는 등 고급 효과를 사용할 수 있습니다</string>
     <string name="pref_disable_drc_title">DRC 비활성화</string>
     <string name="pref_disable_drc_summary">DRC(동적 리컴파일러) CPU 코어를 비활성화합니다. 성능을 희생하고 멈추거나 실행되지 않는 일부 게임의 호환성을 테스트하려면 활성화하세요</string>
     <string name="pref_drc_use_c_title">DRC에서 C 사용</string>
@@ -482,6 +482,8 @@
     <string name="pref_netplay_desync_summary">넷플레이 비동기화를 감지하고 경고합니다(롤백만). 추가 CPU 비용을 절약하려면 비활성화하세요</string>
     <string name="pref_netplay_upnp_title">UPnP 포트 매핑(호스트)</string>
     <string name="pref_netplay_upnp_summary">호스트할 때 인터넷 상대방이 직접 참가할 수 있도록 라우터에서 넷플레이 포트를 자동으로 포워딩합니다. 연결 끊기 시 제거됩니다</string>
+    <string name="pref_netplay_allow_plugins_title">넷플레이에서 Lua 플러그인 허용</string>
+    <string name="pref_netplay_allow_plugins_summary">치트, 연사, 매크로를 넷플레이 중에 실행합니다. 특히 rollback에서 동기화가 깨질 수 있습니다. lockstep을 사용하고 플러그인이 필요한 경우에만 활성화하세요.</string>
     <string name="pref_netplay_ipproto_title">네트워크 프로토콜</string>
     <string name="pref_netplay_ipproto_summary">IPv4, IPv6 또는 자동. IPv6는 NAT가 없어 인터넷 플레이 시 보통 포트 포워딩 없이 직접 연결되며 연결 문제가 적습니다. 자동은 IPv6를 우선 사용하고 필요하면 IPv4로 전환합니다</string>
     <string name="np_ipproto_auto">자동 (IPv6 + IPv4)</string>

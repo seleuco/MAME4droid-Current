@@ -53,6 +53,10 @@ private:
 
 	int m_min_width, m_min_height;
 	int m_vis_width, m_vis_height;
+
+	//screen rect lookup state (see update())
+	bool m_screen_rect_in_game = false;
+	int m_screen_rect_tries = 0;
 	bool m_in_menu;
 };
 

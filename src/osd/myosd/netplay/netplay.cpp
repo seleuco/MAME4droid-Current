@@ -150,6 +150,9 @@ extern float myosd_droid_netplay_lightgun_read_analog(int i, char axis);
 /* Cross-peer sample-rate sync (see myosd_droid.cpp).                       */
 extern int  myosd_droid_get_effective_sound_rate(void);
 extern void myosd_droid_set_netplay_sound_rate(int rate);
+/* Local input read WITH menu-combo interception (MAME-specific; lives in the
+ * OSD glue myosd_netplay.cpp, so this engine stays input-semantics-agnostic). */
+extern uint32_t myosd_netplay_read_local_digital(void);
 
 /* ============================================================
  * SECTION 1 -- Core state & ubiquitous utilities
@@ -668,7 +671,7 @@ void netplay_post_frame_net(netplay_t *handle)
 
         /* Read local input for this frame (to be sent to peer).          */
         if (handle->frame != 0) {
-            ns.digital      = myosd_droid_netplay_joystick_read(0);
+            ns.digital      = myosd_netplay_read_local_digital();
             ns.analog_x     = myosd_droid_netplay_joystick_read_analog(0, 'x');
             ns.analog_y     = myosd_droid_netplay_joystick_read_analog(0, 'y');
             ns.analog_rx    = myosd_droid_netplay_joystick_read_analog(0, 'X');
@@ -775,7 +778,7 @@ void netplay_post_frame_net(netplay_t *handle)
         netplay_state_t ns = handle->state_tmp;
         if (handle->frame != 0)
         {
-            ns.digital     = myosd_droid_netplay_joystick_read(0);
+            ns.digital     = myosd_netplay_read_local_digital();
             ns.analog_x    = myosd_droid_netplay_joystick_read_analog(0, 'x');
             ns.analog_y    = myosd_droid_netplay_joystick_read_analog(0, 'y');
             ns.analog_rx   = myosd_droid_netplay_joystick_read_analog(0, 'X');

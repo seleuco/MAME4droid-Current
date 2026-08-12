@@ -48,6 +48,7 @@ void (*setVideoCallbacks)(void *func1,void *func2) = NULL;
 void (*setInputCallbacks)(void *func1) = NULL;
 void (*setDigitalData)(int i, unsigned long digital_status) = NULL;
 void (*initMyOSD)(const char *path, int nativeWidth, int nativeHeight) = NULL;
+void (*setNativeSize)(int nativeWidth, int nativeHeight) = NULL;
 int (*netplayInit)(const char *server, int port, int join) = NULL;
 void (*setNetplayWarnCallback)(void *func1) = NULL;
 void (*netplaySetMode)(int mode) = NULL;
@@ -153,6 +154,9 @@ static void load_lib(const char *str)
 
     initMyOSD = dlsym(libdl, "myosd_droid_initMyOSD");
      __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni","myosd_droid_iinitMyOSD %d\n", initMyOSD!=NULL);
+
+    setNativeSize = dlsym(libdl, "myosd_droid_setNativeSize");
+     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni","myosd_droid_setNativeSize %d\n", setNativeSize!=NULL);
 
     setMyValue = dlsym(libdl, "myosd_droid_setMyValue");
      __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni","myosd_droid_setMyValue %d\n",setMyValue!=NULL);
@@ -733,6 +737,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
         __android_log_print(ANDROID_LOG_ERROR, "mame4droid-jni","Not initMyOSD!!!");
     }
 
+
     (*env)->ReleaseStringUTFChars(env, s2, str2);
 
     //int i = pthread_create(&main_tid, NULL, app_Thread_Start, NULL);
@@ -787,6 +792,15 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_getValue
          __android_log_print(ANDROID_LOG_WARN, "mame4droid-jni", "error no getMyValue! key:%d:%d",key,i);
          return -1;
       }
+}
+
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setNativeSize
+  (JNIEnv *env, jclass c, jint nativeWidth, jint nativeHeight)
+{
+    if(setNativeSize!=NULL)
+      setNativeSize(nativeWidth, nativeHeight);
+    else
+      __android_log_print(ANDROID_LOG_WARN, "mame4droid-jni", "error no setNativeSize!");
 }
 
 JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setValue

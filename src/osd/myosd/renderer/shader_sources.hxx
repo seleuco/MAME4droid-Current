@@ -211,14 +211,13 @@ static const char* kawase_down_frag_shader_src =
     "}\n";
 	
 /* ========================================================================================
- * OPTICAL BLOOM: UPSAMPLE & CRT ASTIGMATISM (OPTIMIZED 4-TAP BILINEAR)
+ * OPTICAL BLOOM: UPSAMPLE & CRT ASTIGMATISM (ELLIPTICAL 8-TAP RING)
  * ========================================================================================
- * The second half of the Dual-Filter chain. Implements a 9-tap tent filter mathematically 
- * optimized into just 4 hardware bilinear fetches. This smoothly expands the downsampled 
- * light buffers back up without introducing grid artifacts, while drastically reducing GPU 
- * texture bandwidth.
- * * Includes an anisotropic scaling factor (e.g., stretching the X-axis) to emulate 
- * the imperfect magnetic deflection yoke of vintage CRT monitors, creating a classic 
+ * The second half of the Dual-Filter chain. Samples 8 bilinear taps on an ellipse
+ * so the accumulated halo comes out round on any device, instead of the square
+ * footprint a separable 2x2 tent produces.
+ * * Includes an anisotropic scaling factor (e.g., stretching the X-axis) to emulate
+ * the imperfect magnetic deflection yoke of vintage CRT monitors, creating a classic
  * horizontal optical flare.
  * ======================================================================================== */
 	
@@ -233,17 +232,21 @@ static const char* kawase_up_frag_shader_src =
     "void main() {\n"
     "    highp vec2 uv = v_texuv;\n"
     "    \n"
-    "    // CRT Astigmatism emulation (Anisotropy).\n"
-    "    vec2 texel = u_texel_size * vec2(u_radius * 1.2, u_radius * 0.9);\n"
-    "    vec2 half_texel = texel * 0.5;\n"
+    "    // Elliptical 8-tap ring: round halo. The old 2x2 box had a square\n"
+    "    // footprint, visible once SDR gamma lifted the faint tails.\n"
+    "    // CRT astigmatism kept as the ellipse axes.\n"
+    "    vec2 r = u_texel_size * vec2(u_radius * 0.6, u_radius * 0.45);\n"
+    "    vec2 rd = r * 0.70710678;\n"
     "\n"
-    "    vec3 color = texture(s_texture, uv + vec2(-half_texel.x,  half_texel.y)).rgb;\n"
-    "    color += texture(s_texture, uv + vec2( half_texel.x,  half_texel.y)).rgb;\n"
-    "    color += texture(s_texture, uv + vec2(-half_texel.x, -half_texel.y)).rgb;\n"
-    "    color += texture(s_texture, uv + vec2( half_texel.x, -half_texel.y)).rgb;\n"
-    "\n"
-    "    // Promediamos las 4 lecturas bilineales (que ya incluyen los 16 pesos matemáticos)\n"
-    "    fragColor = vec4(color * 0.25, 1.0);\n"
+    "    vec3 color = texture(s_texture, uv + vec2( r.x, 0.0)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(-r.x, 0.0)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(0.0,  r.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(0.0, -r.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2( rd.x,  rd.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(-rd.x,  rd.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2( rd.x, -rd.y)).rgb;\n"
+    "    color += texture(s_texture, uv + vec2(-rd.x, -rd.y)).rgb;\n"
+    "    fragColor = vec4(color * 0.125, 1.0);\n"
     "}\n";
 	
 /* ========================================================================================
@@ -327,8 +330,10 @@ static const char* hdr_frag_shader_src =
     "        // HIGHLIGHT COMPRESSION THRESHOLD (The Shoulder)\n"
     "        float threshold = base_mult * 0.75;\n"
     "\n"
-    "        // ANTI-FATTENING MASK\n"
-    "        out_mask = smoothstep(threshold, threshold * 2.0, raw_hdr_luma) * 0.90;\n"
+    "        // ANTI-FATTENING MASK: hybrid luma like the bloom, so saturated\n"
+    "        // beams (pure blue) also carve the backdrop\n"
+    "        float mask_luma = mix(raw_hdr_luma, max(raw_hdr_nits.r, max(raw_hdr_nits.g, raw_hdr_nits.b)), 0.35);\n"
+    "        out_mask = smoothstep(threshold, threshold * 2.0, mask_luma) * 0.90;\n"
     "\n"
     "        // HIGHLIGHT COMPRESSION (Piecewise Reinhard)\n"
     "        float range = max_nits_mult - threshold;\n"
@@ -346,7 +351,8 @@ static const char* hdr_frag_shader_src =
     "        // DISPLAY GAMMA CORRECTION (OETF)\n"
     "        mapped = pow(clamp(raw, 0.0, 1.0), vec3(1.0 / 2.2));\n"
     "\n"
-    "        float sdr_luma = dot(raw, vec3(0.2126, 0.7152, 0.0722));\n"
+    "        // Hybrid mask luma: rescue saturated beams, same mix as the bloom\n"
+    "        float sdr_luma = mix(dot(raw, vec3(0.2126, 0.7152, 0.0722)), max(raw.r, max(raw.g, raw.b)), 0.35);\n"
     "        out_mask = smoothstep(0.1, 0.8, sdr_luma) * 0.90;\n"
     "    }\n"
     "\n"

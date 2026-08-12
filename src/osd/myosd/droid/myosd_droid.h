@@ -30,6 +30,7 @@ void myosd_droid_setSAFCallbacks(
         void (*safCloseDir_java)(int));
 
 void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight);
+void myosd_droid_setNativeSize(int nativeWidth, int nativeHeight);
 void myosd_droid_setMyValue(int key, int i, int value);
 int myosd_droid_getMyValue(int key, int i);
 void myosd_droid_setMyValueStr(int key, int i, const char *value);
@@ -57,6 +58,7 @@ int myosd_droid_netplay_get_inMenu();              // whether the MAME menu is u
 void myosd_droid_netplay_set_exitPause(int val);   // unpause on netplay resume
 int myosd_droid_netplay_get_ext_status();          // reserved input-vector extension field
 int myosd_droid_netplay_restart_pending(void);     // 1 while a netplay-forced reload is pending/in flight
+int myosd_droid_netplay_plugins_allowed(void);     // opt-in: run Lua plugins during netplay (may desync)
 
 // Per-frame local input read-back, called from netplay.cpp
 unsigned long myosd_droid_netplay_joystick_read(int i);

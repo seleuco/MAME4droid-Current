@@ -1120,8 +1120,10 @@ bool gles3_renderer::calculate_auto_exposure(const std::vector<local_primitive>&
             float highlight_preservation = std::clamp((max_final - 1.0f) * 0.05f, 0.0f, 0.25f);
 
             // Base exposure is 1.6f for dark games (Asteroids).
-            // Subtract normalized energy and highlight preservation factor.
-            float target_exposure = std::clamp(1.6f - normalized_energy - highlight_preservation, 0.7f, 1.6f);
+            // a real vector monitor never dims globally, so in HDR trim only
+            // ~10% and let the panel handle it. SDR still needs the full range.
+            float exposure_floor = m_use_hdr_display ? 1.44f : 0.7f;
+            float target_exposure = std::clamp(1.6f - normalized_energy - highlight_preservation, exposure_floor, 1.6f);
             target_exposure *= VECTOR_EFFECT_AUTO_EXPOSURE_MULT;
 
             // Temporal Smoothing (Moving Average)
@@ -1177,15 +1179,14 @@ void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout
     // DUAL KAWASE BLOOM PIPELINE (POST-PROCESSING)
     // =================================================================
     int base_passes = std::min(BLOOM_KAWASE_PASSES, MAX_BLOOM_PASSES);
-    int passes = base_passes;
 
-    // --- RESOLUTION DEPENDENCY COMPENSATION (MIP-LEVEL DEPTH) ---
-    // If the FBO is running near Full Resolution (scale > 0.9), it's twice as large
-    // as a Half-Res FBO. To achieve the exact same optical spread without breaking 
-    // the tent filter with a massive radius, we must add one extra pass.
-    if (s_active_fbo_scale > 0.9f && passes < MAX_BLOOM_PASSES) {
-        passes += 1;
-    }
+    // --- DEVICE-AGNOSTIC PYRAMID DEPTH ---
+    // Deepest mip stays a fixed fraction of the FBO (540 = 1080p half-res, where
+    // the sliders were tuned). The remainder goes into the radius, clamped.
+    float fbo_short = std::max(std::min(layout_w, layout_h), 1.0f);
+    float passes_f = (float)base_passes + std::log2(fbo_short / 540.0f);
+    int passes = std::clamp((int)std::lround(passes_f), 1, MAX_BLOOM_PASSES);
+    float radius_comp = std::clamp(std::exp2(passes_f - (float)passes), 0.6f, 1.5f);
 
     if (VECTOR_EFFECT_BLOOM_ENABLED && passes > 0 && m_bloom_fbo[0] != 0) {
         
@@ -1233,15 +1234,8 @@ void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE); // Additive blending as we climb back up
         
-        // --- DEVICE RESOLUTION INDEPENDENCE ---
-        // We calculate the TRUE screen size from layout_bounds, bypassing the FBO dimensions
-        // to ensure the res_scale doesn't accidentally shrink when Half-Res is enabled.
-        float true_screen_w = std::max(layout_bounds.x1 - layout_bounds.x0, 1.0f);
-        float true_screen_h = std::max(layout_bounds.y1 - layout_bounds.y0, 1.0f);
-        float shortest_side = std::min(true_screen_w, true_screen_h);
-        
-        float res_scale = shortest_side / 1080.0f;
-        float dynamic_radius = BLOOM_KAWASE_RADIUS * res_scale;
+        // the pass depth sets the spread; radius only takes the remainder
+        float dynamic_radius = BLOOM_KAWASE_RADIUS * radius_comp;
         
         for (int i = passes - 2; i >= 0; i--) {
             int target_w = std::max((int)layout_w / (1 << (i + 1)), 1);
@@ -1308,7 +1302,9 @@ void gles3_renderer::resolve_hdr(GLuint target_fbo, float layout_w, float layout
         float ratio = (float)base_passes / (float)passes;
         //float intensity_comp = std::sqrt(ratio);
 		float intensity_comp = std::pow(ratio, 0.75f);
-        glUniform1f(m_uniform_bloom_intensity_hdr, BLOOM_KAWASE_INTENSITY * intensity_comp);
+        // in HDR the eye blooms on its own, so paint less halation
+        float display_trim = m_use_hdr_display ? 0.6f : 1.0f;
+        glUniform1f(m_uniform_bloom_intensity_hdr, BLOOM_KAWASE_INTENSITY * intensity_comp * display_trim);
     } else {
         glBindTexture(GL_TEXTURE_2D, 0);
         glUniform1f(m_uniform_bloom_intensity_hdr, 0.0f);
@@ -1457,8 +1453,9 @@ void gles3_renderer::switch_fbo_target(int target_fbo, int& current_fbo, bool re
             glUniform1i(m_loc_quad_raster_fake_hdr, (HDR_RASTER_FAKE_HDR_ENABLED && !has_vectors) ? 1 : 0);
             glUniform1f(m_loc_quad_raster_hdr_mult, HDR_RASTER_HDR_MULTIPLIER);
             glUniform1f(m_loc_quad_paper_white, HDR_RASTER_PAPER_WHITE);
-            glUniform1i(m_uniform_is_vector_quad, 0); 
-            
+            glUniform1f(m_loc_quad_device_peak, m_peak_nits);
+            glUniform1i(m_uniform_is_vector_quad, 0);
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_fbo_texture_filter);
 
@@ -1725,7 +1722,9 @@ void gles3_renderer::apply_magnetic_jitter(float& px0, float& py0, float& px1, f
     float thermal1_y = (wave1_y * 0.60f) + (noise1_y * 0.40f);
 
     // --- 3. CONTINUOUS PERCEPTUAL COMPENSATION & NORMALIZATION ---
-    float internal_scale = (float)std::max(m_height, 1) / 480.0f;
+    // relative to the game rect, not the window, so orientations match
+    float ref_h = (m_active_layout_h > 1.0f) ? m_active_layout_h : (float)std::max(m_height, 1);
+    float internal_scale = ref_h / 480.0f;
 
     // AA SURVIVAL CURVE: 
     // A 1px line at Full-Res gets heavily blurred by the GPU's bilinear filter when it moves.
@@ -2184,6 +2183,7 @@ void gles3_renderer::render()
             layout_h = std::max(layout_bounds.y1 - layout_bounds.y0, 1.0f);
             if (layout_w <= 0.0f) layout_w = (float)m_width;
             if (layout_h <= 0.0f) layout_h = (float)m_height;
+            m_active_layout_h = layout_h; // jitter amplitude reference (game rect)
 
 			// --- DOWN-SAMPLING (FILLRATE OPTIMIZATION) ---
             fbo_w = layout_w;

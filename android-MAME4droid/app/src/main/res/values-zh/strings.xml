@@ -205,8 +205,8 @@
     <string name="pref_autofire_summary">启用以通过按住按键或按钮组合模拟重复按下一个模拟按钮。注意：该插件可从 MAME 界面插件选项获得</string>
     <string name="pref_skip_gameinfo_title">跳过游戏信息</string>
     <string name="pref_skip_gameinfo_summary">强制跳过显示系统信息界面</string>
-    <string name="pref_zoom_to_window_title">缩放到窗口</string>
-    <string name="pref_zoom_to_window_summary">自动缩放模拟画面，使竖屏和横屏游戏都使用整个设备窗口。如果您在 MAME 视频选项中使用固定方向和宽分辨率的 artwork 来放大屏幕区域，请禁用</string>
+    <string name="pref_full_area_res_title">完整模拟区域</string>
+    <string name="pref_full_area_res_summary">以设备原生分辨率模拟时，将全部可用分辨率交给 MAME，而不仅是游戏区域。速度略慢，且字体大小在不同方向下差异更大，但可启用高级效果，例如选择如何放大模拟区域，使 artwork 得到智能裁剪</string>
     <string name="pref_disable_drc_title">禁用 DRC</string>
     <string name="pref_disable_drc_summary">禁用 DRC（动态重编译器）CPU 核心。启用以测试某些冻结或无法启动的游戏的兼容性，代价是性能</string>
     <string name="pref_drc_use_c_title">DRC 使用 C</string>
@@ -482,6 +482,8 @@
     <string name="pref_netplay_desync_summary">检测并警告联机对战不同步（仅回滚模式）；禁用以节省额外的 CPU 开销</string>
     <string name="pref_netplay_upnp_title">UPnP 端口映射（主机）</string>
     <string name="pref_netplay_upnp_summary">作为主机时，自动在路由器上转发联机对战端口，以便互联网对方可直接加入。断开时移除</string>
+    <string name="pref_netplay_allow_plugins_title">允许联机对战中使用 Lua 插件</string>
+    <string name="pref_netplay_allow_plugins_summary">让作弊、连发和宏在联机对战中运行。可能导致游戏不同步，尤其是在 rollback 模式下——仅在你会使用 lockstep 且需要插件时才启用。</string>
     <string name="pref_netplay_ipproto_title">网络协议</string>
     <string name="pref_netplay_ipproto_summary">IPv4、IPv6 或自动。IPv6 没有 NAT：互联网对战通常可直接连接，无需端口转发，连接问题更少。自动模式优先使用 IPv6，并在需要时回退到 IPv4</string>
     <string name="np_ipproto_auto">自动（IPv6 + IPv4）</string>
