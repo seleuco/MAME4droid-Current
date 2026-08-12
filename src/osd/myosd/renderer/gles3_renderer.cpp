@@ -582,11 +582,23 @@ gles3_renderer::~gles3_renderer()
 	
     if (g_current_renderer == this) g_current_renderer = nullptr;	
 	
-	if (eglGetCurrentContext() == EGL_NO_CONTEXT) {
+	/* Nothing of ours can be deleted unless a GLES3 context is current. On a
+	 * renderer switch the GLES1 one is already up, and our objects died with
+	 * the old context anyway; calling GLES3 entry points there crashes. */
+	bool gl3 = false;
+	EGLContext const ctx = eglGetCurrentContext();
+	if (ctx != EGL_NO_CONTEXT) {
+        EGLint ver = 0;
+        EGLDisplay const dpy = eglGetCurrentDisplay();
+        if ((dpy != EGL_NO_DISPLAY) && eglQueryContext(dpy, ctx, EGL_CONTEXT_CLIENT_VERSION, &ver))
+            gl3 = (ver >= 3);
+    }
+
+	if (!gl3) {
         m_textures_to_delete.clear();
         m_render_textures_to_delete.clear();
-        m_texlist.clear();        
-        return; 
+        m_texlist.clear();
+        return;
     }
 		
     if (m_quad_program) glDeleteProgram(m_quad_program);

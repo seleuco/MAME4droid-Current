@@ -519,6 +519,16 @@ bool osd_font_droid::get_bitmap(char32_t chnum, bitmap_argb32 &bitmap, std::int3
 	int const gw = x1 - x0;
 	int const gh = y1 - y0;
 
+	// a box this far off the cell means the glyph offsets are junk; rasterizing
+	// it would read outside the mmap, which is a segfault and not just garbage
+	int const sane = (m_cell > 0) ? (m_cell * 8) : 1024;
+	if ((gw > sane) || (gh > sane))
+	{
+		__android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "font: bogus %dx%d box for U+%04X in %s#%d",
+				gw, gh, unsigned(chnum), font->path.c_str(), int(font->collection));
+		return get_bitmap_java(chnum, bitmap, width, xoffs, yoffs);
+	}
+
 	rgb_t const bgcol(0x00, 0xff, 0xff, 0xff);
 
 	if ((gw <= 0) || (gh <= 0))
@@ -548,6 +558,8 @@ bool osd_font_droid::get_bitmap(char32_t chnum, bitmap_argb32 &bitmap, std::int3
 	stbtt_MakeGlyphBitmap(&font->info, coverage.data(), gw, gh, gw, font->scale, font->scale, glyph);
 
 	bitmap.allocate(gw, m_cell);
+	if (!bitmap.valid())
+		return false;
 	bitmap.fill(bgcol);
 
 	int const top = m_baseline + y0;    // y0 is negative above the baseline
