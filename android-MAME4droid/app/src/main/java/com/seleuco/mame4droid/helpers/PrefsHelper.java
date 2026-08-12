@@ -518,8 +518,11 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 		if (mm.getInputHandler().getTiltSensor().isEnabled())
 			return false;
 
-		if (mm.getInputHandler().getGameController().isEnabled())
-			return false;
+		/* A connected gamepad used to disable this. Removed: pad to move plus
+		 * touch to aim is a valid combo on handhelds, and it is what the touch
+		 * lightgun already allows (it never vetoed the pad either). The guard
+		 * below still limits this to games MAME reports as mouse driven.
+		 * Side effect: in those games stray touches now move the cursor. */
 
 		if (mm.getInputHandler().getMouse().isEnabled())
 			return false;

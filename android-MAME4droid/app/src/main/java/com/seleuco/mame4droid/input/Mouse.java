@@ -45,6 +45,7 @@
 package com.seleuco.mame4droid.input;
 
 import android.graphics.Color;
+import android.view.InputDevice;
 import android.view.MotionEvent;
 
 import com.seleuco.mame4droid.Emulator;
@@ -65,20 +66,39 @@ public class Mouse implements IController {
 		mm = value;
 	}
 
+	// A pad exposing a pointer HID must not latch this on: it would kill the
+	// touch mouse for the whole session, as this never goes back to false.
+	private boolean isRealMouse(MotionEvent event) {
+		int src = event.getSource();
+		boolean pointer = (src & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE
+			|| (src & InputDevice.SOURCE_MOUSE_RELATIVE) == InputDevice.SOURCE_MOUSE_RELATIVE
+			|| (src & InputDevice.SOURCE_TOUCHPAD) == InputDevice.SOURCE_TOUCHPAD;
+		boolean pad = (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+			|| (src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+		return pointer && !pad;
+	}
+
 	public boolean handleMouse(MotionEvent event) {
-
-		// Display OSD feedback only on the first hardware mouse interaction
-		if (!isMouseEnabled) {
-			isMouseEnabled = true;
-			CharSequence text = mm.getString(com.seleuco.mame4droid.R.string.mouse_enabled);
-			new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
-
-			mm.getMainHelper().updateMAME4droid();
-			mm.getInputHandler().resetInput(true);
-		}
 
 		int aBtn = event.getActionButton();
 		int actionMasked = event.getActionMasked();
+
+		// Display OSD feedback only on the first hardware mouse interaction, and
+		// only on actual use: a stray zero-delta event should not count.
+		if (!isMouseEnabled && isRealMouse(event)) {
+			boolean moved = actionMasked == MotionEvent.ACTION_MOVE
+				&& (event.getX() != 0.0f || event.getY() != 0.0f);
+			boolean clicked = actionMasked == MotionEvent.ACTION_BUTTON_PRESS && aBtn != 0;
+
+			if (moved || clicked) {
+				isMouseEnabled = true;
+				CharSequence text = mm.getString(com.seleuco.mame4droid.R.string.mouse_enabled);
+				new WarnWidget.WarnWidgetHelper(mm, text.toString(), 3, Color.GREEN, true);
+
+				mm.getMainHelper().updateMAME4droid();
+				mm.getInputHandler().resetInput(true);
+			}
+		}
 
 		// --- RELATIVE MOUSE MOVEMENT (Captured Pointer API) ---
 		if (actionMasked == MotionEvent.ACTION_MOVE) {
