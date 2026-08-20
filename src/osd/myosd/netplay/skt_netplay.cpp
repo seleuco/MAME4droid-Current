@@ -209,9 +209,19 @@ static void* skt_threaded_data(void* args)
 
     uint32_t last_punch_ms = 0;
 
+    /* Ours. A new session may replace impl->fd, and closing that one on the
+     * way out would pull the socket from under it. */
+    int my_fd = impl->fd;
+
     NLOG("Creada threaded_data");
 
     while(handle->has_connection){
+
+        /* Once per pass: a new session can close it and set -1 while we sleep
+         * in select(), and FD_ISSET(-1) aborts in bionic. */
+        int fd = impl->fd;
+        if (fd < 0)
+            break;
 
         /* Internet play: consume hot punch-target updates and send a PUNCH
          * probe every ~500ms until the peer is latched (host) / joined
@@ -256,7 +266,7 @@ static void* skt_threaded_data(void* args)
                     netplay_msg_t pm;
                     pm.packetid = 0;
                     pm.msg_type = htonl(NETPLAY_MSG_PUNCH);
-                    if (sendto(impl->fd, &pm, netplay_msg_wire_size(NETPLAY_MSG_PUNCH), 0, pa, pal) < 0)
+                    if (sendto(fd, &pm, netplay_msg_wire_size(NETPLAY_MSG_PUNCH), 0, pa, pal) < 0)
                         NLOG("punch sendto failed (%s), ignored", strerror(errno));
                     else
                         NLOG_VERBOSE("punch sent");
@@ -267,9 +277,9 @@ static void* skt_threaded_data(void* args)
         tmp_tv = tv;
 
         FD_ZERO(&fds);
-        FD_SET(impl->fd, &fds);
+        FD_SET(fd, &fds);
 
-        if (select(impl->fd + 1, &fds, NULL, NULL, &tmp_tv) < 0)
+        if (select(fd + 1, &fds, NULL, NULL, &tmp_tv) < 0)
         {
             NLOG("select failed: %s", strerror(errno));
             if (handle->has_connection) {
@@ -285,7 +295,7 @@ static void* skt_threaded_data(void* args)
             break;
         }
 
-        if (FD_ISSET(impl->fd, &fds)) // packet arrive
+        if (FD_ISSET(fd, &fds)) // packet arrive
         {
             NLOG_VERBOSE("select unblocked, packet arrived!");
 
@@ -305,17 +315,21 @@ static void* skt_threaded_data(void* args)
                 fd_set drain_fds;
                 struct timeval zero_tv = {0, 0};
                 FD_ZERO(&drain_fds);
-                FD_SET(impl->fd, &drain_fds);
-                if (select(impl->fd + 1, &drain_fds, NULL, NULL, &zero_tv) <= 0)
+                FD_SET(fd, &drain_fds);
+                if (select(fd + 1, &drain_fds, NULL, NULL, &zero_tv) <= 0)
                     break; /* No more packets immediately available */
-                if (!FD_ISSET(impl->fd, &drain_fds))
+                if (!FD_ISSET(fd, &drain_fds))
                     break;
             }
         }
     }
 
-    close(impl->fd);
-    impl->fd = -1;
+    if (my_fd >= 0 && impl->fd == my_fd) {
+        close(my_fd);
+        impl->fd = -1;
+    } else {
+        NLOG("threaded_data exits: fd %d already replaced/closed, leaving impl->fd %d alone", my_fd, impl->fd);
+    }
 
     NLOG("Muere threaded_data y cierro socket!");
 

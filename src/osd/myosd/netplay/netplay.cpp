@@ -163,14 +163,17 @@ extern uint32_t myosd_netplay_read_local_digital(void);
 
 static netplay_t netplay_player;
 
-/* Return the process-wide netplay handle (lazy-initialised singleton).    */
+/* Return the process-wide netplay handle (lazy-initialised singleton).
+ * pthread_once: with a plain flag a second thread entered mid-init and locked
+ * sync_mutex while the first had it destroyed.                              */
+static pthread_once_t netplay_handle_once = PTHREAD_ONCE_INIT;
+
+static void netplay_init_handle_once(void){
+    netplay_init_handle(&netplay_player);
+}
+
 netplay_t * netplay_get_handle(){
-    static int init = 0;    
-    if(!init)
-    {
-        netplay_init_handle(&netplay_player);
-        init = 1;
-    }
+    pthread_once(&netplay_handle_once, netplay_init_handle_once);
     return &netplay_player;
 }
 
