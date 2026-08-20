@@ -610,8 +610,14 @@ public class MainHelper {
 
         String definedKeys = prefsHelper.getDefinedKeys();
         final String[] keys = definedKeys.split(":");
-        for (int i = 0; i < keys.length; i++)
-            GameController.keyMapping[i] = Integer.valueOf(keys[i]).intValue();
+
+        for (int i = 0; i < keys.length && i < GameController.keyMapping.length; i++) {
+            try {
+                GameController.keyMapping[i] = Integer.valueOf(keys[i]).intValue();
+            } catch (NumberFormatException e) {
+                // skip a corrupt entry
+            }
+        }
 
         Emulator.setDebug(prefsHelper.isDebugEnabled());
 

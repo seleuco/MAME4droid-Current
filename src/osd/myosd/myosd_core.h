@@ -19,12 +19,10 @@ extern "C" {
 enum MYOSD_STATUS {
     MYOSD_UP=0x1,       MYOSD_LEFT=0x4,       MYOSD_DOWN=0x10,   MYOSD_RIGHT=0x40,
     MYOSD_START=1<<8,   MYOSD_SELECT=1<<9,
-    MYOSD_A=1<<10,      MYOSD_B=1<<11,        MYOSD_C=1 << 12,     MYOSD_D=1 << 13,
-    MYOSD_L1=1 << 14,    MYOSD_R1=1 << 15,
-    //TODO ajustar resto botones con java
-    //MYOSD_L3=1<<16,     MYOSD_R3=1<<17,
-    //MYOSD_L2=1<<18,    MYOSD_R2=1<<19,
-    MYOSD_L2=1<<16,    MYOSD_R2=1<<17,
+    MYOSD_BTN1=1<<10,      MYOSD_BTN2=1<<11,        MYOSD_BTN3=1 << 12,     MYOSD_BTN4=1 << 13,
+    MYOSD_BTN5=1 << 14,    MYOSD_BTN6=1 << 15,
+    MYOSD_BTN7=1<<16,      MYOSD_BTN8=1<<17,
+    MYOSD_BTN9=1<<18,      MYOSD_BTN10=1<<19,
     MYOSD_EXIT=1<<20,   MYOSD_OPTION=1<<21,   MYOSD_HOME=1<<22,  MYOSD_MENU=1<<23,
 };
 

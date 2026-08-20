@@ -195,21 +195,21 @@ void joystick_input_myosd::input_init(running_machine &machine)
         //joystick->add_item("LX Axis ABS1", "", ITEM_ID_ADD_ABSOLUTE1,  get_axis,     &g_input.joy_analog[i][MYOSD_AXIS_LX]);
         //joystick->add_item("LY Axis ABS2", "", ITEM_ID_ADD_ABSOLUTE2,  get_axis_neg, &g_input.joy_analog[i][MYOSD_AXIS_LY]);
 
-        joystick->add_item("A", "", ITEM_ID_BUTTON1, get_button, BTN(joy_status[i], MYOSD_A));
-        joystick->add_item("B", "", ITEM_ID_BUTTON2, get_button, BTN(joy_status[i], MYOSD_B));
+        joystick->add_item("BTN1", "", ITEM_ID_BUTTON1, get_button, BTN(joy_status[i], MYOSD_BTN1));
+        joystick->add_item("BTN2", "", ITEM_ID_BUTTON2, get_button, BTN(joy_status[i], MYOSD_BTN2));
 
-        //joystick->add_item("A SW1", "", ITEM_ID_ADD_SWITCH1, get_button, BTN(joy_status[i], MYOSD_A));
-        //joystick->add_item("B SW2", "", ITEM_ID_ADD_SWITCH2, get_button, BTN(joy_status[i], MYOSD_B));
+        //joystick->add_item("BTN1 SW1", "", ITEM_ID_ADD_SWITCH1, get_button, BTN(joy_status[i], MYOSD_BTN1));
+        //joystick->add_item("BTN2 SW2", "", ITEM_ID_ADD_SWITCH2, get_button, BTN(joy_status[i], MYOSD_BTN2));
 
-        joystick->add_item("C", "", ITEM_ID_BUTTON3, get_button, BTN(joy_status[i], MYOSD_C));
-        joystick->add_item("D", "", ITEM_ID_BUTTON4, get_button, BTN(joy_status[i], MYOSD_D));
-        joystick->add_item("E", "", ITEM_ID_BUTTON5, get_button, BTN(joy_status[i], MYOSD_L1));
-        joystick->add_item("F", "", ITEM_ID_BUTTON6, get_button, BTN(joy_status[i], MYOSD_R1));
+        joystick->add_item("BTN3", "", ITEM_ID_BUTTON3, get_button, BTN(joy_status[i], MYOSD_BTN3));
+        joystick->add_item("BTN4", "", ITEM_ID_BUTTON4, get_button, BTN(joy_status[i], MYOSD_BTN4));
+        joystick->add_item("BTN5", "", ITEM_ID_BUTTON5, get_button, BTN(joy_status[i], MYOSD_BTN5));
+        joystick->add_item("BTN6", "", ITEM_ID_BUTTON6, get_button, BTN(joy_status[i], MYOSD_BTN6));
 
-        joystick->add_item("G", "", ITEM_ID_BUTTON7, get_button, BTN(joy_status[i], MYOSD_L2));
-        joystick->add_item("H", "", ITEM_ID_BUTTON8, get_button, BTN(joy_status[i], MYOSD_R2));
-        //joystick->add_item("L3", "", ITEM_ID_BUTTON9, get_button, BTN(joy_status[i], MYOSD_L3));
-        //joystick->add_item("R3", "", ITEM_ID_BUTTON10,get_button, BTN(joy_status[i], MYOSD_R3));
+        joystick->add_item("BTN7", "", ITEM_ID_BUTTON7, get_button, BTN(joy_status[i], MYOSD_BTN7));
+        joystick->add_item("BTN8", "", ITEM_ID_BUTTON8, get_button, BTN(joy_status[i], MYOSD_BTN8));
+        joystick->add_item("BTN9", "", ITEM_ID_BUTTON9, get_button, BTN(joy_status[i], MYOSD_BTN9));
+        joystick->add_item("BTN10", "", ITEM_ID_BUTTON10,get_button, BTN(joy_status[i], MYOSD_BTN10));
 
         joystick->add_item("Select", "", ITEM_ID_SELECT, get_button, BTN(joy_status[i], MYOSD_SELECT));
         joystick->add_item("Start",  "", ITEM_ID_START,  get_button, BTN(joy_status[i], MYOSD_START));
@@ -243,9 +243,9 @@ void mouse_input_myosd::input_init(running_machine &machine)
         mouse->add_item("X Axis", "", ITEM_ID_XAXIS, get_mouse, &g_input.mouse_x[i]);
         mouse->add_item("Y Axis", "", ITEM_ID_YAXIS, get_mouse, &g_input.mouse_y[i]);
         mouse->add_item("Z Axis", "", ITEM_ID_ZAXIS, get_mouse, &g_input.mouse_z[i]);
-        mouse->add_item("Left",   "", ITEM_ID_BUTTON1, get_button, BTN(mouse_status[i], MYOSD_A));
-        mouse->add_item("Middle", "", ITEM_ID_BUTTON2, get_button, BTN(mouse_status[i], MYOSD_D));
-        mouse->add_item("Right",  "", ITEM_ID_BUTTON3, get_button, BTN(mouse_status[i], MYOSD_B));
+        mouse->add_item("Left",   "", ITEM_ID_BUTTON1, get_button, BTN(mouse_status[i], MYOSD_BTN1));
+        mouse->add_item("Middle", "", ITEM_ID_BUTTON2, get_button, BTN(mouse_status[i], MYOSD_BTN3));
+        mouse->add_item("Right",  "", ITEM_ID_BUTTON3, get_button, BTN(mouse_status[i], MYOSD_BTN2));
     }
 }
 
@@ -268,8 +268,8 @@ void lightgun_input_myosd::input_init(running_machine &machine)
 
         lightgun->add_item("X Axis", "", ITEM_ID_XAXIS, get_axis, &g_input.lightgun_x[i]);
         lightgun->add_item("Y Axis", "", ITEM_ID_YAXIS, get_axis_neg, &g_input.lightgun_y[i]);
-        lightgun->add_item("A", "", ITEM_ID_BUTTON1, get_button, BTN(lightgun_status[i], MYOSD_A));
-        lightgun->add_item("B", "", ITEM_ID_BUTTON2, get_button, BTN(lightgun_status[i], MYOSD_B));
+        lightgun->add_item("BTN1", "", ITEM_ID_BUTTON1, get_button, BTN(lightgun_status[i], MYOSD_BTN1));
+        lightgun->add_item("BTN2", "", ITEM_ID_BUTTON2, get_button, BTN(lightgun_status[i], MYOSD_BTN2));
     }
 }
 

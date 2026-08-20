@@ -1063,6 +1063,19 @@ public class Emulator {
 		return mm.getSAFHelper().openUriFd("/" + file, mode);
 	}
 
+	static int safDeleteFile(String pathName) {
+		String file = "";
+
+		String romPath = mm.getPrefsHelper().getROMsDIR();
+		if (pathName.startsWith(romPath))
+			file = pathName.substring(romPath.length() + 1, pathName.length());
+
+		if (file.equals(""))
+			return -1;
+
+		return mm.getSAFHelper().deleteFile("/" + file) ? 0 : -1;
+	}
+
 	static int safReadDir(String dirName, int reload) {
 		//System.out.println("Llaman a safReadDir en java "+dirName);
 

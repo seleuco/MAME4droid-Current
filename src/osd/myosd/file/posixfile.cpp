@@ -380,7 +380,16 @@ std::error_condition osd_file::openpty(ptr &file, std::string &name) noexcept
 
 std::error_condition osd_file::remove(std::string const &filename) noexcept
 {
-	if (::unlink(filename.c_str()) < -1)
+	//same guard as osd_file::open: under the SAF tree unlink() cannot see the
+	//document, and going behind SAF would leave its cache listing a dead file
+	if (myosd_droid_using_saf == 1 && filename.find(myosd_droid_safpath) == 0) {
+		if (myosd_safDeleteFile(filename.c_str()) < 0)
+			return std::error_condition(ENOENT, std::generic_category());
+		return std::error_condition();
+	}
+
+	//unlink returns -1 on error, so the old "< -1" reported every failure as success
+	if (::unlink(filename.c_str()) < 0)
 		return std::error_condition(errno, std::generic_category());
 	else
 		return std::error_condition();

@@ -164,6 +164,7 @@
     <string name="touch_mouse_always">Touch mouse is always enabled!</string>
     <string name="touch_mouse_auto">Touch mouse is auto enabled!</string>
     <string name="controller_n">Controller %1$d</string>
+    <string name="controller_profile_hint">Key profile for one physical pad. The MAME player number is assigned when it connects.</string>
     <string name="controller_buttons_title">MAME4droid Controller %1$d buttons</string>
     <string name="press_button_for">Press button for \"%1$s\"</string>
     <string name="not_mapped">Not mapped</string>

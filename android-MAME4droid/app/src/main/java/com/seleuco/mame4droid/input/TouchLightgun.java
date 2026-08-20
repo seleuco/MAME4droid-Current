@@ -77,8 +77,8 @@ public class TouchLightgun implements IController {
 		public void run() {
 			if (lightgun_pid == -1 || press_on || digital_data_ref == null) return;
 			press_on = true;
-			digital_data_ref[0] |= B_VALUE;
-			digital_data_ref[0] &= ~A_VALUE;
+			digital_data_ref[0] |= BTN2_VALUE;
+			digital_data_ref[0] &= ~BTN1_VALUE;
 			Emulator.setDigitalData(0, digital_data_ref[0]);
 		}
 	};
@@ -132,10 +132,10 @@ public class TouchLightgun implements IController {
 				boolean cover_was_ours = press_on || cover_pid != -1;
 				press_on = false;
 				lightgun_pid = -1;
-				digital_data[0] &= ~A_VALUE;
+				digital_data[0] &= ~BTN1_VALUE;
 				//leave B alone if a pedal button is holding it
 				if (cover_was_ours) {
-					digital_data[0] &= ~B_VALUE;
+					digital_data[0] &= ~BTN2_VALUE;
 					cover_pid = -1;
 				}
 			} else {
@@ -143,10 +143,10 @@ public class TouchLightgun implements IController {
 				if (!press_on) {
 					if (pid == cover_pid) {
 						cover_pid = -1;
-						digital_data[0] &= ~B_VALUE;
+						digital_data[0] &= ~BTN2_VALUE;
 					}
 				} else {
-					digital_data[0] &= ~A_VALUE;
+					digital_data[0] &= ~BTN1_VALUE;
 				}
 			}
 
@@ -157,7 +157,7 @@ public class TouchLightgun implements IController {
 			refreshScreenRect();
 
 			// Snapshot button state to vibrate only on new engagements below
-			int oldButtons = digital_data[0] & (A_VALUE | B_VALUE);
+			int oldButtons = digital_data[0] & (BTN1_VALUE | BTN2_VALUE);
 
 			// Allocate location array ONCE outside the loop to prevent Garbage Collector churn
 			// and avoid dropping frames during rapid continuous touch events.
@@ -227,20 +227,20 @@ public class TouchLightgun implements IController {
 								// Fire main trigger. Only a second finger holding cover
 								// blocks it; a pedal button does not.
 								if (cover_pid == -1) {
-									digital_data[0] |= A_VALUE;
+									digital_data[0] |= BTN1_VALUE;
 								}
 							}
 						} else {
 							// SECONDARY TOUCH LOGIC (Multi-finger support)
 							if (!press_on) {
-								digital_data[0] &= ~A_VALUE;
-								digital_data[0] |= B_VALUE; // Engage secondary button (Reload/Cover)
+								digital_data[0] &= ~BTN1_VALUE;
+								digital_data[0] |= BTN2_VALUE; // Engage secondary button (Reload/Cover)
 								cover_pid = pointerId;
 							} else {
 								if (!mm.getInputHandler().getTiltSensor().isEnabled()) {
 									Emulator.setAnalogData(Emulator.LIGHTGUN_DATA, 0, xf, -yf);
 								}
-								digital_data[0] |= A_VALUE;
+								digital_data[0] |= BTN1_VALUE;
 							}
 						}
 					}
@@ -248,10 +248,10 @@ public class TouchLightgun implements IController {
 			}
 			// Haptic on press edges only: trigger (button 1) clicks, the
 			// secondary button ticks lighter. Releases stay silent.
-			int pressed = (digital_data[0] & (A_VALUE | B_VALUE)) & ~oldButtons;
+			int pressed = (digital_data[0] & (BTN1_VALUE | BTN2_VALUE)) & ~oldButtons;
 			if (pressed != 0 && mm.getPrefsHelper().isVibrate()) {
 				TouchController tc = mm.getInputHandler().getTouchController();
-				if ((pressed & A_VALUE) != 0) tc.vibrate();
+				if ((pressed & BTN1_VALUE) != 0) tc.vibrate();
 				else tc.vibrateSecondary();
 			}
 

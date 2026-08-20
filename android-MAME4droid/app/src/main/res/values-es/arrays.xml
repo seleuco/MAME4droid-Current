@@ -128,14 +128,16 @@
 		<item>Abajo</item>
 		<item>Izquierda</item>
 		<item>Derecha</item>
-		<item>Botón A</item>
-		<item>Botón B</item>
-		<item>Botón C</item>
-		<item>Botón D</item>
-		<item>Botón E</item>
-		<item>Botón F</item>
-		<item>Botón G</item>
-		<item>Botón H</item>
+		<item>BTN1</item>
+		<item>BTN2</item>
+		<item>BTN3</item>
+		<item>BTN4</item>
+		<item>BTN5</item>
+		<item>BTN6</item>
+		<item>BTN7</item>
+		<item>BTN8</item>
+		<item>BTN9</item>
+		<item>BTN10</item>
 		<item>Moneda</item>
 		<item>Start</item>
 		<item>Salir</item>

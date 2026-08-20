@@ -150,6 +150,7 @@
     <string name="touch_mouse_always">触摸鼠标已始终启用！</string>
     <string name="touch_mouse_auto">触摸鼠标已自动启用！</string>
     <string name="controller_n">手柄 %1$d</string>
+    <string name="controller_profile_hint">单个实体手柄的按键配置。MAME 中的玩家编号在连接时自动分配。</string>
     <string name="controller_buttons_title">MAME4droid 手柄 %1$d 按键</string>
     <string name="press_button_for">为 \"%1$s\" 按下按键</string>
     <string name="not_mapped">未映射</string>

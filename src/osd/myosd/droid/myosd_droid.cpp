@@ -197,6 +197,8 @@ static int (*safReadDir_callback)(const char *dirName, int reload) = nullptr;
 static char **(*safGetNextDirEntry_callback)(int dirId) = nullptr;
 
 static void (*safCloseDir_callback)(int dirId) = nullptr;
+
+static int (*safDeleteFile_callback)(const char *pathName) = nullptr;
 //end android callbacks
 
 #define PIXEL_PITCH  4
@@ -235,7 +237,8 @@ void myosd_droid_setSAFCallbacks(
         int (*safOpenFile_java)(const char *, const char *),
         int (*safReadDir_java)(const char *, int reload),
         char **(*safGetNextDirEntry_java)(int),
-        void (*safCloseDir_java)(int)
+        void (*safCloseDir_java)(int),
+        int (*safDeleteFile_java)(const char *)
 ) {
 
     __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "setSAFCallbacks");
@@ -244,6 +247,7 @@ void myosd_droid_setSAFCallbacks(
     safReadDir_callback = safReadDir_java;
     safGetNextDirEntry_callback = safGetNextDirEntry_java;
     safCloseDir_callback = safCloseDir_java;
+    safDeleteFile_callback = safDeleteFile_java;
 }
 
 
@@ -831,18 +835,18 @@ int myosd_droid_setMouseData(int i, int mouseAction, int button, float cx, float
             ev.data.pointer_data.double_action = bt1_double_click;
             myosd_pushEvent(ev);
 
-            mouse_status[i] |= MYOSD_A;
+            mouse_status[i] |= MYOSD_BTN1;
             __android_log_print(ANDROID_LOG_DEBUG, "libMAME4droid.so", "MOUSEB PULSO BT1!");
         }
         else if(button == 2)
         {
             ev.type = ev.MYOSD_MOUSE_BT2_DOWN;
             myosd_pushEvent(ev);
-            mouse_status[i] |= MYOSD_B;
+            mouse_status[i] |= MYOSD_BTN2;
         }
         else if(button == 3)
         {
-            mouse_status[i] |= MYOSD_C;
+            mouse_status[i] |= MYOSD_BTN3;
         }
     }
     else if(mouseAction == com_seleuco_mame4droid_Emulator_MOUSE_BTN_UP)
@@ -857,17 +861,17 @@ int myosd_droid_setMouseData(int i, int mouseAction, int button, float cx, float
             ev.data.pointer_data.double_action = bt1_double_click;
             bt1_double_click = false;
             myosd_pushEvent(ev);
-            mouse_status[i] &= ~MYOSD_A;
+            mouse_status[i] &= ~MYOSD_BTN1;
         }
         else if(button==2)
         {
             ev.type = ev.MYOSD_MOUSE_BT2_UP;
             myosd_pushEvent(ev);
-            mouse_status[i] &= ~MYOSD_B;
+            mouse_status[i] &= ~MYOSD_BTN2;
         }
         else if(button==3)
         {
-            mouse_status[i] &= ~MYOSD_C;
+            mouse_status[i] &= ~MYOSD_BTN3;
         }
     }
 
@@ -1149,6 +1153,14 @@ int myosd_safOpenFile(const char *pathName,const char *mode) {
     if (safOpenFile_callback != nullptr) {
         __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "myosd_safOpenFile %s %s",pathName, mode);
         return safOpenFile_callback(pathName, mode);
+    }
+    return -1;
+}
+
+int myosd_safDeleteFile(const char *pathName) {
+    if (safDeleteFile_callback != nullptr) {
+        __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid.so", "myosd_safDeleteFile %s", pathName);
+        return safDeleteFile_callback(pathName);
     }
     return -1;
 }

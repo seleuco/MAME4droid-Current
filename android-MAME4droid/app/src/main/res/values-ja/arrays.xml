@@ -128,14 +128,16 @@
 		<item>下</item>
 		<item>左</item>
 		<item>右</item>
-		<item>ボタン A</item>
-		<item>ボタン B</item>
-		<item>ボタン C</item>
-		<item>ボタン D</item>
-		<item>ボタン E</item>
-		<item>ボタン F</item>
-		<item>ボタン G</item>
-		<item>ボタン H</item>
+		<item>BTN1</item>
+		<item>BTN2</item>
+		<item>BTN3</item>
+		<item>BTN4</item>
+		<item>BTN5</item>
+		<item>BTN6</item>
+		<item>BTN7</item>
+		<item>BTN8</item>
+		<item>BTN9</item>
+		<item>BTN10</item>
 		<item>コイン</item>
 		<item>スタート</item>
 		<item>終了</item>

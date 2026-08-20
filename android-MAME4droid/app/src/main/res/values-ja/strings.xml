@@ -150,6 +150,7 @@
     <string name="touch_mouse_always">タッチマウスが常時有効です！</string>
     <string name="touch_mouse_auto">タッチマウスが自動的に有効になりました！</string>
     <string name="controller_n">コントローラー %1$d</string>
+    <string name="controller_profile_hint">物理コントローラー1台のキー設定です。MAME のプレイヤー番号は接続時に自動で割り当てられます。</string>
     <string name="controller_buttons_title">MAME4droid コントローラー %1$d ボタン</string>
     <string name="press_button_for">\"%1$s\" のボタンを押してください</string>
     <string name="not_mapped">未マッピング</string>

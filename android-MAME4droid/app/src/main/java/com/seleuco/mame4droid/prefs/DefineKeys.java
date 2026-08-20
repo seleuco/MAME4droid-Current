@@ -84,12 +84,23 @@ public class DefineKeys extends ListActivity {
 
 	private void drawListAdapter() {
 		if (keyLabelsAdapter == null) {
-			// Usamos el layout estándar de Android sin sobreescribir el getView
+			// Two lines: these are per-pad profiles, not player numbers, and the
+			// list read as "player N" often enough to be worth spelling out
 			keyLabelsAdapter = new ArrayAdapter<String>(
 				this,
-				android.R.layout.simple_list_item_1,
+				android.R.layout.simple_list_item_2,
+				android.R.id.text1,
 				playerLabels()
-			);
+			) {
+				@Override
+				public View getView(int position, View convertView, android.view.ViewGroup parent) {
+					View v = super.getView(position, convertView, parent);
+					android.widget.TextView sub = v.findViewById(android.R.id.text2);
+					if (sub != null)
+						sub.setText(getString(com.seleuco.mame4droid.R.string.controller_profile_hint));
+					return v;
+				}
+			};
 			setListAdapter(keyLabelsAdapter);
 		} else {
 			keyLabelsAdapter.notifyDataSetChanged();

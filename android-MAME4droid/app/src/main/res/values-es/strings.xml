@@ -150,6 +150,7 @@
     <string name="touch_mouse_always">¡Ratón táctil siempre activado!</string>
     <string name="touch_mouse_auto">¡Ratón táctil activado automáticamente!</string>
     <string name="controller_n">Mando %1$d</string>
+    <string name="controller_profile_hint">Perfil de teclas de un mando físico. El número de jugador en MAME se asigna al conectarlo.</string>
     <string name="controller_buttons_title">MAME4droid Botones del mando %1$d</string>
     <string name="press_button_for">Pulsa un botón para \"%1$s\"</string>
     <string name="not_mapped">Sin asignar</string>

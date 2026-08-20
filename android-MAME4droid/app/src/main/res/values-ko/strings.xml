@@ -150,6 +150,7 @@
     <string name="touch_mouse_always">터치 마우스가 항상 활성화되었습니다!</string>
     <string name="touch_mouse_auto">터치 마우스가 자동으로 활성화되었습니다!</string>
     <string name="controller_n">컨트롤러 %1$d</string>
+    <string name="controller_profile_hint">물리 컨트롤러 하나의 키 프로필입니다. MAME 플레이어 번호는 연결할 때 자동으로 지정됩니다.</string>
     <string name="controller_buttons_title">MAME4droid 컨트롤러 %1$d 버튼</string>
     <string name="press_button_for">\"%1$s\"에 대한 버튼을 누르세요</string>
     <string name="not_mapped">매핑 안 됨</string>

@@ -150,6 +150,7 @@
     <string name="touch_mouse_always">Mouse por toque sempre ativado!</string>
     <string name="touch_mouse_auto">Mouse por toque ativado automaticamente!</string>
     <string name="controller_n">Controle %1$d</string>
+    <string name="controller_profile_hint">Perfil de teclas de um controle físico. O número do jogador no MAME é atribuído ao conectá-lo.</string>
     <string name="controller_buttons_title">MAME4droid Botões do controle %1$d</string>
     <string name="press_button_for">Pressione um botão para \"%1$s\"</string>
     <string name="not_mapped">Não mapeado</string>

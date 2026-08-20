@@ -308,14 +308,13 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
 
         switch (entry.type())
         {
-
+            //button 1 of the arcade sits on the right pad button, so the bottom
+            //one arrives as button 2. Bind accept/back there to match Android.
             case IPT_UI_SELECT://DAV
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON1;
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON2;//ANDROID default
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON2;
                 break;
             case IPT_UI_BACK://DAV
-                //entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON2;
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON1;//ANDROID default
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON1;
                 break;
             case IPT_UI_MENU://DAV
                 //entry.defseq(SEQ_TYPE_STANDARD).set(KEYCODE_TAB, input_seq::or_code, JOYCODE_START , JOYCODE_SELECT);
@@ -460,23 +459,24 @@ void my_osd_interface::customize_input_type_list(std::vector<input_type_entry> &
                 break;
 
             /* allow L1 and R1 to move pages in MAME UI */
-            case IPT_UI_PAGE_UP:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON5;
-
-                entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
-                entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_HAT1UP_INDEXED(0);
-
-                entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
-                entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_Y_UP_SWITCH_INDEXED(0);
-                break;
             case IPT_UI_PAGE_DOWN:
-                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON6;
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON5;
 
                 entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
                 entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_HAT1DOWN_INDEXED(0);
 
                 entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
                 entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_Y_DOWN_SWITCH_INDEXED(0);
+                break;
+
+            case IPT_UI_PAGE_UP:
+                entry.defseq(SEQ_TYPE_STANDARD) |= JOYCODE_BUTTON6;
+
+                entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
+                entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_HAT1UP_INDEXED(0);
+
+                entry.defseq(SEQ_TYPE_STANDARD) |= (JOYCODE_BUTTON1);
+                entry.defseq(SEQ_TYPE_STANDARD) += JOYCODE_Y_UP_SWITCH_INDEXED(0);
                 break;
 
             /* LEFT Joystick these are mostly the same as MAME defaults, except we add dpad to them */

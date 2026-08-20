@@ -119,8 +119,8 @@ public class KeySelect extends Activity {
 		View keyCapturer = new View(this) {
 			@Override
 			public boolean onKeyDown(int keyCode, KeyEvent event) {
-				if (emulatorInputIndex != 12 && keyCode == KeyEvent.KEYCODE_BACK) return false;
-				if (emulatorInputIndex != 13 && keyCode == KeyEvent.KEYCODE_MENU) return false;
+				// BACK and MENU are captured like any other key: handhelds have
+				// them as real buttons and the Cancel button is the way out
 
 				setResult(RESULT_OK, new Intent()
 					.putExtra("androidKeyCode", keyCode)

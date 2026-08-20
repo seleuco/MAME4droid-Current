@@ -1,0 +1,85 @@
+diff --git a/state.cpp b/state.cpp
+index 814fd15ae..91f19dab5 100644
+--- a/state.cpp
++++ b/state.cpp
+@@ -220,7 +220,12 @@ void menu_load_save_state_base::populate()
+ 
+ 	if (m_entries_vec.empty())
+ 	{
+-		item_append(_("menu-savestate", "[no saved states found]"), FLAG_DISABLE, nullptr);
++		// DAV HACK
++		// Selectable so the cursor has somewhere to sit above Cancel. Otherwise an
++		// empty list parks it on Cancel, where the buttons are accept/back, and the
++		// first slot could never be named with them.
++		item_append(_("menu-savestate", "[no saved states found]"), 0, nullptr);
++		// DAV HACK end
+ 		set_selection(nullptr);
+ 	}
+ 	item_append(menu_item_type::SEPARATOR);
+@@ -431,11 +436,66 @@ bool menu_load_save_state_base::handle_keys(uint32_t flags, int &iptkey)
+ 	}
+ 	else
+ 	{
++		// DAV HACK
++		// Any lone face button names the slot, so all ten behave alike (BTN1/BTN2
++		// carry accept/back elsewhere and would be the odd ones out in a menu whose
++		// whole mechanic is "press a button"). The one exception is "Cancel", always
++		// the last item, where they go back to accept/back so there is a plain way
++		// out, and it always behaves the same way. Combos are safe:
++		// slot_key_pressed() bows out while START is held.
++		if (!is_last_selected() && slot_key_pressed())
++		{
++			iptkey = IPT_INVALID;
++			return false;
++		}
++		// DAV HACK end
+ 		return autopause_menu<>::handle_keys(flags, iptkey);
+ 	}
+ }
+ 
+ 
++// DAV HACK
++//============================================================
++//  slot_key_pressed - is a lone joystick button being held,
++//  i.e. one this menu could turn into a slot name? START is
++//  the modifier for the UI combos, so while it is down this
++//  says no and the combo goes through untouched.
++//============================================================
++
++bool menu_load_save_state_base::slot_key_pressed() const
++{
++	input_class const &sticks = machine().input().device_class(DEVICE_CLASS_JOYSTICK);
++	if (!sticks.enabled())
++		return false;
++
++	bool found = false;
++	for (int i = 0; sticks.maxindex() >= i; ++i)
++	{
++		input_device const *const stick = sticks.device(i);
++		if (!stick)
++			continue;
++
++		for (input_item_id j : { ITEM_ID_START, ITEM_ID_SELECT })
++		{
++			if (stick->maxitem() < j)
++				continue;
++			input_device_item const *const item = stick->item(j);
++			if (item && machine().input().code_pressed(item->code()))
++				return false;
++		}
++
++		for (input_item_id j = ITEM_ID_BUTTON1; (ITEM_ID_BUTTON32 >= j) && (stick->maxitem() >= j); ++j)
++		{
++			input_device_item const *const item = stick->item(j);
++			if (item && (item->itemclass() == ITEM_CLASS_SWITCH) && machine().input().code_pressed(item->code()))
++				found = true;
++		}
++	}
++	return found;
++}
++// DAV HACK end
++
++
+ //-------------------------------------------------
+ //  custom_pointer_updated - override pointer
+ //  handling

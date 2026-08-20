@@ -134,6 +134,11 @@ public class SAFHelper {
 	// root often holds thousands of ROMs, so listing its children is expensive).
 	private static long cachedRootMtime = 0;
 	private static boolean staleWarned = false;
+	// Paths we deleted ourselves. openUriFd treats "the cache lists it but the
+	// provider will not open it" as the tree having changed behind our back, and
+	// that is exactly what our own delete looks like while it is in flight. Only
+	// grows by one entry per deleted savestate.
+	private static final Set<String> selfDeleted = ConcurrentHashMap.newKeySet();
 
 	private final MAME4droid mm;
 	private final Map<Integer, DirEntries> openDirs = new HashMap<>();
@@ -243,6 +248,61 @@ public class SAFHelper {
 	 * @param flags    The mode to open the file with (e.g., "r", "w", "wt").
 	 * @return A detached file descriptor on success, or -1 on failure.
 	 */
+	/**
+	 * Deletes a document and drops it from the cache. Without the second half the
+	 * listing keeps serving the stale entry and MAME goes on showing a file that is
+	 * no longer there (savestate delete). Mirrors what openUriFd does on create.
+	 */
+	public boolean deleteFile(String pathName) {
+		if (!ensureInit()) return false;
+
+		String path = "/";
+		String name = pathName;
+		int i = pathName.lastIndexOf("/");
+		if (i != -1) {
+			name = pathName.substring(i + 1);
+			path = pathName.substring(0, i + 1);
+		}
+
+		String fileId = fileIDs.get(pathName);
+		if (fileId == null && ensureDirListed(path))
+			fileId = fileIDs.get(pathName);
+		if (fileId == null) {
+			Log.w(TAG, "deleteFile: unknown path " + pathName);
+			return false;
+		}
+
+		// Marked before the call, not after: between deleteDocument() returning and
+		// the cache purge below there is a window where an open would look like
+		// external corruption and pop the stale-cache warning.
+		selfDeleted.add(pathName);
+		try {
+			Uri docUri = DocumentsContract.buildDocumentUriUsingTree(rootUri, fileId);
+			if (!DocumentsContract.deleteDocument(mm.getContentResolver(), docUri)) {
+				Log.w(TAG, "deleteDocument refused for " + pathName);
+				selfDeleted.remove(pathName);
+				return false;
+			}
+		} catch (Exception e) {
+			Log.e(TAG, "deleteFile failed for " + pathName, e);
+			selfDeleted.remove(pathName);
+			return false;
+		}
+
+		fileIDs.remove(pathName);
+		ArrayList<DirEntry> parentFiles = dirFiles.get(path);
+		if (parentFiles != null) {
+			// Locked: the background freshness check snapshots lists.
+			synchronized (parentFiles) {
+				for (int j = parentFiles.size() - 1; j >= 0; j--) {
+					if (name.equals(parentFiles.get(j).name)) parentFiles.remove(j);
+				}
+			}
+		}
+		markDirty(path);
+		return true;
+	}
+
 	public int openUriFd(String pathName, String flags) {
 		Log.d(TAG, "Opening URI for path: " + pathName + " with flags: " + flags);
 
@@ -325,7 +385,10 @@ public class SAFHelper {
 				Log.e(TAG, "Failed to open file descriptor for: " + pathName, e);
 				// The cache says the file exists but the provider disagrees: the
 				// tree changed behind our back (file removed/renamed externally).
-				notifyStaleCache();
+				// Unless we removed it ourselves, in which case failing to open it
+				// is the expected outcome and the cache is fine.
+				if (!selfDeleted.contains(pathName))
+					notifyStaleCache();
 				return -1;
 			}
 		}

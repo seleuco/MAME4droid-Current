@@ -51,12 +51,14 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.view.KeyEvent;
 import android.view.View;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
 import com.seleuco.mame4droid.R;
 import com.seleuco.mame4droid.input.ControlCustomizer;
+import com.seleuco.mame4droid.input.GameController;
 import com.seleuco.mame4droid.views.IEmuView;
 
 import java.util.Arrays;
@@ -333,6 +335,15 @@ public class DialogHelper {
 					}
 				});
 				dialog = builder.create();
+				//the button that opened the menu closes it again, like a toggle
+				dialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
+					@Override
+					public boolean onKey(DialogInterface d, int keyCode, KeyEvent event) {
+						if (!GameController.isOptionKey(event)) return false;
+						if (event.getAction() == KeyEvent.ACTION_UP) d.cancel();
+						return true;
+					}
+				});
 				break;
 			case DIALOG_EMU_RESTART:
 				builder.setTitle(mm.getString(R.string.dlg_restart_title))

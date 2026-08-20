@@ -27,7 +27,8 @@ void myosd_droid_setSAFCallbacks(
         int (*safOpenFile_java)(const char *,const char *),
         int (*safReadDir_java)(const char *, int reload),
         char **(*safGetNextDirEntry_java)(int),
-        void (*safCloseDir_java)(int));
+        void (*safCloseDir_java)(int),
+        int (*safDeleteFile_java)(const char *));
 
 void myosd_droid_initMyOSD(const char *path, int nativeWidth, int nativeHeight);
 void myosd_droid_setNativeSize(int nativeWidth, int nativeHeight);

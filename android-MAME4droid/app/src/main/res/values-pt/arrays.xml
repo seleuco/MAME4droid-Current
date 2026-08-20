@@ -128,14 +128,16 @@
 		<item>Baixo</item>
 		<item>Esquerda</item>
 		<item>Direita</item>
-		<item>Botão A</item>
-		<item>Botão B</item>
-		<item>Botão C</item>
-		<item>Botão D</item>
-		<item>Botão E</item>
-		<item>Botão F</item>
-		<item>Botão G</item>
-		<item>Botão H</item>
+		<item>BTN1</item>
+		<item>BTN2</item>
+		<item>BTN3</item>
+		<item>BTN4</item>
+		<item>BTN5</item>
+		<item>BTN6</item>
+		<item>BTN7</item>
+		<item>BTN8</item>
+		<item>BTN9</item>
+		<item>BTN10</item>
 		<item>Ficha</item>
 		<item>Start</item>
 		<item>Sair</item>

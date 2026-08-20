@@ -117,7 +117,9 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_LANDSCAPE_TOUCH_CONTROLLER = "PREF_LANDSCAPE_TOUCH_CONTROLLER";
 	final static public String PREF_LANDSCAPE_CONTROLLER_TYPE = "PREF_LANDSCAPE_CONTROLLER_TYPE";
 
-	final static public String PREF_DEFINED_KEYS = "PREF_DEFINED_KEYS";
+	// _2: BTN9/BTN10 shifted every index in the saved block, and the layout is
+	// positional, so old values cannot be read. New key = back to defaults.
+	final static public String PREF_DEFINED_KEYS = "PREF_DEFINED_KEYS_2";
 
 	final static public String PREF_DEFINED_CONTROL_LAYOUT = "PREF_DEFINED_CONTROL_LAYOUT";
 	final static public String PREF_DEFINED_CONTROL_LAYOUT_P = "PREF_DEFINED_CONTROL_LAYOUT_P";

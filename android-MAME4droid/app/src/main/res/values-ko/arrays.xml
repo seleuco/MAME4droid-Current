@@ -128,14 +128,16 @@
 		<item>아래</item>
 		<item>왼쪽</item>
 		<item>오른쪽</item>
-		<item>버튼 A</item>
-		<item>버튼 B</item>
-		<item>버튼 C</item>
-		<item>버튼 D</item>
-		<item>버튼 E</item>
-		<item>버튼 F</item>
-		<item>버튼 G</item>
-		<item>버튼 H</item>
+		<item>BTN1</item>
+		<item>BTN2</item>
+		<item>BTN3</item>
+		<item>BTN4</item>
+		<item>BTN5</item>
+		<item>BTN6</item>
+		<item>BTN7</item>
+		<item>BTN8</item>
+		<item>BTN9</item>
+		<item>BTN10</item>
 		<item>코인</item>
 		<item>스타트</item>
 		<item>종료</item>

@@ -1,0 +1,18 @@
+diff --git a/state.h b/state.h
+index 1d7716917..d25d1f995 100644
+--- a/state.h
++++ b/state.h
+@@ -46,6 +46,13 @@ protected:
+ 
+ 	virtual void process_file(std::string &&file_name) = 0;
+ 
++	// DAV HACK
++	// A pad has accept/back bound to BTN1/BTN2, which would swallow the presses
++	// both menus turn into slot names. Combos are safe because they all carry
++	// START, and slot_key_pressed() ignores anything held together with it.
++	bool slot_key_pressed() const;
++	// DAV HACK end
++
+ private:
+ 	class file_entry
+ 	{

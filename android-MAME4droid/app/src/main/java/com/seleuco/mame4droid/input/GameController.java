@@ -82,12 +82,21 @@ public class GameController implements IController {
 	protected static int nextPersistentID = FIRST_PERSISTENT_ID;
 
 	// Standard MAME arcade inputs
-	protected static final int[] emulatorInputValues = {
+	// NOTE: the index of each entry is persisted in PREF_DEFINED_KEYS, so adding
+	// one shifts every mapping: bump the key suffix in PrefsHelper so old saved
+	// layouts are dropped instead of read at the wrong offsets.
+	public static final int[] emulatorInputValues = {
 		UP_VALUE, DOWN_VALUE, LEFT_VALUE, RIGHT_VALUE,
-		A_VALUE, B_VALUE, C_VALUE, D_VALUE,
-		E_VALUE, F_VALUE, G_VALUE, H_VALUE,
+		BTN1_VALUE, BTN2_VALUE, BTN3_VALUE, BTN4_VALUE,
+		BTN5_VALUE, BTN6_VALUE, BTN7_VALUE, BTN8_VALUE,
+		BTN9_VALUE, BTN10_VALUE,
 		COIN_VALUE, START_VALUE, EXIT_VALUE, OPTION_VALUE
 	};
+
+
+	// positions inside emulatorInputValues, used by the Android key fallbacks
+	public static final int INPUT_EXIT = 16;
+	public static final int INPUT_OPTION = 17;
 
 	// Factory default profile. We use Device ID 0 to keep it isolated from user customizations.
 	public static int[] defaultKeyMapping = {
@@ -95,27 +104,33 @@ public class GameController implements IController {
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_DOWN),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_LEFT),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_DPAD_RIGHT),
+		// BTN1 sits on the right of the cluster, like on the touch layout, so it
+		// takes the pad's right button; that leaves BTN2 on the bottom one, where
+		// Android expects "accept" (see IPT_UI_SELECT in osd/myosd/input.cpp)
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_B),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_A),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_X),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_Y),
-		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L1),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_R1),
-		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L2),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L1),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_R2),
+		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_L2),
+		// BTN9/BTN10: no standard keycode for them (the stick clicks are already
+		// taken by Coin/Start), so they are left free for back paddles and such
+		-1, -1,
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_THUMBR),
 		makeKeyCodeWithDeviceID(0,KeyEvent.KEYCODE_BUTTON_THUMBL),
 		makeKeyCodeWithDeviceID(0, KeyEvent.KEYCODE_BACK),
 		makeKeyCodeWithDeviceID(0, KeyEvent.KEYCODE_MENU),
 		// Empty padding for remaining slots...
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	};
 
 	public static int[] keyMapping = new int[emulatorInputValues.length * 4];
 
-	static protected int MAX_DEVICES = 4;
+	static public int MAX_DEVICES = 4;
 	static protected int MAX_KEYS = 250;
 	protected float MY_PI = 3.14159265f;
 
@@ -363,6 +378,32 @@ public class GameController implements IController {
 		return iKeyCode & 0xFFFF;
 	}
 
+	/* A block is one pad's profile, so make it belong to this device before the
+	 * first key is stored in it: gaps take the factory value and leftovers from
+	 * another pad are re-pointed. Without this, mapping a couple of keys silently
+	 * killed the defaults for the whole pad, as any entry marks it as custom. */
+	public static boolean adoptControllerBlock(int controllerIndex, int deviceId) {
+		final int perController = emulatorInputValues.length;
+		final int base = controllerIndex * perController;
+
+		if (base < 0 || base + perController > keyMapping.length)
+			return false;
+
+		for (int i = 0; i < perController; i++) {
+			int entry = keyMapping[base + i];
+			if (entry != -1 && getDeviceIdFromKeyCodeWithDeviceID(entry) == deviceId)
+				return false;   // already this pad's profile, leave it as it is
+		}
+
+		for (int i = 0; i < perController; i++) {
+			int def = (base + i < defaultKeyMapping.length) ? defaultKeyMapping[base + i] : -1;
+			int kCode = (def != -1) ? getKeyCodeFromKeyCodeWithDeviceID(def) : 0;
+			keyMapping[base + i] = (def != -1 && kCode != 0 && kCode != 0xFFFF)
+				? makeKeyCodeWithDeviceID(deviceId, kCode) : -1;
+		}
+		return true;
+	}
+
 
 	// =========================================================================
 	// DYNAMIC CONTROLLER REGISTRATION (The "Seating" Logic)
@@ -491,6 +532,23 @@ public class GameController implements IController {
 			digital_data[i] &= ~data;
 	}
 
+
+	//The physical key that opened the options menu, so the same key can close
+	//it. -1 when it was opened from the touch controls, which have no key.
+	private static int optionKeyCode = -1;
+	private static int optionDeviceId = -1;
+
+	public static void rememberOptionKey(KeyEvent event) {
+		optionKeyCode = (event != null) ? event.getKeyCode() : -1;
+		optionDeviceId = (event != null) ? event.getDeviceId() : -1;
+	}
+
+	public static boolean isOptionKey(KeyEvent event) {
+		return optionKeyCode != -1 && event != null
+			&& event.getKeyCode() == optionKeyCode
+			&& event.getDeviceId() == optionDeviceId;
+	}
+
 	protected boolean handleControllerKey(int value, KeyEvent event, int []digital_data) {
 		int v = emulatorInputValues[value % emulatorInputValues.length];
 
@@ -502,6 +560,7 @@ public class GameController implements IController {
 			}
 		} else if (v == OPTION_VALUE ) {
 			if (event.getAction() == KeyEvent.ACTION_UP && !Emulator.isInOptions()) {
+				rememberOptionKey(event);
 				Emulator.setInOptions(true);
 				mm.showDialog(DialogHelper.DIALOG_OPTIONS);
 			}
@@ -598,16 +657,16 @@ public class GameController implements IController {
 
 			// --- HARDCODED ANDROID FALLBACKS ---
 			if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
-				handleControllerKey(14, event, digital_data);
+				handleControllerKey(INPUT_EXIT, event, digital_data);
 				return true;
 			}
 			if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
-				handleControllerKey(15, event, digital_data);
+				handleControllerKey(INPUT_OPTION, event, digital_data);
 				return true;
 			}
 			if ((event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_START || event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER
 				|| event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT) && !Emulator.isInGame() && mm.getMainHelper().isAndroidTV()) {
-				handleControllerKey(15, event, digital_data);
+				handleControllerKey(INPUT_OPTION, event, digital_data);
 				return true;
 			}
 
@@ -630,6 +689,7 @@ public class GameController implements IController {
 					}
 				} else if (v == OPTION_VALUE) {
 					if (event.getAction() == KeyEvent.ACTION_UP  && !Emulator.isInOptions()) {
+						rememberOptionKey(event);
 						Emulator.setInOptions(true);
 						mm.showDialog(DialogHelper.DIALOG_OPTIONS);
 					}
@@ -889,8 +949,8 @@ public class GameController implements IController {
 	}
 
 	protected void mapL1R1(int id) {
-		deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-		deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+		deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN5_VALUE;		
+		deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN6_VALUE;
 	}
 
 	protected void mapTHUMBS(int id) {
@@ -926,10 +986,10 @@ public class GameController implements IController {
 		if (name.contains("PLAYSTATION(R)3") || name.indexOf("Dualshock3") != -1
 			|| name.contains("Sixaxis") || name.contains("Gasia,Co")) {
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -941,10 +1001,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Gamepad 0") || name.contains("Gamepad 1") || name.contains("Gamepad 2")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -955,10 +1015,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("nvidia_joypad") || name.contains("NVIDIA Controller")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapL1R1(id);
 			mapTHUMBS(id);
@@ -970,10 +1030,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("ipega Extending")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapL1R1(id);
 			mapTHUMBS(id);
@@ -985,10 +1045,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("X-Box") || name.contains("Xbox")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -999,11 +1059,36 @@ public class GameController implements IController {
 			desc = "XBox";
 			detected = true;
 
+		} else if (name.contains("Odin Controller")) {
+			// The Odin's own controller mode swaps both face pairs in firmware
+			// (A<->B and X<->Y), so this profile must not swap them again, unlike
+			// the Xbox one above. Its Xbox mode reports as "Xbox Wireless Controller"
+			// and is handled there. Shoulders and thumbs are not swapped.
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN1_VALUE;//right
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN2_VALUE;//bottom
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN3_VALUE;//left
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN4_VALUE;//top
+
+			mapDPAD(id);
+			mapL1R1(id);
+			mapTHUMBS(id);
+			mapSelectStart(id);
+
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = BTN7_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = BTN8_VALUE;
+
+			//spare buttons the pad reports beyond the usual face cluster
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = BTN9_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = BTN10_VALUE;
+
+			desc = "Odin";
+			detected = true;
+
 		} else if (name.contains("Logitech") && name.contains("Dual Action")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = A_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN1_VALUE;
 
 			mapL1R1(id);
 			mapTHUMBS(id);
@@ -1013,16 +1098,16 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Logitech") && name.contains("RumblePad 2")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN4_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_10][id] = START_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_11][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_12][id] = EXIT_VALUE;
@@ -1031,13 +1116,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Logitech") && name.contains("Precision")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = EXIT_VALUE;
@@ -1049,12 +1134,12 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("TTT THT Arcade console 2P USB Play")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN6_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = START_VALUE;
@@ -1065,10 +1150,10 @@ public class GameController implements IController {
 		} else if (name.contains("TOMMO NEOGEOX Arcade Stick")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = BTN4_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = START_VALUE;
@@ -1079,13 +1164,13 @@ public class GameController implements IController {
 		} else if (name.contains("Onlive Wireless Controller")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BACK][id] = START_VALUE;
@@ -1094,16 +1179,16 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("MadCatz") && name.contains("PC USB Wired Stick")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = E_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = BTN5_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = START_VALUE;
@@ -1112,13 +1197,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Logicool") && name.contains("RumblePad 2")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN3_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = EXIT_VALUE;
@@ -1130,28 +1215,28 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Zeemote") && name.contains("Steelseries free")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_MODE][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = START_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN6_VALUE;
 
 			desc = "Zeemote Steelseries";
 			detected = true;
 
 		} else if (name.contains("HuiJia  USB GamePad")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_10][id] = START_VALUE;
@@ -1160,13 +1245,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Smartjoy Family Super Smartjoy 2")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = START_VALUE;
@@ -1175,13 +1260,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Jess Tech Dual Analog Rumble Pad")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = EXIT_VALUE;
@@ -1192,13 +1277,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Microsoft") && name.contains("Dual Strike")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_9][id] = OPTION_VALUE;
 
@@ -1209,13 +1294,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Microsoft") && name.contains("SideWinder")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = EXIT_VALUE;
@@ -1236,13 +1321,13 @@ public class GameController implements IController {
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_16][id] = LEFT_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_14][id] = RIGHT_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN1_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = EXIT_VALUE;
@@ -1256,13 +1341,13 @@ public class GameController implements IController {
 		} else if (name.contains("MOGA") || name.contains("Moga")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L1][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_SELECT][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_START][id] = START_VALUE;
@@ -1273,10 +1358,10 @@ public class GameController implements IController {
 		} else if (name.contains("OUYA Game Controller")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_MENU][id] = OPTION_VALUE;
 
@@ -1289,13 +1374,13 @@ public class GameController implements IController {
 		} else if (name.contains("DragonRise")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_2][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_3][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_4][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_1][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_5][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_6][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_7][id] = COIN_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_8][id] = START_VALUE;
@@ -1306,13 +1391,13 @@ public class GameController implements IController {
 		} else if (name.contains("Thrustmaster T Mini")) {
 			mapDPAD(id);
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = D_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = A_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN4_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_C][id] = BTN1_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Z][id] = BTN6_VALUE;
 
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = OPTION_VALUE;
 			deviceMappings[KeyEvent.KEYCODE_BUTTON_R1][id] = EXIT_VALUE;
@@ -1324,13 +1409,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("ADC joystick")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = BTN6_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -1342,10 +1427,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("Green Throttle Atlas")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -1358,13 +1443,13 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("joy_key") && mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_AGAMEPAD2) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = E_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = F_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_L2][id] = BTN5_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_R2][id] = BTN6_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);
@@ -1377,10 +1462,10 @@ public class GameController implements IController {
 
 		} else if (name.contains("NYKO PLAYPAD") ||
 			(name.contains("Broadcom Bluetooth HID") && mm.getMainHelper().getDeviceDetected() == MainHelper.DEVICE_SHIELD)) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapL1R1(id);
 			mapTHUMBS(id);
@@ -1392,10 +1477,10 @@ public class GameController implements IController {
 			detected = true;
 
 		} else if (name.contains("BSP-D8")) {
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = B_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = A_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = C_VALUE;
-			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = D_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_A][id] = BTN2_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_B][id] = BTN1_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_X][id] = BTN3_VALUE;
+			deviceMappings[KeyEvent.KEYCODE_BUTTON_Y][id] = BTN4_VALUE;
 
 			mapDPAD(id);
 			mapL1R1(id);

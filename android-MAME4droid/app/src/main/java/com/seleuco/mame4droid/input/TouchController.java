@@ -140,21 +140,21 @@ public class TouchController implements IController {
 
 	int getButtonValue(int i, boolean b) {
 		switch (i) {
-			case 0: return D_VALUE;
+			case 0: return BTN4_VALUE;
 			case 1:
-				// If B+X macro is enabled, return combined bits. A_VALUE is included to trigger UI animations.
-				if (mm.getPrefsHelper().isBplusX() && b) return B_VALUE | A_VALUE | C_VALUE;
-				else return C_VALUE;
-			case 2: return A_VALUE;
-			case 3: return B_VALUE;
-			case 4: return E_VALUE;
-			case 5: return F_VALUE;
+				// If B+X macro is enabled, return combined bits. BTN1_VALUE is included to trigger UI animations.
+				if (mm.getPrefsHelper().isBplusX() && b) return BTN2_VALUE | BTN1_VALUE | BTN3_VALUE;
+				else return BTN3_VALUE;
+			case 2: return BTN1_VALUE;
+			case 3: return BTN2_VALUE;
+			case 4: return BTN5_VALUE;
+			case 5: return BTN6_VALUE;
 			case 6: return EXIT_VALUE;
 			case 7: return OPTION_VALUE;
 			case 8: return COIN_VALUE;
 			case 9: return START_VALUE;
-			case 10: return G_VALUE;
-			case 11: return H_VALUE;
+			case 10: return BTN7_VALUE;
+			case 11: return BTN8_VALUE;
 		}
 		return 0;
 	}
@@ -278,6 +278,7 @@ public class TouchController implements IController {
 												}
 											}, InputHandler.PRESS_WAIT);
 										} else if (iv.getValue() == BTN_OPTION && actionMasked != MotionEvent.ACTION_MOVE && !Emulator.isInOptions()) {
+											GameController.rememberOptionKey(null);
 											Emulator.setInOptions(true);
 											mm.showDialog(DialogHelper.DIALOG_OPTIONS);
 										}
@@ -300,7 +301,7 @@ public class TouchController implements IController {
 							}
 
 							// Exclusive mask for compound buttons
-							if (mm.getPrefsHelper().isBplusX() && (iv.getValue() == BTN_A || iv.getValue() == BTN_B))
+							if (mm.getPrefsHelper().isBplusX() && (iv.getValue() == BTN_1 || iv.getValue() == BTN_2))
 								break;
 						}
 					}
@@ -459,16 +460,16 @@ public class TouchController implements IController {
 
 				// Button visibility filtering based on machine capabilities or user preference
 				int b = v.getValue();
-				if (b == IController.BTN_D && n < 4) handle=false;
-				if (b == IController.BTN_C && n < 3) handle=false;
-				if (b == IController.BTN_B && n < 2) handle=false;
-				if (b == IController.BTN_A && n < 1) handle=false;
+				if (b == IController.BTN_4 && n < 4) handle=false;
+				if (b == IController.BTN_3 && n < 3) handle=false;
+				if (b == IController.BTN_2 && n < 2) handle=false;
+				if (b == IController.BTN_1 && n < 1) handle=false;
 
-				if (b == IController.BTN_E && n < 5) handle=false;
-				if (b == IController.BTN_F && n < 5) handle=false;
+				if (b == IController.BTN_5 && n < 5) handle=false;
+				if (b == IController.BTN_6 && n < 5) handle=false;
 
-				if (b == IController.BTN_G && n < 5 && !mm.getPrefsHelper().isAlwaysGH()) handle=false;
-				if (b == IController.BTN_H && n < 5 && !mm.getPrefsHelper().isAlwaysGH()) handle=false;
+				if (b == IController.BTN_7 && n < 5 && !mm.getPrefsHelper().isAlwaysGH()) handle=false;
+				if (b == IController.BTN_8 && n < 5 && !mm.getPrefsHelper().isAlwaysGH()) handle=false;
 			}
 		}
 		return handle;

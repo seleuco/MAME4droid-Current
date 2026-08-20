@@ -53,14 +53,16 @@ public interface IController {
     final public static int RIGHT_VALUE = 0x40;
     final public static int START_VALUE = 1 << 8;
     final public static int COIN_VALUE = 1 << 9;
-	final public static int A_VALUE = 1 << 10;
-	final public static int B_VALUE = 1 << 11;
-	final public static int C_VALUE = 1 << 12;
-	final public static int D_VALUE = 1 << 13;
-	final public static int E_VALUE = 1 << 14;
-	final public static int F_VALUE = 1 << 15;
-	final public static int G_VALUE = 1 << 16;
-	final public static int H_VALUE = 1 << 17;
+	final public static int BTN1_VALUE = 1 << 10;
+	final public static int BTN2_VALUE = 1 << 11;
+	final public static int BTN3_VALUE = 1 << 12;
+	final public static int BTN4_VALUE = 1 << 13;
+	final public static int BTN5_VALUE = 1 << 14;
+	final public static int BTN6_VALUE = 1 << 15;
+	final public static int BTN7_VALUE = 1 << 16;
+	final public static int BTN8_VALUE = 1 << 17;
+	final public static int BTN9_VALUE = 1 << 18;
+	final public static int BTN10_VALUE = 1 << 19;
     final public static int EXIT_VALUE = 1 << 20;
     final public static int OPTION_VALUE = 1 << 21;
 
@@ -76,18 +78,18 @@ public interface IController {
 
     final public static int NUM_BUTTONS = 12;
 
-    final public static int BTN_A = 2;
-    final public static int BTN_B = 3;
-    final public static int BTN_C = 1;
-    final public static int BTN_D = 0;
-    final public static int BTN_E = 4;
-    final public static int BTN_F = 5;
+    final public static int BTN_1 = 2;
+    final public static int BTN_2 = 3;
+    final public static int BTN_3 = 1;
+    final public static int BTN_4 = 0;
+    final public static int BTN_5 = 4;
+    final public static int BTN_6 = 5;
     final public static int BTN_EXIT = 6;
     final public static int BTN_OPTION = 7;
     final public static int BTN_COIN = 8;
     final public static int BTN_START = 9;
-	final public static int BTN_G = 10;
-	final public static int BTN_H = 11;
+	final public static int BTN_7 = 10;
+	final public static int BTN_8 = 11;
 
     final public static int BTN_PRESS_STATE = 0;
     final public static int BTN_NO_PRESS_STATE = 1;

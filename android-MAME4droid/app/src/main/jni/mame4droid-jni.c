@@ -69,7 +69,7 @@ char *(*getMyValueStr)(int key,int i)=NULL;
 
 void  (*setAnalogData)(int t, int i, float v1,float v2)=NULL;
 
-void (*setSAFCallbacks)(void *func1,void *func2,void *func3,void *func4) = NULL;
+void (*setSAFCallbacks)(void *func1,void *func2,void *func3,void *func4,void *func5) = NULL;
 
 void (*setFontCallbacks)(void *func1) = NULL;
 
@@ -98,6 +98,7 @@ jmethodID android_closeAudio;
 jmethodID android_initInput;
 jmethodID android_safOpenFile;
 jmethodID android_safReadDir;
+jmethodID android_safDeleteFile;
 jmethodID android_safGetNextDirEntry;
 jmethodID android_safCloseDir;
 jmethodID android_netplayWarn;
@@ -378,6 +379,31 @@ int myJNI_safOpenFile(const char *pathName,const char *mode)
     //(*env)->DeleteLocalRef(env, jstrBuf);
 }
 
+int myJNI_safDeleteFile(const char *pathName)
+{
+    JNIEnv *env;
+    (*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4);
+    int attached  = 0;
+
+    if(pathName!=NULL)
+    {
+        if(env==NULL)
+        {
+            attached  = 1;
+            (*jVM)->AttachCurrentThread(jVM,(void *) &env, NULL);
+        }
+
+        jstring jstrBuf = (*env)->NewStringUTF(env, pathName);
+        jint ret =(*env)->CallStaticIntMethod(env, cEmulator, android_safDeleteFile, jstrBuf);
+
+        if(attached)
+            (*jVM)->DetachCurrentThread(jVM);
+
+        return ret;
+    }
+    return -1;
+}
+
 int myJNI_safReadDir(const char *dirName, int reload)
 {
     JNIEnv *env;
@@ -631,6 +657,7 @@ int JNI_OnLoad(JavaVM* vm, void* reserved)
         return -1;
     }
 
+    android_safDeleteFile = (*env)->GetStaticMethodID(env,cEmulator,"safDeleteFile","(Ljava/lang/String;)I");
     android_safReadDir = (*env)->GetStaticMethodID(env,cEmulator,"safReadDir","(Ljava/lang/String;I)I");
 
     if(android_safReadDir==NULL)
@@ -718,7 +745,7 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_init
 
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni","calling setSAFCallbacks");
     if(setSAFCallbacks!=NULL)
-        setSAFCallbacks(&myJNI_safOpenFile,&myJNI_safReadDir,&myJNI_safGetNextDirEntry,&myJNI_safCloseDir);
+        setSAFCallbacks(&myJNI_safOpenFile,&myJNI_safReadDir,&myJNI_safGetNextDirEntry,&myJNI_safCloseDir,&myJNI_safDeleteFile);
 
     __android_log_print(ANDROID_LOG_INFO, "mame4droid-jni","calling setFontCallbacks");
     if(setFontCallbacks!=NULL)

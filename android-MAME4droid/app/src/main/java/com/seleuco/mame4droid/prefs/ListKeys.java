@@ -117,8 +117,9 @@ public class ListKeys extends ListActivity {
 	 * getInputLabel() against the localized @array/input_labels instead. */
 	public static final String[] emulatorInputLabels = {
 		"Up", "Down", "Left", "Right",
-		"Button A", "Button B", "Button C", "Button D",
-		"Button E", "Button F", "Button G", "Button H",
+		"BTN1", "BTN2", "BTN3", "BTN4",
+		"BTN5", "BTN6", "BTN7", "BTN8",
+		"BTN9", "BTN10",
 		"Coin", "Start", "Exit", "Option",
 	};
 
@@ -169,13 +170,13 @@ public class ListKeys extends ListActivity {
 						layout.setPadding(paddingHorizontal, 0, paddingHorizontal, 0);
 						layout.setMinimumHeight(minHeight);
 
-						// Text("Button A")
+						// Text("BTN1")
 						leftText = new TextView(context);
 						leftText.setId(android.R.id.text1);
 						leftText.setTextAppearance(context, android.R.style.TextAppearance_Medium);
 						leftText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
 
-						// Text ("ID 9999 : BUTTON_A")
+						// Text ("ID 9999 : BTN1")
 						rightText = new TextView(context);
 						rightText.setId(android.R.id.text2);
 						rightText.setTextAppearance(context, android.R.style.TextAppearance_Small);
@@ -235,6 +236,10 @@ public class ListKeys extends ListActivity {
 			int androidKeyCode = data.getIntExtra("androidKeyCode", 0);
 			int androidGamePadID = data.getIntExtra("androidGamePadID", 0);
 			int iKeyCodeWithDeviceId = GameController.makeKeyCodeWithDeviceID(androidGamePadID, androidKeyCode);
+
+			// make this block belong to the pad being mapped, seeded with the
+			// factory values, so the keys left untouched keep working
+			GameController.adoptControllerBlock(controllerIndex, androidGamePadID);
 
 			for (int i = 0; i < GameController.keyMapping.length; i++) {
 				if (GameController.keyMapping[i] == iKeyCodeWithDeviceId)

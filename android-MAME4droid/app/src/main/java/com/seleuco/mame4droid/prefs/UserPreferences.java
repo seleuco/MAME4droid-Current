@@ -59,6 +59,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
+import android.view.KeyEvent;
 
 import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.R;
@@ -398,9 +399,39 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 			}
 	    }
 
+		/* The options menu button closes the settings and goes back to the game,
+		 * mirroring what it does on the floating menu. Nested PreferenceScreens
+		 * are dialogs with their own window, so they need the listener too. */
+		private final DialogInterface.OnKeyListener optionKeyCloser =
+			new DialogInterface.OnKeyListener() {
+				@Override
+				public boolean onKey(DialogInterface d, int keyCode, KeyEvent event) {
+					if (!GameController.isOptionKey(event)) return false;
+					if (event.getAction() == KeyEvent.ACTION_UP) {
+						d.dismiss();
+						finish();
+					}
+					return true;
+				}
+			};
+
+		@Override
+		public boolean dispatchKeyEvent(KeyEvent event) {
+			if (GameController.isOptionKey(event)) {
+				if (event.getAction() == KeyEvent.ACTION_UP) finish();
+				return true;
+			}
+			return super.dispatchKeyEvent(event);
+		}
+
 		@Override
 		public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen,
 				Preference pref) {
+
+			if (pref instanceof PreferenceScreen) {
+				Dialog d = ((PreferenceScreen) pref).getDialog();
+				if (d != null) d.setOnKeyListener(optionKeyCloser);
+			}
 
 			if (pref.getKey().equals("defineKeys")) {
 				startActivityForResult(new Intent(this, DefineKeys.class), 1);

@@ -506,14 +506,16 @@
 		<item>Down</item>
 		<item>Left</item>
 		<item>Right</item>
-		<item>Button A</item>
-		<item>Button B</item>
-		<item>Button C</item>
-		<item>Button D</item>
-		<item>Button E</item>
-		<item>Button F</item>
-		<item>Button G</item>
-		<item>Button H</item>
+		<item>BTN1</item>
+		<item>BTN2</item>
+		<item>BTN3</item>
+		<item>BTN4</item>
+		<item>BTN5</item>
+		<item>BTN6</item>
+		<item>BTN7</item>
+		<item>BTN8</item>
+		<item>BTN9</item>
+		<item>BTN10</item>
 		<item>Coin</item>
 		<item>Start</item>
 		<item>Exit</item>
