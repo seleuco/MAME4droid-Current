@@ -273,7 +273,7 @@
     <string name="pref_emu_res_title">에뮬레이트 해상도</string>
     <string name="pref_osd_res_title">프론트엔드 해상도</string>
     <string name="pref_speed_hacks_title">속도 핵</string>
-    <string name="pref_speed_hacks_summary">K.Instinct, M.Kombat, CPS3 같은 게임에서 더 나은 성능을 얻으려면 활성화하세요. 다른 게임은 제대로 작동하지 않거나 작동하지 않을 수 있으므로 해당 게임을 플레이할 때만 활성화해야 합니다.</string>
+    <string name="pref_speed_hacks_summary">저사양 기기에서 특정 게임이나 시스템이 더 빠르게 실행되도록 하는 속도 향상 핵</string>
     <string name="pref_sound_title">사운드</string>
     <string name="pref_show_fps_title">FPS 표시</string>
     <string name="pref_show_fps_summary">FPS 표시를 켜려면 활성화하세요</string>

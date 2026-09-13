@@ -516,9 +516,6 @@ public class MainHelper {
 		Emulator.setValue(Emulator.MAMEINI, mm.getPrefsHelper()
 			.isUsedMAMEini() ? 1 : 0);
 
-		Emulator.setValue(Emulator.SPEED_HACKS, mm.getPrefsHelper()
-			.isSpeedHacks() ? 1 : 0);
-
 		Emulator.setValue(Emulator.AUTOFIRE, mm.getPrefsHelper()
 			.isAutofire() ? 1 : 0);
 
@@ -777,6 +774,12 @@ galaxy sde	   --> 2560x1600 16:10
         if (ControlCustomizer.isEnabled()) {
             // mm.getEmuView().setVisibility(View.INVISIBLE);
             // mm.getInputView().requestFocus();
+        }
+
+        if (Emulator.isEmulating()) {
+            for (int id : mm.getPrefsHelper().getEnabledSpeedhacks()) {
+                Emulator.toggleSpeedhack(id, true);
+            }
         }
 /*
         int op = mm.getMainHelper().getControllerAlpha();

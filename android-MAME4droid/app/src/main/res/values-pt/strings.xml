@@ -273,7 +273,7 @@
     <string name="pref_emu_res_title">Resolução emulada</string>
     <string name="pref_osd_res_title">Resolução do frontend</string>
     <string name="pref_speed_hacks_title">Hacks de velocidade</string>
-    <string name="pref_speed_hacks_summary">Ative para obter melhor desempenho em jogos como K.Instinct, M.Kombat ou CPS3. Você só deve ativar para jogar esses jogos, pois outros podem funcionar mal ou não funcionar.</string>
+    <string name="pref_speed_hacks_summary">Hacks de velocidade que fazem algums jogos ou sistemas específicos rodar mais rápido em celulares de baixa potência</string>
     <string name="pref_sound_title">Som</string>
     <string name="pref_show_fps_title">Mostrar FPS</string>
     <string name="pref_show_fps_summary">Ative para ligar a exibição de FPS</string>

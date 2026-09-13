@@ -91,6 +91,14 @@ int64_t (*getFrameWorkNs)(void) = NULL;
 
 void (*setRendererParameters)(const char**, const char**, int) = NULL;
 
+struct speedhack {
+    int id;
+    const char* title;
+    const char* desc;
+};
+struct speedhack* (*getSpeedhacks)(int*) = NULL;
+void (*toggleSpeedhack)(int, bool) = NULL;
+
 /* Callbacks to Android */
 jmethodID android_dumpVideo;
 jmethodID android_changeVideo;
@@ -214,6 +222,12 @@ static void load_lib(const char *str)
 
     setRendererParameters = dlsym(libdl, "gles3_renderer_setParameters");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "gles3_renderer_setParameters %d\n", setRendererParameters != NULL);
+
+    getSpeedhacks = dlsym(libdl, "myosd_get_speedhacks");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "getSpeedhacks %d\n", getSpeedhacks != NULL);
+
+    toggleSpeedhack = dlsym(libdl, "myosd_toggle_speedhack");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "toggleSpeedhack %d\n", toggleSpeedhack != NULL);
 
     netplayInit = dlsym(libdl, "netplayInit");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplayInit %d\n", netplayInit != NULL);
@@ -1108,6 +1122,47 @@ JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_setRendererParameter
     free(values);
     free(jKeyStrs);
     free(jValStrs);
+}
+
+JNIEXPORT jobjectArray JNICALL Java_com_seleuco_mame4droid_Emulator_getSpeedhacks(JNIEnv * env, jclass clazz) {
+    jclass speedhackClass =(*env)->FindClass(env, "com/seleuco/mame4droid/Emulator$Speedhack");
+
+    jmethodID ctor = (*env)->GetMethodID(env,
+            speedhackClass,
+            "<init>",
+            "(ILjava/lang/String;Ljava/lang/String;)V"
+    );
+
+    int count;
+    struct speedhack* speedhacks = getSpeedhacks(&count);
+
+    jobjectArray result = (*env)->NewObjectArray(env, count, speedhackClass, NULL);
+
+    for (int i = 0; i < count; i++)
+    {
+        jstring title = (*env)->NewStringUTF(env, speedhacks[i].title);
+        jstring desc  = (*env)->NewStringUTF(env, speedhacks[i].desc);
+
+        jobject speedhack = (*env)->NewObject(env,
+                speedhackClass,
+                ctor,
+                speedhacks[i].id,
+                title,
+                desc
+        );
+
+        (*env)->SetObjectArrayElement(env, result, i, speedhack);
+
+        (*env)->DeleteLocalRef(env, title);
+        (*env)->DeleteLocalRef(env, desc);
+        (*env)->DeleteLocalRef(env, speedhack);
+    }
+
+    return result;
+}
+
+JNIEXPORT void JNICALL Java_com_seleuco_mame4droid_Emulator_toggleSpeedhack(JNIEnv * env, jclass clazz, jint id, jboolean flag) {
+    toggleSpeedhack(id, flag);
 }
 
 JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_netplayInit

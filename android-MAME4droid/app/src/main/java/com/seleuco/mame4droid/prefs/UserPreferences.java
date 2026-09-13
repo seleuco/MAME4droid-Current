@@ -110,6 +110,8 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 
 	protected ListPreference mPrefLanguage;
 
+	private PreferenceScreen mPrefSpeedhacks;
+
 	@Override
 	protected void attachBaseContext(Context newBase) {
 		com.seleuco.mame4droid.helpers.LocaleHelper.applyLocale(this, newBase);
@@ -176,6 +178,8 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 		mPrefNetplayIpProto = (ListPreference)getPreferenceScreen().findPreference(PrefsHelper.PREF_NETPLAY_IP_PROTOCOL);
 
 		mPrefLanguage = (ListPreference)getPreferenceScreen().findPreference(com.seleuco.mame4droid.helpers.LocaleHelper.PREF_LANGUAGE);
+
+		mPrefSpeedhacks = (PreferenceScreen)getPreferenceScreen().findPreference(PrefsHelper.PREF_SPEED_HACKS);
 	}
 
 	  @Override
@@ -227,6 +231,8 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 
 		  	// Set up a listener whenever a key changes
 	        getPreferenceScreen().getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
+
+			populateSpeedhackOptions();
 	    }
 
 	    @Override
@@ -621,6 +627,28 @@ public class UserPreferences extends PreferenceActivity implements OnSharedPrefe
 
 		mPrefShader.setEntries(shaders);
 		mPrefShader.setEntryValues(shaders);
+	}
+
+	private void populateSpeedhackOptions() {
+		var speedhacks = Emulator.getSpeedhacks();
+
+		if (speedhacks.length == 0) {
+			mPrefSpeedhacks.setEnabled(false);
+			return;
+		} else {
+			mPrefSpeedhacks.setEnabled(true);
+		}
+
+		for (Emulator.Speedhack speedhack : speedhacks) {
+			var checkBoxPref = new CheckBoxPrefWithWarn(this);
+			checkBoxPref.setKey("speedhack_id_" + speedhack.id());
+			checkBoxPref.setTitle(speedhack.title());
+			checkBoxPref.setSummary(speedhack.desc());
+			checkBoxPref.setDefaultValue(false);
+			checkBoxPref.setEnabled(true);
+
+			mPrefSpeedhacks.addPreference(checkBoxPref);
+		}
 	}
 
 }

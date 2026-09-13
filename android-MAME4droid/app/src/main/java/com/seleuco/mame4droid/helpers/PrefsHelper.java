@@ -57,6 +57,9 @@ import com.seleuco.mame4droid.Emulator;
 import com.seleuco.mame4droid.MAME4droid;
 import com.seleuco.mame4droid.input.GameController;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_ROMsDIR = "PREF_ROMsDIR_2";
 	final static public String PREF_SAF_URI = "PREF_SAF_URI";
@@ -83,7 +86,7 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 	final static public String PREF_MAMEINI = "PREF_MAMEINI";
 	// Key bumped: users with the old key set to true get reset to the default
 	// (off), since leaving it enabled is a known source of netplay desyncs.
-	final static public String PREF_SPEED_HACKS = "PREF_SPEED_HACKS_2";
+	final static public String PREF_SPEED_HACKS = "speedhacks";
 	final static public String PREF_HISCORE = "PREF_HISCORE";
 	final static public String PREF_INPUTMACRO = "PREF_INPUTMACRO";
 	final static public String PREF_AUTOFIRE = "PREF_AUTOFIRE";
@@ -757,8 +760,24 @@ public class PrefsHelper implements OnSharedPreferenceChangeListener {
 		return getSharedPreferences().getBoolean(PREF_MAMEINI, false);
 	}
 
-	public boolean isSpeedHacks() {
-		return getSharedPreferences().getBoolean(PREF_SPEED_HACKS, false);
+	/**
+	 * Get enabled speed hacks in preferences
+	 * @return list of speedhack's ids that are enabled
+	 */
+	public List<Integer> getEnabledSpeedhacks() {
+		var sharedPrefs = getSharedPreferences();
+		var speedhacks = Emulator.getSpeedhacks();
+
+		ArrayList<Integer> enabledIds = new ArrayList<>();
+
+		for (Emulator.Speedhack speedhack : speedhacks) {
+			boolean enabled = sharedPrefs.getBoolean("speedhack_id_" + speedhack.id(), false);
+			if (enabled) {
+				enabledIds.add(speedhack.id());
+			}
+		}
+
+		return enabledIds;
 	}
 
 	public boolean isAutofire() {

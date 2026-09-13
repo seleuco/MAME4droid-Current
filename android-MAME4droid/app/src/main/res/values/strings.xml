@@ -294,7 +294,7 @@
     <string name="pref_emu_res_title">Emulated resolution</string>
     <string name="pref_osd_res_title">Frontend resolution</string>
     <string name="pref_speed_hacks_title">Speed hacks</string>
-    <string name="pref_speed_hacks_summary">Enable it to get better performance in games like K.Instinct, M.Kombat or CPS3. You should only enable it to play those games because other games may work poorly or not work.</string>
+    <string name="pref_speed_hacks_summary">Speed hacks for specific games/systems that makes them run faster on low-end devices</string>
     <string name="pref_sound_title">Sound</string>
     <string name="pref_show_fps_title">Show FPS</string>
     <string name="pref_show_fps_summary">Enable it to turn FPS display on</string>

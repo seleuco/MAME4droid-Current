@@ -273,7 +273,7 @@
     <string name="pref_emu_res_title">Resolución emulada</string>
     <string name="pref_osd_res_title">Resolución del frontend</string>
     <string name="pref_speed_hacks_title">Trucos de velocidad</string>
-    <string name="pref_speed_hacks_summary">Actívalo para obtener mejor rendimiento en juegos como K.Instinct, M.Kombat o CPS3. Solo deberías activarlo para jugar a esos juegos, ya que otros pueden funcionar mal o no funcionar.</string>
+    <string name="pref_speed_hacks_summary">Trucos de velocidad para juegos o sistemas específicos que permiten que funcionen más rápido en dispositivos de gama baja.</string>
     <string name="pref_sound_title">Sonido</string>
     <string name="pref_show_fps_title">Mostrar FPS</string>
     <string name="pref_show_fps_summary">Actívalo para mostrar los FPS</string>

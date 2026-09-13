@@ -1432,7 +1432,7 @@ void myosd_netplay_rearm_screen_timers()
 }
 
 /* Resync counterpart: finish the interrupted vblank_begin instead of
- * re-firing it whole.  A resync has no FF replay to absorb a duplicated
+ * re-firing it whole.  A resync has no FF replay to absorb a duplicated*/
 
 /* Query the fast-forward suppression flag set above. */
 int myosd_netplay_get_ff_active()

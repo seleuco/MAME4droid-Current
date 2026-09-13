@@ -273,7 +273,7 @@
     <string name="pref_emu_res_title">模拟分辨率</string>
     <string name="pref_osd_res_title">前端分辨率</string>
     <string name="pref_speed_hacks_title">速度优化</string>
-    <string name="pref_speed_hacks_summary">启用以在 K.Instinct、M.Kombat 或 CPS3 等游戏中获得更好的性能。您应仅在玩这些游戏时启用，因为其他游戏可能运行不佳或无法运行。</string>
+    <string name="pref_speed_hacks_summary">针对特定游戏或系统的加速技巧，旨在提升其在低端设备上的运行速度。</string>
     <string name="pref_sound_title">声音</string>
     <string name="pref_show_fps_title">显示 FPS</string>
     <string name="pref_show_fps_summary">启用以打开 FPS 显示</string>

@@ -37,6 +37,7 @@
 #include "video.h"
 #include "myosd.h"
 #include "myosd_netplay.h"
+#include "speedhacks.h"
 
 #include "myosd_platform.h"
 #include <cstring>
@@ -799,6 +800,13 @@ void my_osd_interface::init(running_machine &machine)
     {
         std::vector<myosd_game_info> list = get_game_list(machine);
         m_callbacks.game_list(list.data(), list.size());
+    }
+
+    //Setup speed hacks for each enabled one
+    for (const auto& speedhack : my_speedhacks)
+    {
+	    if (speedhack.enabled)
+		    speedhack.func(const_cast<machine_config&>(machine.config()));
     }
 }
 

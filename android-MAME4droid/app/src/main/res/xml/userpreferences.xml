@@ -908,6 +908,10 @@
 		<EditTextPreference android:title="@string/pref_netplay_lobby_url_title" android:summary="@string/pref_netplay_lobby_url_summary" android:key="PREF_NETPLAY_LOBBY_URL" android:defaultValue="" android:dependency="PREF_NETPLAY_LOBBY" />
     </PreferenceScreen>
 
+	<PreferenceScreen android:key="speedhacks" android:title="@string/pref_speed_hacks_title"
+		android:summary="@string/pref_speed_hacks_summary" android:persistent="false">
+	</PreferenceScreen>
+
     <PreferenceScreen android:key="advanced" android:title="@string/prefscr_advanced_title"
         android:summary="@string/prefscr_advanced_summary" android:persistent="false">
 

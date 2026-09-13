@@ -1175,6 +1175,12 @@ public class Emulator {
 
 	public static native void setRendererParameters(String[] keys, String[] values);
 
+
+	public static record Speedhack(int id, String title, String desc) {}
+
+	public static native Speedhack[] getSpeedhacks();
+	public static native void toggleSpeedhack(int id, boolean flag);
+
 	public static native int netplayInit(String server, int port, int join);
 
 	/** Set the netplay mode: 0 = LOCKSTEP (default), 1 = ROLLBACK.
