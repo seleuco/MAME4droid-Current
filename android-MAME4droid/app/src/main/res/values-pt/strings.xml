@@ -109,7 +109,7 @@
     <string name="np_lobby_stats_games">Os mais procurados: %1$s</string>
     <string name="np_lobby_stats_best">Os mais jogados: %1$s</string>
     <string name="np_lobby_stats_countries">Jogadores de %1$d países</string>
-    <string name="np_lobby_stats_top">top %1$s</string>
+    <string name="np_lobby_stats_top">Top países: %1$s</string>
     <string name="np_lobby_stats_suggest">Crie uma partida com entrada durante o jogo de %1$s e alguém poderá entrar no meio.</string>
     <string name="np_lobby_count">%1$d jogo(s) disponível(is)</string>
     <string name="np_lobby_refresh">Atualizar</string>
@@ -597,4 +597,29 @@
     <string name="shaders_load_error">Não foi possível carregar os shaders de efeitos: o shaders.cfg está ausente. Reinstale o app ou verifique se a pasta de instalação não é somente leitura.</string>
     <string name="pref_frame_pacing_title">Ritmo de frames e dicas de desempenho</string>
     <string name="pref_frame_pacing_summary">Ajusta o refresh da tela ao ritmo do jogo em telas de 90/120 Hz e usa dicas de CPU/térmicas (ADPF) para um desempenho mais fluido e frio. Desative se o aparelho se comportar mal.</string>
+    <!-- Chat rápido: os ids np_chat_N fazem parte do protocolo (só acrescentar, nunca reordenar). -->
+    <string name="np_btn_chat">Enviar mensagem</string>
+    <string name="np_chat_title">Mensagem rápida</string>
+    <string name="np_chat_mute">Silenciar recebidas</string>
+    <string name="np_chat_unmute">Mostrar recebidas</string>
+    <string name="np_chat_you">Você: %1$s</string>
+    <string name="np_chat_peer">💬 %1$s</string>
+    <string name="np_chat_wait">Espere um pouco antes de enviar outra mensagem</string>
+    <string name="np_chat_0">👋 Olá</string>
+    <string name="np_chat_1">🤝 Boa partida</string>
+    <string name="np_chat_2">🙏 Obrigado</string>
+    <string name="np_chat_3">😅 Desculpa</string>
+    <string name="np_chat_4">🎮 Outra partida?</string>
+    <string name="np_chat_5">🔁 Revanche?</string>
+    <string name="np_chat_6">⏸️ Espera um momento</string>
+    <string name="np_chat_7">🪙 Coloque uma moeda e aperte Start</string>
+    <string name="np_chat_8">⚠️ Parece que não estamos sincronizados</string>
+    <string name="np_chat_9">🔄 Aperte \"Ressincronizar estado\"</string>
+    <string name="np_chat_10">🐢 Estou com lag</string>
+    <string name="np_chat_11">👍 Sim</string>
+    <string name="np_chat_12">👎 Não</string>
+    <string name="np_chat_13">✅ Pronto</string>
+    <string name="np_chat_14">👋 Tenho que ir, tchau!</string>
+    <string name="np_chat_15">⚡ Vamos mudar para Rollback</string>
+    <string name="np_chat_16">🔒 Vamos mudar para Lockstep</string>
 </resources>

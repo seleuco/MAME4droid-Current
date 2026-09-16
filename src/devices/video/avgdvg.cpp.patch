@@ -1,5 +1,4 @@
 diff --git a/avgdvg.cpp b/avgdvg.cpp
-index 5d14c00..d18822a 100644
 --- a/avgdvg.cpp
 +++ b/avgdvg.cpp
 @@ -53,11 +53,27 @@
@@ -30,7 +29,7 @@ index 5d14c00..d18822a 100644
  	while (m_vectbuf[i].status == VGCLIP)
  		i++;
  	int xs = m_vectbuf[i].x;
-@@ -74,53 +89,55 @@
+@@ -74,53 +90,55 @@
  			xs = xe;
  			ys = ye;
  

@@ -109,7 +109,7 @@
     <string name="np_lobby_stats_games">인기 게임: %1$s</string>
     <string name="np_lobby_stats_best">가장 많이 플레이한 게임: %1$s</string>
     <string name="np_lobby_stats_countries">%1$d개국의 플레이어</string>
-    <string name="np_lobby_stats_top">상위 %1$s</string>
+    <string name="np_lobby_stats_top">상위 국가: %1$s</string>
     <string name="np_lobby_stats_suggest">%1$s의 중간 참가 방을 만들면 누군가 게임 도중에 들어올 수 있습니다.</string>
     <string name="np_lobby_count">%1$d개의 게임이 있습니다</string>
     <string name="np_lobby_refresh">새로 고침</string>
@@ -597,4 +597,29 @@
     <string name="shaders_load_error">효과 셰이더를 불러올 수 없습니다: shaders.cfg 파일이 없습니다. 앱을 다시 설치하거나 설치 폴더가 읽기 전용이 아닌지 확인하세요.</string>
     <string name="pref_frame_pacing_title">프레임 페이싱 및 성능 힌트</string>
     <string name="pref_frame_pacing_summary">90/120Hz 화면에서 디스플레이 주사율을 게임 속도에 맞추고 ADPF의 CPU/온도 힌트를 사용해 더 부드럽고 시원하게 동작합니다. 기기에서 문제가 생기면 끄세요.</string>
+    <!-- 빠른 채팅: np_chat_N ID는 넷플레이 프로토콜의 일부 (추가만, 순서 변경 금지). -->
+    <string name="np_btn_chat">메시지 보내기</string>
+    <string name="np_chat_title">빠른 메시지</string>
+    <string name="np_chat_mute">받은 메시지 숨기기</string>
+    <string name="np_chat_unmute">받은 메시지 표시</string>
+    <string name="np_chat_you">나: %1$s</string>
+    <string name="np_chat_peer">💬 %1$s</string>
+    <string name="np_chat_wait">다음 메시지를 보내기 전에 잠시 기다려 주세요</string>
+    <string name="np_chat_0">👋 안녕하세요</string>
+    <string name="np_chat_1">🤝 좋은 게임이었어요</string>
+    <string name="np_chat_2">🙏 고마워요</string>
+    <string name="np_chat_3">😅 미안해요</string>
+    <string name="np_chat_4">🎮 한 판 더 할까요?</string>
+    <string name="np_chat_5">🔁 리매치?</string>
+    <string name="np_chat_6">⏸️ 잠깐만요</string>
+    <string name="np_chat_7">🪙 코인 넣고 스타트를 눌러요</string>
+    <string name="np_chat_8">⚠️ 동기화가 어긋난 것 같아요</string>
+    <string name="np_chat_9">🔄 \"상태 재동기화\"를 눌러요</string>
+    <string name="np_chat_10">🐢 렉이 걸려요</string>
+    <string name="np_chat_11">👍 네</string>
+    <string name="np_chat_12">👎 아니요</string>
+    <string name="np_chat_13">✅ 준비됐어요</string>
+    <string name="np_chat_14">👋 이제 가봐야 해요, 안녕!</string>
+    <string name="np_chat_15">⚡ 롤백으로 바꿔요</string>
+    <string name="np_chat_16">🔒 록스텝으로 바꿔요</string>
 </resources>

@@ -1,5 +1,4 @@
 diff --git a/moptions.cpp b/moptions.cpp
-index ebc38ea..fc2af3f 100644
 --- a/moptions.cpp
 +++ b/moptions.cpp
 @@ -53,7 +53,10 @@

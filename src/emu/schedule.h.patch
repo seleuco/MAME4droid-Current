@@ -1,15 +1,14 @@
 diff --git a/schedule.h b/schedule.h
-index b8515c0..044eb38 100644
 --- a/schedule.h
 +++ b/schedule.h
 @@ -120,6 +120,12 @@
  	void perfect_quantum(const attotime &duration);
  	void suspend_resume_changed() { m_suspend_changes_pending = true; }
  
-+// DAV HACK.
-+	attotime basetime() const noexcept { return m_basetime; }	
++// DAV HACK: netplay rollback needs the basetime and a way to clear the
++// temporary quanta a deferred savestate load leaves behind.
++	attotime basetime() const noexcept { return m_basetime; }
 +	void clear_temporary_quanta();
-+	void canonicalize_timer_order();
 +// END DAV HACK
 +
  	// timers, specified by callback/name

@@ -1,27 +1,32 @@
 diff --git a/screen.cpp b/screen.cpp
-index df19df7..3d5ff4a 100644
 --- a/screen.cpp
 +++ b/screen.cpp
-@@ -1714,6 +1714,22 @@
- 	m_frame_number++;
- }
+@@ -1671,6 +1671,12 @@
+ //  signal the VBLANK period has begun
+ //-------------------------------------------------
  
-+// DAV HACK
-+// Netplay rollback: a deferred reload restores the machine to mid-vblank_begin
-+// (capture happens inside frame_update()/input_update(), before the one-shot
-+// timers re-arm), with m_vblank_begin_timer left disabled.  Re-arming it for
-+// the NEXT vblank would shift the whole fast-forward replay one frame late.
-+// Firing it again NOW, at the restored vblank time, replays that same
-+// frame_update()/input_update() call and re-arms the follow-up timers via its
-+// own tail, preserving the exact frame<->emulated-time phase of the original run.
-+void screen_device::netplay_rearm_vblank()
-+{
-+	if (m_vblank_begin_timer == nullptr)
-+		return;
-+
-+	m_vblank_begin_timer->adjust(attotime::zero);
-+}
++// DAV HACK: clean-boundary capture -- arm a rollback ring capture at the next
++// clean scheduler boundary, called from vblank_end on the primary screen (the
++// frame tail, IRQ queue drained + field bit settled).  No-op outside netplay.
++extern "C" void myosd_netplay_arm_boundary_capture(void);
 +// END DAV HACK
++
+ TIMER_CALLBACK_MEMBER(screen_device::vblank_begin)
+ {
+ 	// reset the starting VBLANK time
+@@ -1715,8 +1721,14 @@
+ 
+ 	// increment the frame number counter
+ 	m_frame_number++;
+-}
+ 
++// DAV HACK: clean-boundary rollback capture -- arm a ring capture for the frame
++// tail (drained/coherent state) at the next scheduler boundary.  Primary screen
++// only, once per frame; no-op unless the netplay bridge flag is enabled.
++	if (m_is_primary_screen)
++		myosd_netplay_arm_boundary_capture();
++// END DAV HACK
++}
  
  //-------------------------------------------------
  //  create_composited_bitmap - composite scanline

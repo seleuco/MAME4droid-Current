@@ -88,7 +88,9 @@ public sealed class LobbyOptions
      * narrow it once a single week stands up on its own. */
     public int StatsWindowDays { get; set; } = 30;
     public int StatsTopGames { get; set; } = 3;
-    public int StatsTopCountries { get; set; } = 3;
+    /* Countries get a line of their own on the board, so the row has space for
+     * many more than the games ranking does -- as many as there are, up to ten. */
+    public int StatsTopCountries { get; set; } = 10;
 
     /* Most played gets a longer list of its own: it is a leaderboard, not a
      * flourish, and a name only earns a place there by being finished. One is
@@ -117,7 +119,7 @@ public sealed class LobbyOptions
      * are better left unsaid than said honestly. */
     public int StatsMinRooms { get; set; } = 10;
     public int StatsMinPlayed { get; set; } = 3;
-    public int StatsMinCountries { get; set; } = 5;
+    public int StatsMinCountries { get; set; } = 3;
     public int StatsMinGames { get; set; } = 3;
 
     public RateLimitOptions RateLimits { get; set; } = new();

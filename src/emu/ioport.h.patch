@@ -1,0 +1,34 @@
+diff --git a/ioport.h b/ioport.h
+--- a/ioport.h
++++ b/ioport.h
+@@ -399,6 +399,9 @@
+ class digital_joystick
+ {
+ 	DISABLE_COPYING(digital_joystick);
++	// DAV HACK
++	friend class ioport_manager; // netplay_state_io (rollback snapshot)
++	// END DAV HACK
+ 
+ public:
+ 	// directions
+@@ -889,6 +892,9 @@
+ // live device field information
+ class dynamic_field
+ {
++	// DAV HACK
++	friend class ioport_manager; // netplay_state_io (rollback snapshot)
++	// END DAV HACK
+ public:
+ 	// construction/destruction
+ 	dynamic_field(ioport_field &field);
+@@ -960,6 +966,10 @@
+ 	digital_joystick &digjoystick(int player, int joysticknum);
+ 	int count_players() const noexcept;
+ 	s32 frame_interpolate(s32 oldval, s32 newval);
++	// DAV HACK
++	// netplay rollback: live input state that is not a save_item (see ioport.cpp)
++	size_t netplay_state_io(u8 *dst, const u8 *src);
++	// END DAV HACK
+ 	ioport_type token_to_input_type(const char *string, int &player) const;
+ 	std::string input_type_to_token(ioport_type type, int player);
+ 

@@ -1,0 +1,89 @@
+diff --git a/ioport.cpp b/ioport.cpp
+--- a/ioport.cpp
++++ b/ioport.cpp
+@@ -2215,6 +2215,85 @@
+ }
+ 
+ 
++// DAV HACK
++//-------------------------------------------------
++//  netplay_state_io - netplay rollback snapshot of
++//  the live input state (not save_items)
++//-------------------------------------------------
++
++size_t ioport_manager::netplay_state_io(u8 *dst, const u8 *src)
++{
++	// The frame latch, analog accumulators and interpolation base, 4-way history,
++	// dynamic-write edges and toggle/impulse state live outside the savestate, so a
++	// rollback load would replay against stale values.  dst saves, src loads,
++	// neither just sizes: one walk for all three keeps the layout identical.
++	size_t pos = 0;
++	auto io = [&pos, dst, src] (void *value, size_t len)
++	{
++		u8 *const bytes = reinterpret_cast<u8 *>(value);
++		for (size_t i = 0; i < len; i++)
++		{
++			if (dst)
++				dst[pos + i] = bytes[i];
++			else if (src)
++				bytes[i] = src[pos + i];
++		}
++		pos += len;
++	};
++	auto io_bool = [&io, src] (bool &value)
++	{
++		u8 byte = value ? 1 : 0;
++		io(&byte, 1);
++		if (src)
++			value = (byte != 0);
++	};
++
++	seconds_t secs = m_last_frame_time.seconds();
++	attoseconds_t attos = m_last_frame_time.attoseconds();
++	io(&secs, sizeof(secs));
++	io(&attos, sizeof(attos));
++	if (src)
++		m_last_frame_time = attotime(secs, attos);
++	io(&m_last_delta_nsec, sizeof(m_last_delta_nsec));
++
++	for (digital_joystick &joystick : m_joystick_list)
++	{
++		io(&joystick.m_current, sizeof(joystick.m_current));
++		io(&joystick.m_current4way, sizeof(joystick.m_current4way));
++		io(&joystick.m_previous, sizeof(joystick.m_previous));
++	}
++
++	for (auto &port : m_portlist)
++	{
++		ioport_port_live &live = port.second->live();
++		io(&live.defvalue, sizeof(live.defvalue));
++		io(&live.digital, sizeof(live.digital));
++		io(&live.outputvalue, sizeof(live.outputvalue));
++		for (dynamic_field &dynfield : live.readlist)
++			io(&dynfield.m_oldval, sizeof(dynfield.m_oldval));
++		for (dynamic_field &dynfield : live.writelist)
++			io(&dynfield.m_oldval, sizeof(dynfield.m_oldval));
++		for (analog_field &analog : live.analoglist)
++		{
++			io(&analog.m_accum, sizeof(analog.m_accum));
++			io(&analog.m_previous, sizeof(analog.m_previous));
++			io(&analog.m_previousanalog, sizeof(analog.m_previousanalog));
++			io_bool(analog.m_lastdigital);
++		}
++		for (ioport_field &field : port.second->fields())
++		{
++			ioport_field_live &fieldlive = field.live();
++			io(&fieldlive.value, sizeof(fieldlive.value));
++			io(&fieldlive.impulse, sizeof(fieldlive.impulse));
++			io_bool(fieldlive.last);
++			io_bool(fieldlive.toggle);
++		}
++	}
++	return pos;
++}
++// END DAV HACK
++
++
+ //-------------------------------------------------
+ //  load_config - callback to extract configuration
+ //  data from the XML nodes

@@ -1,5 +1,4 @@
 diff --git a/machine.cpp b/machine.cpp
-index e32d8f7..caa1157 100644
 --- a/machine.cpp
 +++ b/machine.cpp
 @@ -8,6 +8,7 @@
@@ -10,7 +9,7 @@ index e32d8f7..caa1157 100644
  #include "emu.h"
  
  #include "config.h"
-@@ -44,6 +45,13 @@
+@@ -45,6 +46,13 @@
  #include <emscripten.h>
  #endif
  
@@ -24,7 +23,7 @@ index e32d8f7..caa1157 100644
  
  
  //**************************************************************************
-@@ -163,6 +171,15 @@
+@@ -169,6 +177,15 @@
  	// initialize the base time (needed for doing record/playback)
  	::time(&m_base_time);
  
@@ -40,7 +39,7 @@ index e32d8f7..caa1157 100644
  	// initialize the input system and input ports for the game
  	// this must be done before memory_init in order to allow specifying
  	// callbacks based on input port tags
-@@ -357,6 +374,12 @@
+@@ -423,6 +440,12 @@
  			// handle save/load
  			if (m_saveload_schedule != saveload_schedule::NONE)
  				handle_saveload();
@@ -53,7 +52,7 @@ index e32d8f7..caa1157 100644
  		}
  		m_manager.http()->clear();
  
-@@ -1289,6 +1312,17 @@
+@@ -1355,6 +1378,17 @@
  {
  	// FIXME: this crashes if localtime or gmtime returns nullptr
  	time = t;

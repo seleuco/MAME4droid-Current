@@ -54,6 +54,7 @@ void (*setNetplayWarnCallback)(void *func1) = NULL;
 void (*netplaySetMode)(int mode) = NULL;
 void (*netplaySetDesyncDetectorEnabled)(int enabled) = NULL;
 int (*netplayResync)(void) = NULL;
+int (*netplaySendChat)(int phrase) = NULL;
 void (*netplaySetPunchAddr)(const char *addr, int port) = NULL;
 void (*netplaySetInternetMode)(int on) = NULL;
 void (*netplaySetIpFamily)(int mode) = NULL;
@@ -229,6 +230,9 @@ static void load_lib(const char *str)
 
     netplayResync = dlsym(libdl, "netplayResync");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplayResync %d\n", netplayResync != NULL);
+
+    netplaySendChat = dlsym(libdl, "netplaySendChat");
+    __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplaySendChat %d\n", netplaySendChat != NULL);
 
     netplaySetPunchAddr = dlsym(libdl, "netplaySetPunchAddr");
     __android_log_print(ANDROID_LOG_DEBUG, "mame4droid-jni", "netplaySetPunchAddr %d\n", netplaySetPunchAddr != NULL);
@@ -1153,6 +1157,17 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_netplayResync
     if (netplayResync != NULL)
         return (jint)netplayResync();
     __android_log_print(ANDROID_LOG_WARN, "mame4droid-jni", "netplayResync symbol not found!");
+    return 0;
+}
+
+/* Quick chat: send predefined phrase `phrase` (netplaySendChat in the .so).
+ * Returns 1 if sent, 0 if no live peer or rate-limited. */
+JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_netplaySendChat
+  (JNIEnv *env, jclass c, jint phrase)
+{
+    if (netplaySendChat != NULL)
+        return (jint)netplaySendChat((int)phrase);
+    __android_log_print(ANDROID_LOG_WARN, "mame4droid-jni", "netplaySendChat symbol not found!");
     return 0;
 }
 

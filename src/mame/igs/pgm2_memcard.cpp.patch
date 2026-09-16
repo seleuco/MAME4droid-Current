@@ -1,0 +1,16 @@
+diff --git a/pgm2_memcard.cpp b/pgm2_memcard.cpp
+--- a/pgm2_memcard.cpp
++++ b/pgm2_memcard.cpp
+@@ -26,6 +26,12 @@
+ 	: device_t(mconfig, PGM2_MEMCARD, tag, owner, clock)
+ 	, device_memcard_image_interface(mconfig, *this)
+ {
++	// DAV HACK: zero-initialise the card SRAM (same latent bug as ng_memcard):
++	// upstream leaves m_memcard_data uninitialised with no image mounted, so each
++	// machine boots with different heap garbage -> instant netplay desync. A real
++	// mounted card is filled afterwards by call_load, so nothing is lost.
++	memset(m_memcard_data, 0, sizeof(m_memcard_data));
++	// END DAV HACK
+ }
+ 
+ 

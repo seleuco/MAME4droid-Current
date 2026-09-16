@@ -174,6 +174,8 @@ public class LobbyBoardDialog {
 
         dialog = builder.create();
         dialog.show();
+        /* Gamepad default: Refresh is harmless; Dismiss would close the board. */
+        NetPlayHelper.focusButton(dialog, DialogInterface.BUTTON_NEUTRAL);
 
         /* Refresh without dismissing: the stock button would close the board
          * on every tap. Dropping the ETag asks for the whole list again, so a
@@ -517,13 +519,14 @@ public class LobbyBoardDialog {
                     join(recent.games)), 13, Color.LTGRAY));
 
         if (recent.countries > 0) {
-            String where = mm.getString(R.string.np_lobby_stats_countries, recent.countries);
-            /* Labelled, or three flags after "players from 14 countries" read
-             * as the whole list rather than the busiest of it. */
+            box.addView(line(mm.getString(R.string.np_lobby_stats_countries, recent.countries),
+                    13, Color.LTGRAY));
+            /* Its own labelled line: flags trailing the count read as the whole
+             * list rather than the busiest of it, and five crowd the row. */
             String flags = flagsOf(recent.flags);
-            box.addView(line(flags.length() > 0
-                    ? where + "   " + mm.getString(R.string.np_lobby_stats_top, flags)
-                    : where, 13, Color.LTGRAY));
+            if (flags.length() > 0)
+                box.addView(line(mm.getString(R.string.np_lobby_stats_top, flags),
+                        13, Color.LTGRAY));
         }
 
         /* Suggested off what people finish, not what they open rooms for: a
@@ -743,11 +746,11 @@ public class LobbyBoardDialog {
         String title = Emulator.netplayGetDriverDesc(room.game);
         if (title == null || title.length() == 0) title = room.game;
 
-        new AlertDialog.Builder(mm)
+        NetPlayHelper.focusPositive(new AlertDialog.Builder(mm)
                 .setTitle(mm.getString(R.string.np_lobby_rom_title))
                 .setMessage(mm.getString(R.string.np_lobby_rom_missing, room.game, title))
                 .setPositiveButton(mm.getString(R.string.ok), null)
-                .show();
+                .show());
     }
 
     /**
@@ -768,7 +771,7 @@ public class LobbyBoardDialog {
         box.setPadding((int) (20 * density), (int) (8 * density), (int) (20 * density), 0);
         box.addView(input);
 
-        new AlertDialog.Builder(mm)
+        NetPlayHelper.focusPositive(new AlertDialog.Builder(mm)
                 .setTitle(mm.getString(R.string.np_lobby_pin_title))
                 .setMessage(mm.getString(R.string.np_lobby_pin_prompt))
                 .setView(box)
@@ -778,7 +781,7 @@ public class LobbyBoardDialog {
                     }
                 })
                 .setNegativeButton(mm.getString(R.string.cancel), null)
-                .show();
+                .show());
     }
 
     /**

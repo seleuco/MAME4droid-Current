@@ -1,8 +1,7 @@
 diff --git a/osdobj_common.cpp b/osdobj_common.cpp
-index 2e2b198cd..05ae00f71 100644
 --- a/osdobj_common.cpp
 +++ b/osdobj_common.cpp
-@@ -212,6 +212,44 @@ osd_common_t::~osd_common_t()
+@@ -213,6 +213,44 @@
  
  void osd_common_t::register_options()
  {
@@ -47,7 +46,7 @@ index 2e2b198cd..05ae00f71 100644
  	REGISTER_MODULE(m_mod_man, FONT_OSX);
  	REGISTER_MODULE(m_mod_man, FONT_WINDOWS);
  	REGISTER_MODULE(m_mod_man, FONT_DWRITE);
-@@ -331,6 +369,9 @@ void osd_common_t::register_options()
+@@ -335,6 +373,9 @@
  	REGISTER_MODULE(m_mod_man, OUTPUT_CONSOLE);
  	REGISTER_MODULE(m_mod_man, OUTPUT_NETWORK);
  	REGISTER_MODULE(m_mod_man, OUTPUT_WIN32);

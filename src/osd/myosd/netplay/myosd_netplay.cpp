@@ -31,8 +31,11 @@
 #include "myosd.h"
 
 #include "save.h"      /* ram_state */
+#include "myosd_slim_state.h" /* rollback capture minus immutable bulk regions */
+#include "myosd_save_hacks.h" /* per-game rollback exclusion policy */
 #include "netplay.h"   /* ROLLBACK_MAX_FRAMES */
 #include "hashing.h"   /* util::crc32_creator */
+#include "romload.h"   /* ROMENTRY_ISSYSTEM_BIOS / ROM_GETBIOSFLAGS (bios pin) */
 
 #include <android/log.h>
 #include <mutex>
@@ -84,8 +87,9 @@ int myosd_netplay_consume_menu_request(void) {
  * and the debug diagnostics all touch these).
  * ============================================================ */
 
-/* Ring buffer: one ram_state per slot, indexed by (frame % ROLLBACK_RING_FRAMES). */
-static std::unique_ptr<ram_state> g_rb_states[ROLLBACK_MAX_FRAMES];
+/* Ring buffer: one slim_state per slot, indexed by (frame % ROLLBACK_RING_FRAMES).
+ * slim_state == ram_state minus immutable bulk regions (see myosd_slim_state.h). */
+static std::unique_ptr<myosd_slim_state> g_rb_states[ROLLBACK_MAX_FRAMES];
 static uint32_t                   g_rb_frame_ids[ROLLBACK_MAX_FRAMES];
 static uint32_t                   g_rb_crcs[ROLLBACK_MAX_FRAMES];
 /* Per-slot FORWARD per-item CRC table, lock-step with g_rb_crcs.  Debug-only:
@@ -102,11 +106,6 @@ static attotime                   g_rb_times[ROLLBACK_MAX_FRAMES];
  * race a same-slot save()/load().  Recursive: some entry points nest under
  * an already-locked caller on the same thread. */
 static std::recursive_mutex       g_rb_ring_mutex;
-
-/* Latched by state_capture, serviced at the next clean scheduler boundary
- * (myosd_netplay_service_timer_canon) to apply the forward/rollback timer
- * canonicalization described at NETPLAY_RB_CANONICALIZE_CAPTURE (section 3). */
-static volatile int               g_rb_pending_canon = 0;
 
 /* Set while a rollback fast-forward pass is in progress (see the rollback
  * state machine below, myosd_netplay_input_update).  Checked by
@@ -140,6 +139,7 @@ static bool netplay_iu_rollback_ff_step(netplay_t *handle, bool is_new_mame_fram
 static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_frame);
 static void apply_netplay_input_state(bool is_new_mame_frame, int local_player, const netplay_state_t& local_state, int peer_player, const netplay_state_t& peer_state);
 static inline void netplay_trace_applied(uint32_t frame, const netplay_state_t &loc, const netplay_state_t &peer, const char *src);
+static void netplay_pin_neutral_input(netplay_t *h);
 
 /* Rollback fast-forward state machine: when a prediction mismatch is
  * detected, myosd_netplay_input_update() loads the saved machine state for
@@ -164,13 +164,38 @@ static uint32_t g_rb_ff_armgen  = 0; /* handle->rollback_arm_gen latched when th
 static volatile int g_rb_pending_load       = 0;
 static uint32_t     g_rb_pending_load_frame = 0;
 
-/* Duplicate-new-frame guard: a RESYNC deferred load makes the frame-update
- * path fire TWICE at the loaded instant, and the spurious second fire must
- * be swallowed or the frame<->state pairing slips forever.  Scoped to the
- * post-resync window only (g_dup_window), since a game can legitimately
- * double-fire its own frame-update on its own. */
-static attotime g_last_new_frame_mtime = attotime::never;
-static int      g_dup_window           = 0;
+/* Armed by the primary screen's vblank-OFF callback and serviced at the next
+ * clean boundary: 1 = a ring capture is due.  g_rb_boundary_skip_frame
+ * suppresses the one capture right after a deferred load (that slot already
+ * holds the canonical loaded state). */
+static volatile int g_rb_capture_pending    = 0;
+static uint32_t     g_rb_boundary_skip_frame = 0xffffffffu;
+
+/* Drop-in handover: the ring capture skips frame 0, so netplay.cpp arms this to
+ * make the next clean boundary capture the handover frame; boot_slot_clean
+ * latches when done so it can serialize a slot that loads without a re-arm. */
+static volatile int g_rb_boot_capture_pending = 0;
+static volatile int g_rb_boot_slot_clean      = 0;
+
+/* Duplicate-new-frame guard: a resync deferred load can fire frame_update twice
+ * for the same video frame; keyed on the screen frame_number (not machine time,
+ * which differs between the two fires) it swallows the spurious one so exactly
+ * one netplay frame maps to each video frame.  Scoped to g_dup_window. */
+static uint64_t g_last_new_frame_vframe = UINT64_MAX;
+static int      g_dup_window            = 0;
+
+/* Post-resync phase diagnostic (NLOG-gated): after a handover load applies, log
+ * netplay frame vs screen video frame_number on both peers; if the roles map a
+ * netplay frame to different video frames, the desync is a 1-frame phase slip. */
+static int      g_resync_phase_trace   = 0;
+
+static uint64_t netplay_primary_screen_frame(void)
+{
+    if (osdInterface == nullptr || !osdInterface->isMachine())
+        return 0;
+    screen_device *s = screen_device_enumerator(osdInterface->machine().root_device()).first();
+    return s ? (uint64_t)s->frame_number() : 0;
+}
 
 /* Dynamic rate control state (see NETPLAY_RATE_* in netplay.h).  Lives on
  * the stall-loop exit path below; persists across frames.
@@ -188,8 +213,13 @@ bool myosd_netplay_input_update(netplay_t *handle, bool is_new_mame_frame, bool 
     netplay_track_connection(handle);
     netplay_iu_on_game_start(handle, is_java_paused);
 
-    if (netplay_initial_sync(handle))
+    if (netplay_initial_sync(handle)) {
+        /* No frame input applies on this call, so g_input still holds the raw
+         * local pad that MACHINE_NOTIFY_FRAME latches next -- and the field after
+         * a handover load reads that latch.  Pin neutral, identical on both peers. */
+        netplay_pin_neutral_input(handle);
         return true;
+    }
 
     netplay_start_barrier(handle);
 
@@ -254,28 +284,99 @@ extern "C" void myosd_netplay_service_deferred_load(void)
         uint32_t f = g_rb_pending_load_frame;
         g_rb_pending_load = 0;
         myosd_netplay_state_load(f);
-        /* Arm the duplicate-new-frame guard ONLY for a RESYNC load: a normal
-         * rollback load is followed by the FF replay loop (its own counting),
-         * so it must not get this guard.  A resync load has no FF and goes
-         * straight to the normal path, exactly where the vblank re-fire
-         * slips the pairing. */
+        /* Close the RESYNC episode HERE, the instant the synced state is APPLIED
+         * -- not when it finished assembling.  resync_active poisons incoming DATA
+         * (netplay.cpp); lowering it earlier let a late DATA for the OLD timeline
+         * hit the not-yet-loaded state (the post-handover desync).  No-op for a
+         * normal rollback load, which never sets resync_active. */
+        {
+            netplay_t *rh = netplay_get_handle();
+            if (rh && rh->resync_active) {
+                rh->resync_active = 0;
+                /* Episode over: clear the boot-slot latch so the next drop-in
+                 * re-captures a fresh handover slot instead of a stale one. */
+                g_rb_boot_slot_clean = 0;
+                struct timeval rtv;
+                gettimeofday(&rtv, NULL);
+                rh->resync_last_done_ms =
+                    (uint32_t)((rtv.tv_sec * 1000) + (rtv.tv_usec / 1000));
+                g_resync_phase_trace = 12;   /* arm the post-resync phase diagnostic */
+                NLOG("RESYNC applied (deferred load) netplay_frame=%u video_frame=%llu role=%s",
+                     f, (unsigned long long)netplay_primary_screen_frame(),
+                     rh->player1 ? "HOST" : "CLIENT");
+            }
+        }
+        /* Arm the duplicate-new-frame guard for a resync load only: a normal
+         * rollback (g_rb_ff_active) has the FF loop's own counting.  The host
+         * can fire frame_update twice for the same video frame after the load;
+         * the guard swallows the spurious one so the peers stay aligned. */
         if (!g_rb_ff_active) {
-            g_last_new_frame_mtime = attotime::never;
+            g_last_new_frame_vframe = UINT64_MAX;
             g_dup_window = 2;
         }
-        /* Loading here (clean boundary) leaves the one-shot VBLANK timers
-         * disabled unless re-armed, since the savestate is captured from
-         * inside vblank_begin() before it re-arms them itself -- otherwise
-         * frame_update()/input_update() stop firing and the display freezes. */
-        myosd_netplay_rearm_screen_timers();
+        /* Every slot is captured at the clean vblank tail with the vblank timer
+         * already armed, so it fires naturally on load (no screen re-arm).  Just
+         * suppress the one ring re-capture right after this load: the slot is
+         * already the canonical loaded state. */
+        g_rb_boundary_skip_frame = f;
         NLOG("RB_DEFER load done frame=%u ff_active=%d ff_cur=%u ff_tgt=%u",
              f, g_rb_ff_active, g_rb_ff_current, g_rb_ff_target);
     }
 
-    /* Forward timer-order canonicalization (runs every frame that latched a
-     * capture, both normal play and FF).  Independent of the rollback load
-     * above so it also applies on clean forward frames.                        */
-    myosd_netplay_service_timer_canon();
+    /* Clean-boundary capture: serviced only where the screen's vblank-OFF
+     * callback armed g_rb_capture_pending, so the slot lands at the frame tail
+     * (IRQ queue drained, vblank timer armed).  A slot taken at an arbitrary
+     * boundary reloads with no armed vblank timer and starves -- so ring and
+     * drop-in handover slots must both be taken here. */
+    if (g_rb_capture_pending) {
+        g_rb_capture_pending = 0;
+        netplay_t *ch = netplay_get_handle();
+        if (ch && ch->has_begun_game &&
+            ch->mode == NETPLAY_MODE_ROLLBACK && ch->rollback_enabled &&
+            ch->rollback_capture_state) {
+            if (g_rb_boot_capture_pending) {
+                /* Drop-in / boot handover slot: the ring path below skips frame
+                 * 0 and lags the first frames, so the handover frame is captured
+                 * here at the same vblank tail phase and loads with no re-arm.
+                 * initial_sync freezes handle->frame while it waits, so ch->frame
+                 * is the exact frame being handed over. */
+                ch->rollback_capture_state(ch->frame);
+                g_rb_boot_capture_pending = 0;
+                g_rb_boot_slot_clean      = 1;
+            } else {
+                /* Slot = the frame about to run (its pre-execution tail state).
+                 * In fast-forward ch->frame lags, so use g_rb_ff_current or the
+                 * slot lands one frame short and corrupts the ring. */
+                uint32_t cf = g_rb_ff_active ? g_rb_ff_current : ch->frame;
+                if (cf != 0 && cf != g_rb_boundary_skip_frame)
+                    ch->rollback_capture_state(cf);
+            }
+            g_rb_boundary_skip_frame = 0xffffffffu;
+        }
+    }
+}
+
+/* vblank-OFF arm hook for the clean-boundary ring capture (declared in
+ * netplay.h).  Called from screen_device::vblank_end (primary screen) once per
+ * frame so the capture lands at the frame tail instead of mid-vblank_begin. */
+extern "C" void myosd_netplay_arm_boundary_capture(void)
+{
+    g_rb_capture_pending = 1;
+}
+
+/* Drop-in handover clean capture (declared in netplay.h).  netplay_initial_sync
+ * arms it and then waits (returning true from input_update each frame) until
+ * _ready latches, so the handover frame is a coherent vblank-tail slot that
+ * loads with no screen re-arm -- see the boot capture in service_deferred_load. */
+extern "C" void myosd_netplay_arm_boot_slot_capture(void)
+{
+    g_rb_boot_slot_clean      = 0;
+    g_rb_boot_capture_pending = 1;
+}
+
+extern "C" int myosd_netplay_boot_slot_ready(void)
+{
+    return g_rb_boot_slot_clean;
 }
 
 /* Latch a deferred reload; see myosd_netplay.h and myosd_netplay_service_
@@ -366,6 +467,21 @@ static void apply_netplay_input_state(bool is_new_mame_frame, int local_player, 
     g_input.lightgun_y[peer_player]  = peer_state.lightgun_y;
 }
 
+/* Neutral input, identical on both peers, for calls where no frame input is
+ * applied (initial sync / handover).  ioport latches g_input at NOTIFY_FRAME and
+ * the field after a load reads that latch, so the raw local pad must not reach
+ * it.  Mouse accumulators and anchors reset too, so the anchor-delta agrees. */
+static void netplay_pin_neutral_input(netplay_t *h)
+{
+    static const netplay_state_t neutral = {};
+    int lp = h->player1 ? 0 : 1, pp = h->player1 ? 1 : 0;
+    apply_netplay_input_state(false, lp, neutral, pp, neutral);
+    for (int p = 0; p < 2; p++) {
+        netplay_pending_mouse_x[p] = netplay_pending_mouse_y[p] = 0;
+        g_input.mouse_x[p] = g_input.mouse_y[p] = 0;
+    }
+}
+
 /* Can this game hand over to a drop-in joiner?  The handover IS the rollback
  * state transfer, so a savestate too big for the ring leaves the joiner at
  * frame zero against a host minutes in.  Measured once per game. */
@@ -396,13 +512,11 @@ static void netplay_drop_in_probe(netplay_t *handle)
     }
 }
 
-/* Netplay must NOT "begin" on a machine the autostart did not launch:
- * has_connection is set at socket creation, before JOIN, so connecting inside
- * a running ROM would freeze the pre-restart machine on the sync barriers.
- *
- * Drop-in holds off too: with nobody joined there is no session yet, and
- * leaving has_begun_game at 0 keeps that game on the single-player path --
- * every netplay hook is gated on it, so none of this code runs at all. */
+/* Netplay must not "begin" on a machine the autostart didn't launch:
+ * has_connection is set at socket creation (before JOIN), so connecting inside a
+ * running ROM would freeze it on the sync barriers.  Drop-in holds off too --
+ * nobody joined yet, so has_begun_game stays 0 and the game keeps the single-
+ * player path (every netplay hook is gated on it). */
 static void netplay_iu_on_game_start(netplay_t *handle, bool is_java_paused)
 {
     /* Outside the guard below: restart_pending() stays 1 while nobody has
@@ -434,6 +548,13 @@ static void netplay_iu_on_game_start(netplay_t *handle, bool is_java_paused)
     netplay_anchor_mouse_y[0] = 0;
     netplay_anchor_mouse_x[1] = 0;
     netplay_anchor_mouse_y[1] = 0;
+    /* Fresh rollback bookkeeping for the new game: clear the drop-in boot-slot
+     * latches (a stale =1 from a prior session skips the boundary capture and
+     * drops to the mid-vblank inline fallback that freezes the joiner) and drop
+     * the per-entry slim classification cache so it rebuilds for this driver. */
+    g_rb_boot_slot_clean      = 0;
+    g_rb_boot_capture_pending = 0;
+    myosd_slim_state::invalidate_class_cache();
     __sync_synchronize();
 
     /* ── Rollback setup ────────────────────────────────────────── *
@@ -577,9 +698,8 @@ static bool netplay_iu_rollback_ff_step(netplay_t *handle, bool is_new_mame_fram
      * already canonically captured, so capturing again would
      * trigger a redundant load() that can cause desyncs. */
     if (is_new_mame_frame) {
-        if (handle->rollback_capture_state && g_rb_ff_current != g_rb_ff_start)
-            handle->rollback_capture_state(g_rb_ff_current);
-
+        /* The vblank-OFF arm captures this FF frame's slot at the tail (clean
+         * boundary), so no mid-vblank capture here -- see section 3. */
         pthread_mutex_lock(&handle->sync_mutex);
         handle->frame = g_rb_ff_current;
         pthread_mutex_unlock(&handle->sync_mutex);
@@ -603,6 +723,16 @@ static bool netplay_iu_rollback_ff_step(netplay_t *handle, bool is_new_mame_fram
          * clear must not fire (see completion block above).       */
         if (g_rb_ff_current == g_rb_ff_start)
             g_rb_ff_armgen = handle->rollback_arm_gen;
+        /* A confirmation that arrived while this frame sat ahead of the rewound
+         * handle->frame went to the early buffer, which only pre_frame_net drains:
+         * adopt it here, or the frame stays predicted (uncorrected) and the
+         * confirmed watermark -- and with it the CRC detector -- stalls for good. */
+        int e_idx = (int)(g_rb_ff_current % EARLY_BUFFER_SIZE);
+        if (handle->early_peer_frame[e_idx] == g_rb_ff_current) {
+            h->peer_state     = handle->early_peer_state[e_idx];
+            h->peer_confirmed = 1;
+            handle->early_peer_frame[e_idx] = 0xFFFFFFFF;
+        }
         h->applied_peer_state = h->peer_state;
         snap_peer = h->peer_state;
         snap_local = h->local_state;
@@ -645,24 +775,22 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
         return true;
     }
 
-    /* Post-resync 1-frame pairing slip fix: only inside the
-     * post-resync window, the vblank re-arm fires frame-update
-     * twice at the loaded instant; the spurious second "new
-     * frame" at the SAME machine time is swallowed so the
-     * counter waits for the next REAL frame. */
+    /* Post-resync window: the handover load can fire frame_update twice for the
+     * same video frame; swallow the spurious second one (screen frame_number
+     * unchanged) so the netplay counter waits for the next real video frame. */
     if (g_dup_window > 0) {
         g_dup_window--;
-        attotime mnow = osdInterface->machine().time();
-        if (mnow == g_last_new_frame_mtime) {
-            NLOG("RESYNC: duplicate new-frame at same mtime swallowed (frame=%u)",
-                 handle->frame);
+        uint64_t vnow = netplay_primary_screen_frame();
+        if (vnow == g_last_new_frame_vframe) {
+            NLOG("RESYNC: duplicate new-frame at same video frame swallowed (vframe=%llu netplay_frame=%u)",
+                 (unsigned long long)vnow, handle->frame);
             if (handle->player1)
                 apply_netplay_input_state(false, 0, handle->state, 1, handle->peer_state);
             else
                 apply_netplay_input_state(false, 1, handle->state, 0, handle->peer_state);
             return true;
         }
-        g_last_new_frame_mtime = mnow;
+        g_last_new_frame_vframe = vnow;
     }
 
     if (handle->requires_rollback) {
@@ -760,15 +888,10 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
             netplay_trace_applied(handle->frame - 1, handle->state, handle->peer_state, "OVF");
         }
     } else {
-        /* Peer-paused wait (rollback): mirrors lockstep's sync
-         * wait.  Rollback never blocks on the peer, so without
-         * this we'd free-run against a frozen opponent instead of
-         * freezing and showing the "Peer is paused" toast.  A 10s
-         * silence deadline converts a dead link into a hangup. */
-        /* Debounce: a genuine peer pause lasts seconds; a
-         * 1-frame blip (e.g. a deferred pause/resume landing a
-         * few frames into a long boot) must NOT flash the toast.
-         * Wall-clock based, so immune to call frequency. */
+        /* Peer-paused wait (rollback): rollback never blocks on the peer, so
+         * without this we'd free-run against a frozen opponent; 10s of silence =
+         * hangup.  Debounced (wall-clock) so a 1-frame blip doesn't flash the
+         * "Peer is paused" toast. */
         static const uint32_t PEER_PAUSE_DEBOUNCE_MS = 130;
         static uint32_t s_peer_pause_since_ms = 0;
         uint32_t pp_now_ms;
@@ -948,11 +1071,9 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
             g_rate_adv_ema_x16 = 0;
         }
 
-        /* Determinism probe (forced null-rollback, single device):
-         * re-simulates an already-confirmed input window and
-         * compares the resim CRC against the forward one -- any
-         * mismatch is local rollback non-determinism.  Disabled by
-         * default (validated clean already). */
+        /* Determinism watchdog (DEV, off): periodically force a null-rollback and
+         * check the resim reproduces the forward CRC (local non-determinism probe).
+         * Extra rollbacks + a whole-buffer CRC, so false for release. */
         constexpr bool RB_SELFCHECK_ENABLED = false;
         if (RB_SELFCHECK_ENABLED) {
             static uint32_t s_last_probe_frame = 0;
@@ -996,6 +1117,18 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
         else
             apply_netplay_input_state(is_new_mame_frame, 1, handle->state, 0, handle->peer_state);
         netplay_trace_applied(handle->frame - 1, handle->state, handle->peer_state, "FWD");
+
+        /* Post-resync phase diagnostic (see g_resync_phase_trace).  The netplay
+         * frame just executed is handle->frame-1; pair it with the primary
+         * screen's video frame_number so a cross-peer diff proves/locates a
+         * 1-frame vblank/video phase slip after a drop-in. */
+        if (g_resync_phase_trace > 0) {
+            g_resync_phase_trace--;
+            NLOG("RESYNC_PHASE role=%s netplay_frame=%u video_frame=%llu",
+                 handle->player1 ? "HOST" : "CLIENT",
+                 handle->frame - 1,
+                 (unsigned long long)netplay_primary_screen_frame());
+        }
     }
     return false;
 }
@@ -1007,31 +1140,25 @@ static bool netplay_iu_rollback_normal_step(netplay_t *handle, bool is_new_mame_
  * and by the trunk above.
  * ============================================================ */
 
-/* Master switch: after each capture, latch a request to re-sort same-expire
- * timers by m_index (as a rollback load's postload would) on the LIVE
- * forward machine, at the next clean scheduler boundary
- * (myosd_netplay_service_timer_canon).  Keeps forward/rollback timer order
- * identical.  Flip to false to A/B (constexpr, compiles out). */
-static constexpr bool NETPLAY_RB_CANONICALIZE_CAPTURE = true;
-
-/* Per-frame CRC/item-table tracing (debug diagnostics only).  When false
- * (default), state_capture computes the whole-state CRC only on the desync
- * detector's cadence and skips the per-item CRC table refresh, since only the
- * RB_SELFCHECK probe above (disabled by default) needs them every frame;
- * the cross-device ITEM_DIFF probe recomputes tables on demand instead. */
+/* Per-frame CRC + item-table trace (DEV, off): only RB_SELFCHECK needs it, to
+ * name a diverging field; hashes every save_item every frame.  Off = the
+ * detector computes its CRC just on its 5-frame cadence. */
 static constexpr bool NETPLAY_PERFRAME_CRC_TRACE = false;
 
-/* Forward declarations: the debug diagnostics defined in section 5 below
- * are only needed here, by state_capture and state_load. */
+/* Forward declaration: the debug diagnostic defined in section 5 below is
+ * only needed here, by state_capture. */
 static uint32_t myosd_itemcrc_expanded_count(save_manager &save);
-static void myosd_netplay_selfcheck_load_idempotency(uint32_t frame);
 
-/* Which save_items feed the desync-detector CRC?  Generic include-list: hash
- * only "memory/" entries (every RAM block/share any driver registers), a
- * sufficient witness since real desyncs always manifest there.  RTC-fed RAM
- * is safely included: machine.cpp pins the RTC epoch to the host's. */
+/* Which save_items feed the cross-peer detector CRC?  RAM ("memory/"), Neo Geo
+ * battery state and chip-internal video RAM (save_hacks) -- offset-invariant.
+ * CPU/peripheral state is skipped on purpose: with transfer off the peers anchor
+ * frame 0 at different times, so time-derived state (timers, in-flight DMA/IRQ,
+ * anything under ":maincpu") carries a bogus offset.  Real desyncs land in RAM. */
 static bool myosd_netplay_crc_include_item(const char *name) {
-    return strncmp(name, "memory/", 7) == 0;
+    if (strncmp(name, "memory/", 7) == 0)      return true;  // RAM/shares/nvram -- the witness
+    if (strstr(name, ":upd4990")  != nullptr)  return true;  // Neo Geo RTC (battery-backed)
+    if (strstr(name, ":memcard")  != nullptr)  return true;  // Neo Geo memory card
+    return myosd_save_hack_crc_include(name);                // chip video RAM
 }
 
 /* Item-aware CRC of ring slot `idx` (only myosd_netplay_crc_include_item
@@ -1057,6 +1184,7 @@ static uint32_t myosd_netplay_calc_crc(int idx) {
         void *base; uint32_t valsize, valcount, blockcount, stride;
         const char *name = save.indexed_item(i, base, valsize, valcount, blockcount, stride);
         if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue; // dropped from the slim buffer
         size_t entry_size = (size_t)valsize * valcount * blockcount;
         if (entry_size && offset + entry_size <= data.size() &&
             myosd_netplay_crc_include_item(name))
@@ -1066,6 +1194,77 @@ static uint32_t myosd_netplay_calc_crc(int idx) {
     return crc.finish().m_raw;
 }
 
+/* True when this driver's harmless post-handover SH-2 phase blip trips the plain
+ * detector (CPS-3), so netplay uses the broad-divergence rule for it instead.
+ * Policy lives in save_hacks. */
+bool myosd_netplay_desync_tolerant(void)
+{
+    if (osdInterface == nullptr || !osdInterface->isMachine()) return false;
+    return myosd_save_hack_desync_tolerant(osdInterface->machine().system().type.source());
+}
+
+/* Per-section RAM fingerprint (1 byte/section) of `frame`'s slot, for the CPS-3
+ * broad-divergence test.  Same include-list/byte-split as calc_crc, each
+ * section's CRC32 folded to a byte; out[] left 0 if the slot is gone. */
+void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n)
+{
+    for (int s = 0; s < n; s++) out[s] = 0;
+    if (n <= 0 || n > 64) return;
+    if (osdInterface == nullptr || !osdInterface->isMachine()) return;
+    std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
+    int idx = (int)(frame % ROLLBACK_RING_FRAMES);
+    if (!g_rb_states[idx] || g_rb_frame_ids[idx] != frame) return;
+    auto const &data = g_rb_states[idx]->get_data();
+    if (data.empty()) return;
+
+    constexpr size_t HEADER_SIZE = 32;
+    save_manager &save = osdInterface->machine().save();
+    int count = save.registration_count();
+
+    size_t total_inc = 0, offset = HEADER_SIZE;
+    for (int i = 0; i < count; i++) {
+        void *base; uint32_t vs, vc, bc, st;
+        const char *name = save.indexed_item(i, base, vs, vc, bc, st);
+        if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue;
+        size_t entry_size = (size_t)vs * vc * bc;
+        if (entry_size && offset + entry_size <= data.size() && myosd_netplay_crc_include_item(name))
+            total_inc += entry_size;
+        offset += entry_size;
+    }
+    if (total_inc == 0) return;
+    size_t section_bytes = (total_inc + n - 1) / n;
+    if (section_bytes == 0) section_bytes = 1;
+
+    util::crc32_creator crc[64];
+    size_t running = 0; offset = HEADER_SIZE;
+    for (int i = 0; i < count; i++) {
+        void *base; uint32_t vs, vc, bc, st;
+        const char *name = save.indexed_item(i, base, vs, vc, bc, st);
+        if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue;
+        size_t entry_size = (size_t)vs * vc * bc;
+        if (entry_size && offset + entry_size <= data.size() && myosd_netplay_crc_include_item(name)) {
+            size_t src = offset, remaining = entry_size;
+            while (remaining > 0) {
+                int s = (int)(running / section_bytes);
+                if (s >= n) s = n - 1;
+                size_t sec_end = (size_t)(s + 1) * section_bytes;
+                size_t take = sec_end - running;
+                if (take > remaining) take = remaining;
+                crc[s].append(data.data() + src, (uint32_t)take);
+                src += take; running += take; remaining -= take;
+            }
+        }
+        offset += entry_size;
+    }
+    for (int s = 0; s < n; s++) {
+        uint32_t c = crc[s].finish().m_raw;
+        out[s] = (uint8_t)(c ^ (c >> 8) ^ (c >> 16) ^ (c >> 24));
+    }
+}
+
+
 /* Save current machine state into slot (frame % ROLLBACK_RING_FRAMES).    */
 void myosd_netplay_state_capture(uint32_t frame)
 {
@@ -1073,21 +1272,15 @@ void myosd_netplay_state_capture(uint32_t frame)
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
     if (!g_rb_states[idx]) {
-        g_rb_states[idx] = std::make_unique<ram_state>(osdInterface->machine().save());
+        g_rb_states[idx] = std::make_unique<myosd_slim_state>(osdInterface->machine().save());
     }
 
-    /* Symmetric mutation fix: MAME's device_post_load() callbacks (e.g. OKI
-     * M6295 audio) mutate machine state on load and may not be idempotent.
-     * The slot keeps the pure pre-mutation state `x` (never re-saved here);
-     * the LIVE machine is instead forced through that same mutation below,
-     * so forward and rollback both simulate the next frame from f(x). */
-    /* Rollback determinism self-check: meaningful only during a forced
-     * null-rollback probe (see netplay_iu_rollback_normal_step above),
-     * where a bit-exact resim must
-     * reproduce the forward CRC.  Divergence here means non-determinism on
-     * THIS device alone.  Not checked on a real rollback (corrected input
-     * legitimately changes state).  Logs only the first diverging frame. */
-    uint32_t selfcheck_old_crc      = g_rb_crcs[idx];
+    /* device_post_load() callbacks (e.g. OKI M6295) mutate state on load and may
+     * not be idempotent, so the slot keeps the pure pre-mutation `x` and the LIVE
+     * machine is forced through the same mutation below -- both continue from
+     * f(x).  RB_SELFCHECK (below) runs only during a forced null-rollback: a
+     * bit-exact resim must reproduce the forward CRC, else it is local non-
+     * determinism (logged once). */
     uint32_t selfcheck_old_frame_id = g_rb_frame_ids[idx];
     attotime selfcheck_old_time     = g_rb_times[idx]; /* FORWARD basetime @ this frame */
 
@@ -1097,6 +1290,22 @@ void myosd_netplay_state_capture(uint32_t frame)
     std::vector<uint32_t> selfcheck_old_table;
     if (g_rb_ff_active && g_rb_selfcheck_probe && selfcheck_old_frame_id == frame)
         selfcheck_old_table = g_rb_item_tables[idx];
+
+    /* RB_SELFCHECK is a LOCAL probe (same device, same absolute time base), so
+     * unlike the cross-peer detector it has NO boot-time offset -- it can and
+     * MUST hash the WHOLE slim buffer (timers included) to catch rollback-
+     * fidelity bugs the narrowed cross-peer include-list deliberately skips.
+     * Snapshot the forward buffer's full CRC now, before save() below overwrites
+     * the slot with the resim bytes. */
+    uint32_t selfcheck_old_full  = 0;
+    bool     selfcheck_have_full = false;
+    if (g_rb_ff_active && g_rb_selfcheck_probe && selfcheck_old_frame_id == frame) {
+        auto const &fdata = g_rb_states[idx]->get_data();
+        if (!fdata.empty()) {
+            selfcheck_old_full  = (uint32_t)util::crc32_creator::simple(fdata.data(), fdata.size());
+            selfcheck_have_full = true;
+        }
+    }
 
     /* Time the capture: runs every emulated frame (forward and each
      * rollback-resim frame), so this is both the fixed netplay frame tax and
@@ -1135,8 +1344,7 @@ void myosd_netplay_state_capture(uint32_t frame)
         s_perf_save_us += save_us;
         if (save_us > s_perf_save_max) s_perf_save_max = save_us;
         if (++s_perf_n >= 300) {
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "TELEM perf save_avg_us=%u save_max_us=%u crc_avg_us=%u crc_max_us=%u crc_n=%u state_kb=%u",
+            NLOG("TELEM perf save_avg_us=%u save_max_us=%u crc_avg_us=%u crc_max_us=%u crc_n=%u state_kb=%u",
                 (uint32_t)(s_perf_save_us / s_perf_n), s_perf_save_max,
                 s_perf_crc_n ? (uint32_t)(s_perf_crc_us / s_perf_crc_n) : 0, s_perf_crc_max,
                 s_perf_crc_n,
@@ -1162,11 +1370,17 @@ void myosd_netplay_state_capture(uint32_t frame)
         static uint32_t s_sc_last_ff_frame = 0;
         static int      s_sc_logged        = 0;
         if (frame != s_sc_last_ff_frame + 1) s_sc_logged = 0; /* new episode   */
-        if (!s_sc_logged && selfcheck_old_frame_id == frame &&
-            selfcheck_old_crc != 0 && selfcheck_old_crc != g_rb_crcs[idx]) {
+        uint32_t selfcheck_new_full = 0;
+        if (selfcheck_have_full) {
+            auto const &rdata = g_rb_states[idx]->get_data();
+            if (!rdata.empty())
+                selfcheck_new_full = (uint32_t)util::crc32_creator::simple(rdata.data(), rdata.size());
+        }
+        if (!s_sc_logged && selfcheck_have_full &&
+            selfcheck_old_full != selfcheck_new_full) {
             __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
                 "RB_SELFCHECK frame=%u fwd_crc=0x%08x resim_crc=0x%08x DIVERGES (local rollback non-determinism, zero-input)",
-                frame, selfcheck_old_crc, g_rb_crcs[idx]);
+                frame, selfcheck_old_full, selfcheck_new_full);
             /* Basetime at this frame start, forward vs resim: a difference
              * means the frame length (not the saved state) is the seed of
              * divergence.  Raw basetime is logged too, since machine().time()
@@ -1190,40 +1404,15 @@ void myosd_netplay_state_capture(uint32_t frame)
                     g_rb_item_tables[idx].data(), (uint32_t)g_rb_item_tables[idx].size(),
                     selfcheck_old_table.data(),   (uint32_t)selfcheck_old_table.size());
             s_sc_logged = 1;
-        } else if (!s_sc_logged && selfcheck_old_frame_id == frame &&
-                   selfcheck_old_crc != 0 && selfcheck_old_crc == g_rb_crcs[idx]) {
+        } else if (!s_sc_logged && selfcheck_have_full &&
+                   selfcheck_old_full == selfcheck_new_full) {
             __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "RB_SELFCHECK frame=%u crc=0x%08x ok", frame, g_rb_crcs[idx]);
+                "RB_SELFCHECK frame=%u crc=0x%08x ok", frame, selfcheck_new_full);
         }
         s_sc_last_ff_frame = frame;
     }
 
-    if (NETPLAY_RB_CANONICALIZE_CAPTURE) {
-        /* Do NOT load the slot here -- a mid-callback load perturbs the
-         * cycle-accurate CPUs.  save() above already ran presave(), so the
-         * live timers carry the same fresh m_index the slot stores; latch a
-         * request to re-sort them the way a rollback's postload will, at the
-         * next clean scheduler boundary (myosd_netplay_service_timer_canon). */
-        g_rb_pending_canon = 1;
-    }
     // NO RE-SAVE! Slot retains the pure `x`.
-}
-
-/* Serviced from the machine run loop at a clean scheduler boundary
- * (m_callback_timer==null && m_executing_device==null).  If a capture
- * latched a request, apply the same timer transform a rollback's
- * load+postload does to the live forward machine, so forward and rollback
- * reach byte-identical timer state (order and presence). */
-void myosd_netplay_service_timer_canon(void)
-{
-    if (!g_rb_pending_canon) return;
-    g_rb_pending_canon = 0;
-    if (osdInterface == nullptr || !osdInterface->isMachine()) return;
-    /* No ring-buffer lock needed: this only re-orders the scheduler's own timer
-     * list, which is owned exclusively by the game thread. */
-    auto &sched = osdInterface->machine().scheduler();
-    sched.canonicalize_timer_order();
-    sched.clear_temporary_quanta();
 }
 
 /* Restore the machine state that was captured for 'frame'.               */
@@ -1232,77 +1421,30 @@ void myosd_netplay_state_load(uint32_t frame)
     if (osdInterface == nullptr || !osdInterface->isMachine()) return;
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
-    if (g_rb_states[idx] && g_rb_frame_ids[idx] == frame) {
-        /* During the RB_SELFCHECK probe, run the load-idempotency test ONCE at
-         * the rollback start (before the real load) to localise the seed.     */
-        if (g_rb_selfcheck_probe)
-            myosd_netplay_selfcheck_load_idempotency(frame);
-
-        /* RB_EXEC diagnostic (selfcheck only): if a device is executing at
-         * load time, machine().time() returns its in-flight local_time, which
-         * is not in the savestate and would corrupt the restored clock.  Log
-         * the executing device + times before the load to localise this. */
-        if (g_rb_selfcheck_probe) {
-            device_execute_interface *exec = osdInterface->machine().scheduler().currently_executing();
-            attotime bt_before  = osdInterface->machine().scheduler().basetime();
-            attotime now_before = osdInterface->machine().time();
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "RB_EXEC frame=%u BEFORE exec=%s basetime=%d.%018lld machine_time=%d.%018lld",
-                frame,
-                exec ? exec->device().tag() : "<null>",
-                bt_before.seconds(),  (long long)bt_before.attoseconds(),
-                now_before.seconds(), (long long)now_before.attoseconds());
-        }
-
+    if (!g_rb_states[idx] || g_rb_frame_ids[idx] != frame) {
+        /* The requested slot is not in the ring (evicted, or never captured).
+         * We must NOT silently continue: the caller armed a rollback/FF against
+         * this frame, so running on without rewinding diverges silently.  Log it
+         * loudly; a proper recovery (cancel the FF) needs the load callback to
+         * report failure, which the current void signature can't. */
+        NLOG("RB_LOAD MISS frame=%u slot_has=%u ff_active=%d - NOT rewound (would desync)",
+             frame, g_rb_frame_ids[idx], g_rb_ff_active);
+        return;
+    }
+    {
         g_rb_states[idx]->load();
 
-        /* THE MAME "QUANTA LEAK" DETERMINISM FIX */
+        /* MAME "quanta leak" determinism fix: the temporary quantum list is not
+         * part of a savestate, so a load leaves stale temporary quanta against
+         * the rewound basetime -- clear them to the canonical minimum. */
         osdInterface->machine().scheduler().clear_temporary_quanta();
 
         /* This function is called only from myosd_netplay_service_deferred_
          * load(), from running_machine::run() between timeslices, where
          * m_callback_timer==null and m_executing_device==null.  Loading at
          * this clean boundary (like MAME's own handle_saveload) leaves both
-         * m_basetime and the timer list correctly rewound. */
-
-        /* RB_LOADTIME probe (selfcheck only): expect load_RESTORED. */
-        if (g_rb_selfcheck_probe) {
-            attotime rb_slot_time  = g_rb_times[idx];             /* forward @ this frame */
-            attotime rb_after_load = osdInterface->machine().time();
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "RB_LOADTIME frame=%u slot=%d.%018lld after_load=%d.%018lld load_%s",
-                frame,
-                rb_slot_time.seconds(),  (long long)rb_slot_time.attoseconds(),
-                rb_after_load.seconds(), (long long)rb_after_load.attoseconds(),
-                (rb_after_load == rb_slot_time) ? "RESTORED" : "NOT-RESTORED");
-
-            /* RB_EXEC AFTER: if exec != null, machine_time (=local_time) will
-             * still read ~current while basetime IS restored, proving the
-             * corruption is the executing device's in-flight cycles. */
-            device_execute_interface *exec = osdInterface->machine().scheduler().currently_executing();
-            attotime bt_after  = osdInterface->machine().scheduler().basetime();
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "RB_EXEC frame=%u AFTER  exec=%s basetime=%d.%018lld machine_time=%d.%018lld basetime_%s",
-                frame,
-                exec ? exec->device().tag() : "<null>",
-                bt_after.seconds(),      (long long)bt_after.attoseconds(),
-                rb_after_load.seconds(), (long long)rb_after_load.attoseconds(),
-                (bt_after == rb_slot_time) ? "RESTORED" : "NOT-RESTORED");
-
-            /* HANG DIAGNOSTIC: after the clean deferred load, is the next
-             * timer at a runnable time?  head_expire far ahead or never means
-             * the CPU free-runs without hitting a vblank (appears hung). */
-            emu_timer *ht = osdInterface->machine().scheduler().first_timer();
-            attotime he = ht ? ht->expire() : attotime::never;
-            __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-                "RB_HEADTIMER frame=%u basetime=%d.%018lld head_expire=%d.%018lld",
-                frame,
-                bt_after.seconds(), (long long)bt_after.attoseconds(),
-                he.seconds(), (long long)he.attoseconds());
-        }
-
-        /* NO re-save here: the state is already canonical thanks to
-         * Canonical Capture. We just load it and play! */
+         * m_basetime and the timer list correctly rewound.  No re-save: the
+         * clean-boundary capture already stored the canonical state. */
     }
 }
 
@@ -1314,7 +1456,7 @@ void myosd_netplay_state_inject(uint32_t frame, const uint8_t *buffer, uint32_t 
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
     if (!g_rb_states[idx]) {
-        g_rb_states[idx] = std::make_unique<ram_state>(osdInterface->machine().save());
+        g_rb_states[idx] = std::make_unique<myosd_slim_state>(osdInterface->machine().save());
     }
 
     /* Store the RAW (pre-load) buffer, never re-save after load(): load then
@@ -1343,7 +1485,7 @@ void myosd_netplay_state_store(uint32_t frame, const uint8_t *buffer, uint32_t s
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
     if (!g_rb_states[idx]) {
-        g_rb_states[idx] = std::make_unique<ram_state>(osdInterface->machine().save());
+        g_rb_states[idx] = std::make_unique<myosd_slim_state>(osdInterface->machine().save());
     }
     g_rb_states[idx]->set_data(buffer, size);
     g_rb_frame_ids[idx] = frame;
@@ -1385,6 +1527,8 @@ void myosd_netplay_state_cleanup()
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     for (int i = 0; i < ROLLBACK_MAX_FRAMES; i++)
         g_rb_states[i].reset();
+    /* Drop the cached per-entry classification so the next game rebuilds it. */
+    myosd_slim_state::invalidate_class_cache();
 }
 
 /* Return the byte size of a single savestate. Used to gate rollback on
@@ -1392,7 +1536,32 @@ void myosd_netplay_state_cleanup()
 size_t myosd_netplay_get_state_size()
 {
     if (osdInterface == nullptr || !osdInterface->isMachine()) return 0;
-    return ram_state::get_size(osdInterface->machine().save());
+    return myosd_slim_state::get_size(osdInterface->machine().save());
+}
+
+/* Name of the system BIOS the RUNNING machine resolved to (e.g. "unibios40"),
+ * or "" if the driver has no selectable BIOS.  Used to PIN the BIOS across a
+ * netplay drop-in: the host is already running with a chosen BIOS, so it can
+ * append it to the game name it hands the joiner ("mslug3;unibios40"), and the
+ * joiner boots the same BIOS instead of being asked (which would let it pick a
+ * different one and desync).  C-linkage so myosd_droid.cpp can call it. */
+extern "C" const char *myosd_netplay_get_running_bios_name(void)
+{
+    static std::string s_bios;
+    s_bios.clear();
+    if (osdInterface == nullptr || !osdInterface->isMachine())
+        return s_bios.c_str();
+    device_t &root = osdInterface->machine().root_device();
+    u8 sb = root.system_bios();               /* resolved BIOS index (bios_flags) */
+    for (const rom_entry &rom : root.rom_region_vector())
+    {
+        if (ROMENTRY_ISSYSTEM_BIOS(&rom) && ROM_GETBIOSFLAGS(&rom) == sb)
+        {
+            s_bios = ROM_GETNAME(&rom);
+            break;
+        }
+    }
+    return s_bios.c_str();
 }
 
 /* ============================================================
@@ -1418,21 +1587,6 @@ void myosd_netplay_set_ff_active(int active)
         }
     }
 }
-
-/* Re-arm every screen's one-shot VBLANK timers after a deferred rollback
- * load.  The savestate is captured mid-vblank_begin(), before it re-arms
- * its own timers; a deferred load restores them DISABLED, which would
- * freeze the picture.  Reproduces vblank_begin's re-arm tail instead. */
-void myosd_netplay_rearm_screen_timers()
-{
-    if (osdInterface == nullptr || !osdInterface->isMachine())
-        return;
-    for (screen_device &screen : screen_device_enumerator(osdInterface->machine().root_device()))
-        screen.netplay_rearm_vblank();
-}
-
-/* Resync counterpart: finish the interrupted vblank_begin instead of
- * re-firing it whole.  A resync has no FF replay to absorb a duplicated
 
 /* Query the fast-forward suppression flag set above. */
 int myosd_netplay_get_ff_active()
@@ -1476,13 +1630,13 @@ int myosd_netplay_get_selfcheck_probe()
 /* ============================================================
  * SECTION 5 -- Desync detector / per-item CRC diagnostics (debug-only)
  * Not part of the normal per-frame hot path.  myosd_itemcrc_expanded_count
- * and myosd_netplay_selfcheck_load_idempotency are forward-declared in
- * section 3 for state_capture/state_load to call.
+ * is forward-declared in section 3 for state_capture to call.
  * ============================================================ */
 
 /* Internal helper to compute CRC safely */
 void myosd_netplay_log_sectional_crc(uint32_t frame)
 {
+    if (!NETPLAY_LOG_ENABLED) return; // DEV forensics only; no work in release
     if (osdInterface == nullptr || !osdInterface->isMachine()) return;
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
@@ -1520,15 +1674,11 @@ void myosd_netplay_log_sectional_crc(uint32_t frame)
     }
 }
 
-/* Cross-device per-item CRC diff (desync root-cause, automated).
- * get_item_crc_table fills `out` with one CRC per registered save_item for
- * `frame`; diff_item_crc_table takes the peer's table and logs only the
- * items whose CRC differs, by name -- naming the diverging device/field with
- * no manual cross-device alignment. */
-/* Large save_items (e.g. the 64KB mainram) are split into sub-blocks so a
- * divergence localizes WITHIN the item ("mainram +0x3400").  Producer and
- * both diff consumers must use the SAME rule.  Returns the sub-block size in
- * bytes, or 0 to emit the item as a single CRC. */
+/* Cross-device per-item CRC diff (automated desync root-cause): get_item_crc_
+ * table fills one CRC per save_item for `frame`; diff_item_crc_table logs the
+ * items whose CRC differs from the peer's, by name.  Big items (e.g. 64KB
+ * mainram) are split into sub-blocks so a diff localizes within the item
+ * ("mainram +0x3400"); producer and both consumers must use the same rule. */
 #define ITEMCRC_SUBBLOCK_THRESHOLD 2048
 #define ITEMCRC_SUBBLOCK_SIZE      1024
 static inline size_t myosd_itemcrc_subblock(size_t entry_size)
@@ -1548,6 +1698,7 @@ static uint32_t myosd_itemcrc_expanded_count(save_manager &save)
         void *base; uint32_t valsize, valcount, blockcount, stride;
         const char *name = save.indexed_item((int)i, base, valsize, valcount, blockcount, stride);
         if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue; // dropped from the slim buffer
         size_t entry_size = (size_t)valsize * valcount * blockcount;
         size_t sub = myosd_itemcrc_subblock(entry_size);
         if (sub == 0) { k++; }
@@ -1578,6 +1729,7 @@ uint32_t myosd_netplay_get_item_crc_table(uint32_t frame, uint32_t *out, uint32_
         void *base; uint32_t valsize, valcount, blockcount, stride;
         const char *name = save.indexed_item(i, base, valsize, valcount, blockcount, stride);
         if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue; // dropped from the slim buffer
         size_t entry_size = (size_t)valsize * valcount * blockcount;
         size_t sub = myosd_itemcrc_subblock(entry_size);
         if (sub == 0) {
@@ -1639,6 +1791,7 @@ void myosd_netplay_diff_item_crc_table(uint32_t frame, const uint32_t *peer, uin
         void *base; uint32_t valsize, valcount, blockcount, stride;
         const char *name = save.indexed_item((int)i, base, valsize, valcount, blockcount, stride);
         if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue; // dropped from the slim buffer
         size_t entry_size = (size_t)valsize * valcount * blockcount;
         size_t sub = myosd_itemcrc_subblock(entry_size);
         if (sub == 0) {
@@ -1704,6 +1857,7 @@ void myosd_netplay_diff_item_crc_tables(uint32_t frame,
         void *base; uint32_t valsize, valcount, blockcount, stride;
         const char *name = save.indexed_item((int)i, base, valsize, valcount, blockcount, stride);
         if (!name) break;
+        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue; // dropped from the slim buffer
         size_t entry_size = (size_t)valsize * valcount * blockcount;
         size_t sub = myosd_itemcrc_subblock(entry_size);
         if (sub == 0) {
@@ -1729,89 +1883,6 @@ void myosd_netplay_diff_item_crc_tables(uint32_t frame,
     }
     __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
         "ITEM_DIFF: ===== end diff frame=%u: %d differing item(s) =====", frame, diffs);
-}
-
-/* Compute a per-item CRC table from a RAW savestate blob (same walk/order as
- * myosd_netplay_get_item_crc_table but reading arbitrary bytes, not a ring
- * slot).  Used by the load-idempotency probe below.                          */
-static void myosd_itemcrc_table_from_data(const char *data, size_t size,
-                                          std::vector<uint32_t> &out)
-{
-    out.clear();
-    constexpr size_t HEADER_SIZE = 32;
-    save_manager &save = osdInterface->machine().save();
-    int count = save.registration_count();
-    size_t offset = HEADER_SIZE;
-    for (int i = 0; i < count; i++) {
-        void *base; uint32_t valsize, valcount, blockcount, stride;
-        const char *name = save.indexed_item(i, base, valsize, valcount, blockcount, stride);
-        if (!name) break;
-        size_t entry_size = (size_t)valsize * valcount * blockcount;
-        size_t sub = myosd_itemcrc_subblock(entry_size);
-        if (sub == 0) {
-            uint32_t crc = 0;
-            if (entry_size && offset + entry_size <= size)
-                crc = (uint32_t)util::crc32_creator::simple(data + offset, entry_size);
-            out.push_back(crc);
-        } else {
-            for (size_t o = 0; o < entry_size; o += sub) {
-                size_t bs = (entry_size - o < sub) ? (entry_size - o) : sub;
-                uint32_t crc = 0;
-                if (offset + o + bs <= size)
-                    crc = (uint32_t)util::crc32_creator::simple(data + offset + o, bs);
-                out.push_back(crc);
-            }
-        }
-        offset += entry_size;
-    }
-}
-
-/* Load-idempotency probe: does load(slot)+clear_quanta produce the same
- * save-item state regardless of the live machine's prior (unsaved) state?
- * Non-perturbing: back up the live machine, load the slot twice from two
- * genuinely different priors (T1, then T1's own mutated state -> T2), then
- * restore.  A T1/T2 difference means load() depends on unsaved state. */
-static void myosd_netplay_selfcheck_load_idempotency(uint32_t frame)
-{
-    std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
-    int idx = (int)(frame % ROLLBACK_RING_FRAMES);
-    if (!g_rb_states[idx] || g_rb_frame_ids[idx] != frame) return;
-
-    static std::unique_ptr<ram_state> s_backup;
-    static std::unique_ptr<ram_state> s_scratch;
-    if (!s_backup)  s_backup  = std::make_unique<ram_state>(osdInterface->machine().save());
-    if (!s_scratch) s_scratch = std::make_unique<ram_state>(osdInterface->machine().save());
-
-    auto &sched = osdInterface->machine().scheduler();
-
-    s_backup->save();                       /* live (natural prior) -> backup   */
-
-    g_rb_states[idx]->load(); sched.clear_temporary_quanta();
-    s_scratch->save();
-    std::vector<uint32_t> t1;
-    myosd_itemcrc_table_from_data(s_scratch->get_data().data(), s_scratch->get_data().size(), t1);
-
-    g_rb_states[idx]->load(); sched.clear_temporary_quanta();   /* prior now = f(x) */
-    s_scratch->save();
-    std::vector<uint32_t> t2;
-    myosd_itemcrc_table_from_data(s_scratch->get_data().data(), s_scratch->get_data().size(), t2);
-
-    s_backup->load(); sched.clear_temporary_quanta();           /* restore natural  */
-
-    int diffs = 0;
-    uint32_t n = (uint32_t)((t1.size() < t2.size()) ? t1.size() : t2.size());
-    for (uint32_t k = 0; k < n; k++) if (t1[k] != t2[k]) diffs++;
-    if (diffs == 0) {
-        __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-            "LOAD_IDEMP frame=%u OK (load is prior-independent -> seed is in EXECUTION, not postload)",
-            frame);
-    } else {
-        __android_log_print(ANDROID_LOG_DEBUG, "MAME4droid_Netplay",
-            "LOAD_IDEMP frame=%u DIVERGES: %d item(s) depend on unsaved prior state (seed is in load/postload)",
-            frame, diffs);
-        myosd_netplay_diff_item_crc_tables(frame,
-            t1.data(), (uint32_t)t1.size(), t2.data(), (uint32_t)t2.size());
-    }
 }
 
 /* ============================================================
@@ -1913,14 +1984,11 @@ static inline void netplay_trace_applied(uint32_t frame,
         netplay_applied_ring_flush();
 }
 
-/* Called from the desync triggers in netplay.cpp (network thread).  Arms the
- * ring flush; the actual dump happens on the game thread once the post-window
- * fills, so all NLOG I/O stays on one thread.  A HIGH trigger (ROLLBACK_
- * mismatch) may upgrade an in-flight LOW arm (CRC DESYNC) in place, since it
- * precedes the FF re-sim whose window we actually want. */
-/* A resync restarts the timeline at frame 0, so ring entries from the
- * previous episode carry the SAME frame numbers as the new ones and make
- * the dump uncrossable.  Drop them and re-arm the instrument.        */
+/* Called from the desync triggers (network thread): arms the ring flush; the
+ * dump runs on the game thread once the post-window fills, so all NLOG I/O is on
+ * one thread.  A HIGH trigger (ROLLBACK mismatch) upgrades an in-flight LOW arm.
+ * A resync restarts at frame 0, so stale ring entries reuse the new frame
+ * numbers -- drop them and re-arm. */
 extern "C" void netplay_applied_ring_reset(void)
 {
     g_applied_desync_done     = 0;

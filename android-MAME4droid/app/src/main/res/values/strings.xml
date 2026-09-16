@@ -119,7 +119,7 @@
     <string name="np_lobby_stats_games">Most wanted: %1$s</string>
     <string name="np_lobby_stats_best">Most played: %1$s</string>
     <string name="np_lobby_stats_countries">Players from %1$d countries</string>
-    <string name="np_lobby_stats_top">top %1$s</string>
+    <string name="np_lobby_stats_top">Top countries: %1$s</string>
     <string name="np_lobby_stats_suggest">Open a drop-in room for %1$s and someone can join you mid-game.</string>
     <string name="np_lobby_count">%1$d game(s) available</string>
     <string name="np_lobby_refresh">Refresh</string>
@@ -620,4 +620,29 @@
     <string name="shaders_load_error">Could not load the graphic effect shaders: shaders.cfg is missing. Please reinstall the app, or make sure the installation folder is not read-only.</string>
     <string name="pref_frame_pacing_title">Frame pacing &amp; performance hints</string>
     <string name="pref_frame_pacing_summary">Match the display to the game\'s refresh on 90/120 Hz screens and use ADPF CPU/thermal hints for smoother, cooler performance. Turn off if a device misbehaves.</string>
+    <!-- Quick chat: np_chat_N ids are part of the netplay protocol (append only, never reorder). -->
+    <string name="np_btn_chat">Send message</string>
+    <string name="np_chat_title">Quick message</string>
+    <string name="np_chat_mute">Mute received</string>
+    <string name="np_chat_unmute">Show received</string>
+    <string name="np_chat_you">You: %1$s</string>
+    <string name="np_chat_peer">💬 %1$s</string>
+    <string name="np_chat_wait">Wait a moment before sending another message</string>
+    <string name="np_chat_0">👋 Hello</string>
+    <string name="np_chat_1">🤝 Good game</string>
+    <string name="np_chat_2">🙏 Thanks</string>
+    <string name="np_chat_3">😅 Sorry</string>
+    <string name="np_chat_4">🎮 Another game?</string>
+    <string name="np_chat_5">🔁 Rematch?</string>
+    <string name="np_chat_6">⏸️ Wait a moment</string>
+    <string name="np_chat_7">🪙 Insert coin and press Start</string>
+    <string name="np_chat_8">⚠️ Looks like we\'re out of sync</string>
+    <string name="np_chat_9">🔄 Press \"Resync game state\"</string>
+    <string name="np_chat_10">🐢 I\'m lagging</string>
+    <string name="np_chat_11">👍 Yes</string>
+    <string name="np_chat_12">👎 No</string>
+    <string name="np_chat_13">✅ Ready</string>
+    <string name="np_chat_14">👋 I have to go, bye!</string>
+    <string name="np_chat_15">⚡ Let\'s switch to Rollback</string>
+    <string name="np_chat_16">🔒 Let\'s switch to Lockstep</string>
 </resources>

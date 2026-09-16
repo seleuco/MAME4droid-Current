@@ -337,6 +337,14 @@ JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_netplayResync
 
 /*
  * Class:     com_seleuco_mame4droid_Emulator
+ * Method:    netplaySendChat
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_seleuco_mame4droid_Emulator_netplaySendChat
+        (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     com_seleuco_mame4droid_Emulator
  * Method:    netplayGetProtocolVersion
  * Signature: ()I
  */

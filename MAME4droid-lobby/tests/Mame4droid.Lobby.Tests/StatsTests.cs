@@ -175,7 +175,10 @@ public class StatsTests : IDisposable
     [Fact]
     public void The_flags_are_the_busiest_countries_and_follow_their_own_count()
     {
-        var stats = Store();
+        /* Both pinned rather than taken from the defaults: what is under test is
+         * the withheld-then-shown step and the cap, not where the two happen to
+         * sit -- the shipped bar is three and the shipped cap ten. */
+        var stats = Store(new LobbyOptions { StatsMinCountries = 5, StatsTopCountries = 3 });
 
         for (var i = 0; i < 3; i++) stats.RoomCreated("dino", "AR");
         for (var i = 0; i < 9; i++) stats.RoomCreated("mslug", "ES");
@@ -191,6 +194,9 @@ public class StatsTests : IDisposable
 
         var seen = stats.Snapshot();
         Assert.Equal(5, seen.Countries);
+
+        /* Five countries, three flags: the cap is what makes the line a top and
+         * not the whole list. */
         Assert.Equal(new[] { "ES", "BR", "AR" }, seen.Flags);
     }
 
@@ -280,12 +286,12 @@ public class StatsTests : IDisposable
             "# mame4droid lobby stats v1\n" +
             today + "|rooms=20|played=9|games=dino:20|countries=ES,AR,BR,JP,US\n");
 
-        var seen = Store().Snapshot();
+        var seen = Store(new LobbyOptions { StatsMinCountries = 5 }).Snapshot();
 
         /* Bare codes were worth one appearance each; discarding them would
          * throw away the history on the first deploy that reads them. */
         Assert.Equal(20, seen.Rooms);
         Assert.Equal(5, seen.Countries);
-        Assert.Equal(3, seen.Flags.Count);
+        Assert.Equal(5, seen.Flags.Count);
     }
 }

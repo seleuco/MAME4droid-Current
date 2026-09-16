@@ -1,5 +1,4 @@
 diff --git a/luaengine.cpp b/luaengine.cpp
-index 05f8eb2..e8858a2 100644
 --- a/luaengine.cpp
 +++ b/luaengine.cpp
 @@ -41,6 +41,12 @@

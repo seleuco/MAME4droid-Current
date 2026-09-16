@@ -176,7 +176,15 @@ static OPENSL_SND *opensl_snd_ptr  = nullptr;
 
 //netplay
 int myosd_droid_netplay_restarting = 0;
+/* 1 while the drop-in host's BIOS picker is up (ui.cpp): the game is not even
+ * launched, so the room must keep waiting (NETPLAY_DROP_IN_STATE reads 3)
+ * instead of timing out into a publish. */
+static int s_netplay_bios_picker_open = 0;
+void myosd_droid_netplay_set_bios_picker_open(int open) { s_netplay_bios_picker_open = open; }
 std::string myosd_netplay_selected_game = "";
+/* Running machine's system BIOS name (myosd_netplay.cpp) -- for the drop-in
+ * BIOS pin appended to game_name; "" if the driver has no selectable BIOS. */
+extern "C" const char *myosd_netplay_get_running_bios_name(void);
 int myosd_droid_is_netplay_active(void);
 /* Netplay session sample-rate override  */
 static int myosd_droid_netplay_forced_rate = 0;
@@ -563,7 +571,10 @@ int myosd_droid_getMyValue(int key, int i) {
             return netplay_get_handle() ? netplay_get_handle()->has_connection : 0;
         case com_seleuco_mame4droid_Emulator_NETPLAY_DROP_IN_STATE: {
             /* Verdict of the one-shot savestate size probe: the room waits on
-             * it before going up. 0 not measured, 1 fits, 2 too big. */
+             * it before going up. 0 not measured, 1 fits, 2 too big, 3 host
+             * still on the BIOS picker (game not launched: keep waiting). */
+            if (s_netplay_bios_picker_open)
+                return 3;
             netplay_t *h = netplay_get_handle();
             return h ? h->drop_in_state : 0;
         }
@@ -1869,6 +1880,20 @@ extern "C" int netplayInit(const char *server, int port, int join) {
             }
             strncpy(handle->game_name, selected_game, sizeof(handle->game_name) - 1);
             handle->game_name[sizeof(handle->game_name) - 1] = '\0';
+            // BIOS pin (drop-in): the host is already running its game with a
+            // chosen system BIOS, so append it as "game;bios" for the joiner to
+            // boot the same one instead of being asked (a different pick would
+            // desync).  Empty for non-BIOS drivers or if the machine isn't up
+            // yet (fresh host, before launch) -- then nothing is appended.
+            {
+                const char *bn = myosd_netplay_get_running_bios_name();
+                size_t used = strlen(handle->game_name);
+                if (bn && bn[0] != '\0' &&
+                    used + 1 + strlen(bn) < sizeof(handle->game_name)) {
+                    strcat(handle->game_name, ";");
+                    strcat(handle->game_name, bn);
+                }
+            }
             NLOG("netplayInit host selected_game: '%s'", handle->game_name);
         }
         NLOG("skt_netplay_init about to be called");
@@ -1964,6 +1989,12 @@ extern "C" int netplayResync(void) {
     return ret;
 }
 
+/* Quick chat from the Java netplay dialog: send predefined phrase `phrase`
+ * (an id, never text).  1 if sent, 0 if no live peer or rate-limited. */
+extern "C" int netplaySendChat(int phrase) {
+    return myosd_netplay_send_chat(phrase);
+}
+
 /* ============================================================
  * SECTION 2 -- Autostart / game-reload bootstrap
  * ui.cpp's netplay autostart pulls the game name once per join via
@@ -1976,6 +2007,7 @@ static int s_already_scheduled = 0;   /* guards get_netplay_force_game so ui.cpp
 /* Reset the bootstrap latches (disconnect / audit-failure abort path). */
 void myosd_droid_clear_netplay_force_game(void) {
     s_already_scheduled = 0;
+    s_netplay_bios_picker_open = 0;
     /* If the autostart already latched a restart, drop that flag too: the
      * reload is not coming, and a stale flag would eat the NEXT legitimate
      * game-exit disconnect in droid_video_draw_cb.                          */

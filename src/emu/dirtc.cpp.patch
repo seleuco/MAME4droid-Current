@@ -1,0 +1,31 @@
+diff --git a/dirtc.cpp b/dirtc.cpp
+--- a/dirtc.cpp
++++ b/dirtc.cpp
+@@ -11,6 +11,12 @@
+ #include "emu.h"
+ #include "dirtc.h"
+ 
++// DAV HACK: netplay bridge -- forward-decl only, to keep this core file
++// decoupled from netplay.h.  Used to freeze real-time clocks during netplay
++// (see advance_seconds below).
++bool myosd_netplay_is_active(void);
++// END DAV HACK
++
+ 
+ //**************************************************************************
+ //  MACROS / CONSTANTS
+@@ -142,6 +148,14 @@
+ 
+ void device_rtc_interface::advance_seconds()
+ {
++	// DAV HACK: netplay determinism -- freeze every real-time clock during a
++	// session.  Each RTC chip advances its calendar through this method off a
++	// free-running timer; two peers that are not frame-locked cross the 1-second
++	// boundary on different frames and their RTC registers diverge.  Pin it to
++	// the (already pinned) boot value; gameplay does not need it to advance.
++	if (myosd_netplay_is_active())
++		return;
++	// END DAV HACK
+ 	m_register[RTC_SECOND]++;
+ 
+ 	if (m_register[RTC_SECOND] == 60)

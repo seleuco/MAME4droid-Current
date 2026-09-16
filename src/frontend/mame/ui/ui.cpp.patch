@@ -1,5 +1,4 @@
 diff --git a/ui.cpp b/ui.cpp
-index a9982cd..29293ec 100644
 --- a/ui.cpp
 +++ b/ui.cpp
 @@ -52,6 +52,13 @@
@@ -16,7 +15,7 @@ index a9982cd..29293ec 100644
  
  /***************************************************************************
      LOCAL VARIABLES
-@@ -925,8 +932,168 @@
+@@ -925,8 +932,310 @@
  //  render it; called by video.c
  //-------------------------------------------------
  
@@ -32,6 +31,82 @@ index a9982cd..29293ec 100644
 +int myosd_netplay_consume_menu_request(void);
 +#include <string>
 +extern std::string myosd_netplay_selected_game;
++bool myosd_netplay_is_dropin_host(void);   // only a drop-in host picks the BIOS
++void myosd_droid_netplay_set_bios_picker_open(int open);   // the room waits while it is up
++
++// fresh-host BIOS picker.  The netplay autostart force-boots the driver and
++// so bypasses MAME's normal select_bios menu; for a multi-BIOS system (Neo Geo)
++// with none pinned we show this small picker first, then feed the choice into
++// the existing ";bios" pin path so the host boots the BIOS it chose.
++#include <utility>
++#include <vector>
++namespace {
++volatile int g_np_bios_pushed = 0;   // menu already pushed this session
++volatile int g_np_bios_done   = 0;   // menu closed (a choice made, or cancelled)
++volatile int g_np_bios_cancelled = 0; // closed with back/exit: abort the drop-in
++std::string  g_np_bios_chosen;       // picked BIOS name
++
++class netplay_bios_menu : public ui::menu
++{
++public:
++	netplay_bios_menu(mame_ui_manager &mui, render_target &target, game_driver const &driver)
++		: ui::menu(mui, target), m_driver(driver) { set_heading(_("Select BIOS")); }
++	virtual ~netplay_bios_menu() override
++	{
++		g_np_bios_done = 1;
++		if (!m_picked)
++			g_np_bios_cancelled = 1;   // back/exit (or a teardown) never picked one
++		myosd_droid_netplay_set_bios_picker_open(0);
++	}
++protected:
++	virtual void populate() override
++	{
++		// Same list as MAME's own BIOS selection (has_multiple_bios): the driver's
++		// ROM_DEFAULT_BIOS first, tagged " (default)", then the rest in ROM order.
++		char const *def = nullptr;
++		for (tiny_rom_entry const *e = m_driver.rom; e && !ROMENTRY_ISEND(e); ++e)
++			if (ROMENTRY_ISDEFAULT_BIOS(e) && !def)
++				def = e->name;
++		m_bios.clear();   // populate() runs again on a menu reset
++		for (romload::system_bios const &b : romload::entries(m_driver.rom).get_system_bioses())
++		{
++			std::string text(b.get_description());
++			if (def && std::string(b.get_name()) == def)
++				m_bios.emplace(m_bios.begin(), b.get_name(), text.append(_(" (default)")));
++			else
++				m_bios.emplace_back(b.get_name(), std::move(text));
++		}
++		for (auto &b : m_bios)
++			item_append(b.second, 0, (void *)&b.first);   // itemref = stable BIOS name
++		item_append(ui::menu_item_type::SEPARATOR);   // like MAME's: rule before "Return to Previous Menu"
++		if (!m_bios.empty())
++			set_selection((void *)&m_bios.front().first);
++	}
++	virtual bool handle(event const *ev) override
++	{
++		if (ev && ev->itemref && ev->iptkey == IPT_UI_SELECT)
++		{
++			g_np_bios_chosen = *reinterpret_cast<std::string const *>(ev->itemref);
++			m_picked = true;
++			stack_pop();
++			return true;
++		}
++		return false;
++	}
++private:
++	game_driver const &m_driver;
++	bool m_picked = false;   // a BIOS was selected (vs closed with back/exit)
++	std::vector<std::pair<std::string, std::string>> m_bios; // (name, description)
++};
++
++int netplay_driver_bios_count(game_driver const &driver)
++{
++	if (!driver.rom) return 0;
++	int n = 0;
++	for (romload::system_bios const &b : romload::entries(driver.rom).get_system_bioses()) { (void)b; ++n; }
++	return n;
++}
++} // anonymous namespace
 +// END DAV HACK
 +
  bool mame_ui_manager::update_and_render(render_target &target)
@@ -39,6 +114,12 @@ index a9982cd..29293ec 100644
 +	// DAV HACK
 +	{
 +		const char* netplay_game = myosd_droid_get_netplay_force_game();
++		// get_netplay_force_game() fires only ONCE, but the BIOS picker makes
++		// us span several frames before booting.  Keep the game alive from a
++		// static until it is scheduled (or the pick is cancelled).
++		static std::string s_np_deferred_game;
++		if ((!netplay_game || !netplay_game[0]) && !s_np_deferred_game.empty())
++			netplay_game = s_np_deferred_game.c_str();
 +		auto &opts = mame_machine_manager::instance()->options();
 +
 +		// Static variables to keep track of the original options
@@ -85,11 +166,62 @@ index a9982cd..29293ec 100644
 +				s_netplay_game_started = false;
 +			}
 +
-+			int idx = driver_list::find(netplay_game);
++			// BIOS pin (drop-in): the host may hand the game as "game;bios"
++			// (e.g. "mslug3;unibios40") so the joiner boots the SAME system BIOS
++			// instead of being asked and possibly picking a different one (which
++			// would desync).  Split here: the part before ';' is the driver, the
++			// part after is fed to OPTION_BIOS below.
++			std::string np_game_str = netplay_game;
++			std::string np_bios;
++			{
++				const auto semi = np_game_str.find(';');
++				if (semi != std::string::npos) {
++					np_bios = np_game_str.substr(semi + 1);
++					np_game_str = np_game_str.substr(0, semi);
++				}
++			}
++			int idx = driver_list::find(np_game_str.c_str());
 +			if (idx != -1) {
 +				const game_driver &driver = driver_list::driver(idx);
-+				
++
++				// Fresh-host BIOS pick before applying opts / booting: multi-BIOS
++				// driver, none pinned, picker not disabled -> show it and wait; once
++				// chosen, feed it into np_bios (the pin path).
++				if (g_np_bios_cancelled)
++				{
++					// Back/Exit on the picker: abort the drop-in (nothing booted, nobody
++					// joined) the way a failed audit does, and re-arm the picker.
++					g_np_bios_cancelled = 0;
++					g_np_bios_pushed = 0;
++					g_np_bios_done = 0;
++					g_np_bios_chosen.clear();
++					s_np_deferred_game.clear();
++					netplay_send_disconnect(netplay_get_handle());
++					myosd_droid_clear_netplay_force_game();
++					osd_printf_warning("NETPLAY AUTOSTART: BIOS selection cancelled, drop-in aborted\n");
++					s_netplay_game_started = true; // force restore on next frame
++				}
++				else if (myosd_netplay_is_dropin_host() && np_bios.empty() && !g_np_bios_done
++				    && !options().skip_bios_menu() && netplay_driver_bios_count(driver) > 1)
++				{
++					if (!g_np_bios_pushed)
++					{
++						s_np_deferred_game = np_game_str;   // keep it alive across the picker
++						ui::menu::stack_push<netplay_bios_menu>(*this, target, driver);
++						g_np_bios_pushed = 1;
++						g_np_bios_cancelled = 0;
++						myosd_droid_netplay_set_bios_picker_open(1);   // not launched yet: room waits
++					}
++				}
++				else
++				{
++				if (np_bios.empty() && !g_np_bios_chosen.empty())
++					np_bios = g_np_bios_chosen;   // adopt the host's picked BIOS
 +				opts.set_value(OPTION_NVRAM_DIRECTORY, "/dev/null", OPTION_PRIORITY_CMDLINE);
++				if (!np_bios.empty()) {
++					opts.set_value(OPTION_BIOS, np_bios.c_str(), OPTION_PRIORITY_CMDLINE);
++					osd_printf_warning("NETPLAY AUTOSTART: pinned -bios %s\n", np_bios.c_str());
++				}
 +				// opts.set_value(OPTION_STATE_DIRECTORY, "/dev/null", OPTION_PRIORITY_CMDLINE);
 +				opts.set_value(OPTION_NVRAM_SAVE, "0", OPTION_PRIORITY_CMDLINE);
 +				opts.set_value(OPTION_FRAMESKIP, "0", OPTION_PRIORITY_CMDLINE);
@@ -131,7 +263,8 @@ index a9982cd..29293ec 100644
 +				if (summary == media_auditor::CORRECT || summary == media_auditor::BEST_AVAILABLE || summary == media_auditor::NONE_NEEDED)
 +				{
 +					myosd_netplay_selected_game = driver.name;
-+					
++					s_np_deferred_game.clear();   // booted, stop keeping it alive
++
 +					mame_machine_manager::instance()->schedule_new_driver(driver);
 +					machine().schedule_hard_reset();
 +					ui::menu::stack_reset(*this);
@@ -148,6 +281,7 @@ index a9982cd..29293ec 100644
 +					osd_printf_warning("NETPLAY AUTOSTART: FAILED audit for '%s'\n", netplay_game);
 +					s_netplay_game_started = true; // force restore on next frame
 +				}
++				} // close BIOS-ready else
 +			} else {
 +				netplay_send_disconnect(netplay_get_handle());
 +				myosd_droid_clear_netplay_force_game();
@@ -175,6 +309,13 @@ index a9982cd..29293ec 100644
 +					restore_opt(OPTION_DIFF_DIRECTORY, s_backup_diff_dir);
 +					s_netplay_overrides_active = false;
 +					s_netplay_game_started = false;
++					// re-arm the BIOS picker for the next session.
++					g_np_bios_pushed = 0;
++					g_np_bios_done = 0;
++					g_np_bios_cancelled = 0;
++					g_np_bios_chosen.clear();
++					s_np_deferred_game.clear();
++					myosd_droid_netplay_set_bios_picker_open(0);
 +					osd_printf_warning("NETPLAY AUTOSTART: restored original options.\n");
 +				}
 +			}
@@ -185,7 +326,7 @@ index a9982cd..29293ec 100644
  	// always start clean
  	for (auto &target : machine().render().targets())
  	{
-@@ -1726,6 +1893,24 @@
+@@ -1726,6 +2035,24 @@
  		return 0;
  	}
  
@@ -210,7 +351,7 @@ index a9982cd..29293ec 100644
  	// turn on menus if requested
  	if (inp.pressed(IPT_UI_MENU))
  	{
-@@ -1885,8 +2070,14 @@
+@@ -1885,8 +2212,14 @@
  		machine().video().set_fastforward(true);
  		show_fps_temp(0.5);
  	}
@@ -227,7 +368,7 @@ index a9982cd..29293ec 100644
  
  	// update mute when unthrottled
  	if (m_unthrottle_mute)
-@@ -2720,6 +2911,15 @@
+@@ -2720,6 +3053,15 @@
  			osd_printf_error("**Error loading ui.ini**\n");
  		}
  	}

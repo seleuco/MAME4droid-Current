@@ -1,8 +1,7 @@
 diff --git a/state.cpp b/state.cpp
-index 814fd15ae..91f19dab5 100644
 --- a/state.cpp
 +++ b/state.cpp
-@@ -220,7 +220,12 @@ void menu_load_save_state_base::populate()
+@@ -220,7 +220,12 @@
  
  	if (m_entries_vec.empty())
  	{
@@ -16,7 +15,7 @@ index 814fd15ae..91f19dab5 100644
  		set_selection(nullptr);
  	}
  	item_append(menu_item_type::SEPARATOR);
-@@ -431,11 +436,66 @@ bool menu_load_save_state_base::handle_keys(uint32_t flags, int &iptkey)
+@@ -431,11 +436,66 @@
  	}
  	else
  	{

@@ -49,24 +49,14 @@ const uint8_t* myosd_netplay_get_state_buffer(uint32_t frame);      /* raw slot 
 void myosd_netplay_state_cleanup();                                 /* free every ring slot (game exit) */
 size_t myosd_netplay_get_state_size();                              /* byte size of one savestate (rollback size gate) */
 
-/* Apply the postload timer-order canonicalisation to the live forward
- * machine at the next clean scheduler boundary (see NETPLAY_RB_CANONICALIZE_
- * CAPTURE in the .cpp). */
-void myosd_netplay_service_timer_canon(void);
-
-/* Re-arm every screen's one-shot VBLANK timers after a deferred rollback load. */
-void myosd_netplay_rearm_screen_timers();
-
 /* Latch a savestate reload of ring slot `frame` to run at the next clean
  * scheduler boundary (see myosd_netplay_service_deferred_load).  Used for
  * both the mid-game RESYNC (netplay.cpp) and the legacy boot-time transfer. */
 void myosd_netplay_rollback_arm_pending_load(uint32_t frame);
 
-/* Cancel the rollback FF episode's rate-control drift and any pending
- * deferred load -- called when a mid-game RESYNC episode begins and
- * replaces the timeline wholesale.  FF suppression itself is cancelled by
- * the caller via myosd_netplay_set_ff_active(0) when myosd_netplay_get_ff_
- * active() is true. */
+/* Cancel the rollback FF episode's rate-control drift and any pending deferred
+ * load -- called when a mid-game RESYNC replaces the timeline wholesale.  (FF
+ * suppression itself is cleared by the caller via set_ff_active(0).) */
 void myosd_netplay_rollback_reset_for_resync(void);
 
 /* Rollback fast-forward state, checked by myosd_droid.cpp's draw/audio callbacks. */
@@ -89,5 +79,7 @@ void myosd_netplay_log_sectional_crc(uint32_t frame);               /* log a CRC
 uint32_t myosd_netplay_get_item_crc_table(uint32_t frame, uint32_t *out, uint32_t max_items); /* fill our per-item CRC table */
 void myosd_netplay_diff_item_crc_table(uint32_t frame, const uint32_t *peer, uint32_t peer_count); /* diff our slot vs peer's table */
 void myosd_netplay_diff_item_crc_tables(uint32_t frame, const uint32_t *local, uint32_t local_count, const uint32_t *peer, uint32_t peer_count); /* diff two precomputed tables */
+bool myosd_netplay_desync_tolerant(void);                                    /* running driver needs the broad-divergence rule (CPS-3) */
+void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n); /* n 1-byte per-section RAM fingerprints of a slot */
 
 #endif

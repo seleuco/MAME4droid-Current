@@ -1,0 +1,36 @@
+diff --git a/psx.cpp b/psx.cpp
+--- a/psx.cpp
++++ b/psx.cpp
+@@ -73,6 +73,11 @@
+ 
+ #include "psxdefs.h"
+ 
++// DAV HACK: netplay bridge -- forward-decl only, to gate the extra rollback
++// save_items below (keeps single-player savestate layout unchanged).
++bool myosd_netplay_is_active(void);
++// END DAV HACK
++
+ #define LOG_BIOSCALL ( 0 )
+ 
+ #define EXC_INT ( 0 )
+@@ -1857,6 +1862,20 @@
+ 	save_item( NAME( m_multiplier_operation ) );
+ 	save_item( NAME( m_multiplier_operand1 ) );
+ 	save_item( NAME( m_multiplier_operand2 ) );
++	// DAV HACK: netplay rollback determinism -- these two are missing from the
++	// stock savestate.  m_com_delay is the COM_DELAY (0x1f801020) memory-timing
++	// register the BIOS programs and code can read back; leaving it out means a
++	// rollback load resets it, so a later read returns a different value than the
++	// forward run and the game diverges.  m_berr is the bus-error latch (normally
++	// 0 at an instruction boundary, saved for completeness).  Registered ONLY
++	// during netplay so ordinary savestates keep their exact layout/size and old
++	// saves stay loadable; both peers run this build, so their layouts match.
++	if( myosd_netplay_is_active() )
++	{
++		save_item( NAME( m_com_delay ) );
++		save_item( NAME( m_berr ) );
++	}
++	// END DAV HACK
+ 	save_item( NAME( m_exp_base ) );
+ 	save_item( NAME( m_exp_config ) );
+ 	save_item( NAME( m_ram_config ) );

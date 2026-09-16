@@ -35,27 +35,32 @@
         NETPLAY_MODE_ROLLBACK,
     } netplay_mode_type;
 
-    /* Rollback ring: MAX_FRAMES is the ceiling depth (120 @ 60fps = ~2s) and
-     * the static per-slot array size; the EFFECTIVE depth is adaptive (see
-     * ROLLBACK_RING_FRAMES).  STATE_SIZE_LIMIT: savestates above this size
-     * disable rollback (lockstep fallback).                                */
+    /* Rollback ring: MAX_FRAMES = ceiling depth (~2s) and the static slot count;
+     * effective depth is adaptive (ROLLBACK_RING_FRAMES).  STATE_SIZE_LIMIT: bigger
+     * states fall back to lockstep -- 24MB lets ~20.5MB games (Caveman Ninja) in.
+     * Both peers exchange the limit in the JOIN handshake and must agree. */
     #define ROLLBACK_MAX_FRAMES         120
-    #define ROLLBACK_STATE_SIZE_LIMIT   (20 * 1024 * 1024)
-    #define ROLLBACK_PACKET_HISTORY 16
+    #define ROLLBACK_STATE_SIZE_LIMIT   (24 * 1024 * 1024)
+    /* Loss redundancy: each DATA packet re-carries the last PACKET_HISTORY input
+     * frames, so up to N-1 packets lost in a row recover with no rollback.  It is
+     * the bulk of the packet, so 8 (~133ms at 60fps) halves it for metered relays;
+     * never a correctness knob.  Wire size -- peers must match (v12). */
+    #define ROLLBACK_PACKET_HISTORY 8
 
-    /* Adaptive ring depth: effective ring = min(MAX_FRAMES, RAM_BUDGET /
-     * state_size), computed at game start; below MIN_FRAMES falls back to
-     * LOCKSTEP.  Both peers must derive the same depth (RAM budget travels
-     * in the JOIN handshake).                                             */
+    /* Adaptive depth = min(MAX_FRAMES, RAM_BUDGET/state_size), lockstep below
+     * MIN_FRAMES; both peers derive it the same (budget travels in the handshake).
+     * Floor 48 keeps the full frame-advantage margin (needs ring >= ADVANTAGE(24)
+     * + MARGIN(16) + skip) and still lets ~42MB states (BUDGET/48) roll back. */
     #define ROLLBACK_RING_RAM_BUDGET  (2048u * 1024u * 1024u)
-    #define ROLLBACK_MIN_FRAMES       60
+    #define ROLLBACK_MIN_FRAMES       48
 
-    /* Initial-state transfer.  0 (default, GGPO model): both peers boot the
-     * SAME pinned-deterministic state and only exchange inputs; a local
-     * capture(0) is still taken to size the ring, never transferred.  1:
-     * host streams its state, client adopts it.  Must match on both peers
-     * -- flipping REQUIRES a protocol bump.                                */
-    #define NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER 0
+    /* Initial-state transfer.  1 (default): host streams its state, client adopts
+     * it (same clean-boundary handover as a drop-in) so both share the host's
+     * scheduler basetime.  0 (GGPO): both boot the pinned state and only trade
+     * inputs.  Why 1: with 0 the peers reach frame 0 at different emulated times,
+     * so a phase-sensitive read (RTC over serial, a counter seed) diverges and
+     * snowballs -- seen on Tekken.  Must match on both peers (v12). */
+    #define NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER 1
 
     /* Effective ring depth for THIS game (set by the myosd_netplay.cpp size
      * gate, ROLLBACK_MAX_FRAMES otherwise).  Defined in netplay.cpp.       */
@@ -63,26 +68,21 @@
     #define ROLLBACK_RING_FRAMES (myosd_netplay_ring_frames)
 
     /* NLOG master switch: 0 for release .so builds (compiles all NLOG out;
-     * netplay_warn messages and the stats overlay are unaffected).        */
+     * netplay_warn messages and the stats overlay are unaffected).  Set to 1
+     * only for field diagnosis; return to 0 before release. */
     #define NETPLAY_LOG_ENABLED 0
 
-    /* Build/protocol handshake: bump on any wire or determinism-critical
-     * change.  Peers exchange it (+ state-size/ring limits) in JOIN/JOIN_ACK
-     * and refuse a mismatched build instead of desyncing silently.  Version
-     * history: v2 RESYNC, v3 DATA-drop, v4 dup-frame guard, v5 adaptive
-     * ring, v6 state-size probe, v7 transfer-off default, v8 per-message-type
-     * wire size (was always sizeof(netplay_msg_t)), v9 JOIN_ACK carries
-     * is_auto_frameskip, v10 the DATA epoch broadcast also carries
-     * frameskip_epoch_is_auto (a mid-game Auto<->Fixed switch now
-     * propagates, not just the numeric value), v11 PUNCH message + client
-     * port bind (serverless internet play).                                */
-    #define NETPLAY_PROTOCOL_VERSION 11
+    /* Protocol/build handshake: bump on any wire or determinism-critical change;
+     * peers exchange it (+ size/ring limits) in JOIN and refuse a mismatched build
+     * rather than desync.  v13 (current): INPUT_NEED/INPUT_RESEND heal input holes
+     * past PACKET_HISTORY, and the rollback state carries ioport's live input state
+     * (new state size).  v12: clean-boundary capture, PACKET_HISTORY 8, transfer
+     * on.  Never mix builds.  (Older changelog in git.) */
+    #define NETPLAY_PROTOCOL_VERSION 13
 
-    /* Frame-advantage time-sync: max frames the local machine may run ahead
-     * of the peer before stalling to let it catch up (rollback never blocks
-     * otherwise, so the screens could drift seconds apart).  Sized to absorb
-     * real mobile RTT jitter without stalling every few frames while staying
-     * far short of the rollback window.                                    */
+    /* Frame-advantage cap: max frames the local machine may run ahead before
+     * stalling for the peer (else the screens drift).  Sized to absorb mobile RTT
+     * jitter without stalling constantly, well short of the rollback window. */
     #define ROLLBACK_MAX_FRAME_ADVANTAGE 24
     
     /* Dynamic rate control: corrects sustained frame-advantage drift by
@@ -104,6 +104,17 @@
     #define NETPLAY_CRC_EVERY            5
     #define NETPLAY_CRC_FRAME_WANTED(f)  (NETPLAY_CRC_DETECTOR_ENABLED && \
                                           ((f) <= 10 || ((f) % NETPLAY_CRC_EVERY) == 0))
+
+    /* Desync detector: whole-RAM CRC, toast on any confirmed mismatch.  CPS-3
+     * (myosd_save_hack_desync_tolerant) also needs >= MIN of the 16 sections to
+     * differ -- it measures spread, not size, so it filters little on its own. */
+    #define NETPLAY_CRC_SECTIONS        16
+    #define NETPLAY_DESYNC_MIN_SECTIONS  3
+
+    /* TOLERANT DRIVERS ONLY (CPS-3): distinct compared frames a mismatch must
+     * survive before the TOAST (log/ITEM_DIFF still fire on the first one).
+     * Not global -- waiting would un-anchor the probe from the root frame. */
+    #define NETPLAY_DESYNC_MIN_CONFIRMS  3
 
     /* Frame-advantage stall cap, split SOFT/HARD: SOFT lets a comfortable
      * stall yield early for smoothness; HARD (within MARGIN of the ring's
@@ -195,7 +206,15 @@
         NETPLAY_MSG_STATE_SIZE,
         /* Header-only NAT hole-punch probe (internet play): opens/keeps the
          * sender's NAT mapping toward the peer; receiver ignores it.       */
-        NETPLAY_MSG_PUNCH
+        NETPLAY_MSG_PUNCH,
+        /* Rollback input hole: the sender's confirmed watermark is stuck on a
+         * frame older than any DATA still re-carries; asks for a resend.   */
+        NETPLAY_MSG_INPUT_NEED,
+        /* Answer to INPUT_NEED: the sender's local inputs from base_frame.  */
+        NETPLAY_MSG_INPUT_RESEND,
+        /* Quick chat: a predefined phrase id (never free text), rendered by
+         * each peer in its own language.                                    */
+        NETPLAY_MSG_CHAT
     } netplay_msg_type;
     
     typedef struct netplay_msg_join {
@@ -245,6 +264,28 @@
         uint32_t state_size;   /* sender's total registered savestate byte size */
     } netplay_msg_state_size_t;
 
+    /* Input-hole resend request (see NETPLAY_MSG_INPUT_NEED).               */
+    typedef struct netplay_msg_input_need {
+        uint32_t frame;        /* first peer-input frame the sender is missing */
+    } netplay_msg_input_need_t;
+
+    #define NETPLAY_RESEND_MAX 16   /* inputs per INPUT_RESEND (fits the union) */
+
+    /* Resent local inputs (see NETPLAY_MSG_INPUT_RESEND).                   */
+    typedef struct netplay_msg_input_resend {
+        uint32_t base_frame;   /* frame of states[0]                          */
+        uint8_t  count;        /* valid entries in states[]                   */
+        netplay_state_t states[NETPLAY_RESEND_MAX];
+    } netplay_msg_input_resend_t;
+
+    #define NETPLAY_CHAT_MAX_PHRASE 64   /* phrase ids accepted on the wire */
+
+    /* Quick chat phrase (see NETPLAY_MSG_CHAT).                             */
+    typedef struct netplay_msg_chat {
+        uint16_t phrase;       /* predefined phrase id                        */
+        uint32_t seq;          /* per-session counter: drops the burst copies */
+    } netplay_msg_chat_t;
+
 #define ITEMCRC_PER_CHUNK (STATE_CHUNK_SIZE / 4)   /* 256 uint32 CRCs per packet */
 
     /* Debug-only one-shot per-save_item CRC table fragment (see
@@ -280,9 +321,13 @@
         /* Desync Detector: CRC32 of the savestate for a specific frame */
         uint32_t state_checksum;   /* CRC32 of our state at checksum_frame  */
         uint32_t checksum_frame;   /* frame the CRC above was computed for  */
+        /* Per-section RAM fingerprint (1 byte each); only CPS-3 fills it, for
+         * the broad-divergence test -- zero for every other driver. */
+        uint8_t  state_section_fp[NETPLAY_CRC_SECTIONS];
 
-        /* Extended history for Rollback mode. Guarantees input delivery even if
-         * up to 15 consecutive UDP packets are dropped by the network! */
+        /* Extended history for Rollback mode: recovers input across up to
+         * PACKET_HISTORY-1 consecutive dropped packets (loss-recovery only,
+         * never correctness -- see the ROLLBACK_PACKET_HISTORY define). */
         netplay_state_t rollback_history[ROLLBACK_PACKET_HISTORY];
     }netplay_msg_data_t;
     
@@ -296,6 +341,9 @@
             netplay_msg_state_ack_t state_ack;
             netplay_msg_state_size_t state_size;
             netplay_msg_itemcrc_chunk_t itemcrc_chunk;
+            netplay_msg_input_need_t input_need;
+            netplay_msg_input_resend_t input_resend;
+            netplay_msg_chat_t chat;
         }u;
     }netplay_msg_t;
 #pragma pack(pop)
@@ -426,9 +474,9 @@
         uint32_t                early_peer_frame[EARLY_BUFFER_SIZE]; /* frame numbers of early-arrived peer input */
         netplay_state_t         early_peer_state[EARLY_BUFFER_SIZE]; /* peer input that arrived before we reached its frame */
 
-        /* last_crc_match_frame / consecutive_desyncs: reset alongside the
-         * other detector state on JOIN/JOIN_ACK/resync; currently not read
-         * anywhere else (no corrective action is wired to them).            */
+        /* Reset with the rest of the detector on JOIN/JOIN_ACK/resync.
+         * consecutive_desyncs = distinct frames mismatched in a row (any
+         * agreement zeroes it); gates the toast, see MIN_CONFIRMS above.   */
         uint32_t                last_crc_match_frame;
         int                     consecutive_desyncs;
 
@@ -486,6 +534,11 @@
          * client's adopted frame counter.                                   */
         volatile int      resync_active;
         uint32_t          resync_last_done_ms;
+        /* Quick chat: last seq sent / accepted (drops a burst's copies) and
+         * the send time behind the 1-per-second limit.                      */
+        uint32_t          chat_seq_sent;
+        uint32_t          chat_seq_recv;
+        uint32_t          chat_last_send_ms;
         uint32_t          sync_state_frame;
         volatile uint32_t sync_pending_frame;
 
@@ -544,6 +597,11 @@
      * call from any thread (Java UI via the netplayResync JNI bridge).       */
     int  myosd_netplay_request_resync(void);
 
+    /* Quick chat: send predefined phrase `phrase` to the peer (Java netplay
+     * dialog via the netplaySendChat JNI bridge).  1 if sent, 0 if no live
+     * peer or rate-limited (1 per second).  Any thread.                     */
+    int  myosd_netplay_send_chat(int phrase);
+
     /* Netplay session-state predicates (netplay.cpp).  C++ linkage (only .cpp
      * callers).  is_active = any mode; is_rollback / is_lockstep = active AND
      * that specific mode.                                                   */
@@ -573,6 +631,18 @@
      * timer list mid-iteration).  Called from running_machine::run() between
      * timeslices.  No-op when nothing is pending.  Defined in myosd_netplay.cpp. */
     extern "C" void myosd_netplay_service_deferred_load(void);
+
+    /* Arm a one-shot ring capture at the NEXT clean scheduler boundary.  Called
+     * from the primary screen's vblank-OFF callback (screen.cpp) so the capture
+     * lands at the frame tail (IRQ queue drained, field bit settled) instead of
+     * mid-vblank.  Defined in myosd_netplay.cpp. */
+    extern "C" void myosd_netplay_arm_boundary_capture(void);
+
+    /* Drop-in handover: arm a clean-boundary capture of the handover frame (the
+     * ring capture skips it) and poll _ready until it lands, so the slot is a
+     * vblank-tail state that loads without a re-arm.  Defined in myosd_netplay.cpp. */
+    extern "C" void myosd_netplay_arm_boot_slot_capture(void);
+    extern "C" int  myosd_netplay_boot_slot_ready(void);
 
     /* myosd_netplay_set_speed (per-mille, 1000 = 100%) is declared in
      * myosd_netplay.h -- used by the dynamic rate controller in

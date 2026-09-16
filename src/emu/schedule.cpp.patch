@@ -1,8 +1,7 @@
 diff --git a/schedule.cpp b/schedule.cpp
-index a475fd9..ce1a5de 100644
 --- a/schedule.cpp
 +++ b/schedule.cpp
-@@ -596,6 +596,43 @@
+@@ -596,6 +596,29 @@
  	add_quantum(attotime::zero, duration);
  }
  
@@ -28,20 +27,6 @@ index a475fd9..ce1a5de 100644
 +	m_suspend_changes_pending = true;
 +	rebuild_execute_list();
 +}
-+
-+//-------------------------------------------------
-+//  canonicalize_timer_order - netplay rollback hook.
-+//  Normalizes active timers so a netplay forward run
-+//  is byte-identical to a rollback savestate load.
-+//  This prevents desyncs between forward and rollback
-+//  states using existing MAME save logic.
-+//-------------------------------------------------
-+
-+void device_scheduler::canonicalize_timer_order()
-+{
-+	postload();
-+}
-+
 +// END DAV HACK
  
  //-------------------------------------------------

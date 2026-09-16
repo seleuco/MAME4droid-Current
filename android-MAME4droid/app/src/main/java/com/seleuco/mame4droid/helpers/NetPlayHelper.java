@@ -291,6 +291,17 @@ public class NetPlayHelper {
 
     protected MAME4droid mm = null;
 
+    /* Quick chat: the phrase id is what crosses the wire, so this ORDER is part
+     * of the protocol -- append new phrases, never reorder or reuse an id. */
+    private static final int[] CHAT_PHRASES = {
+        R.string.np_chat_0, R.string.np_chat_1, R.string.np_chat_2, R.string.np_chat_3,
+        R.string.np_chat_4, R.string.np_chat_5, R.string.np_chat_6, R.string.np_chat_7,
+        R.string.np_chat_8, R.string.np_chat_9, R.string.np_chat_10, R.string.np_chat_11,
+        R.string.np_chat_12, R.string.np_chat_13, R.string.np_chat_14, R.string.np_chat_15,
+        R.string.np_chat_16
+    };
+    public static final String PREF_NETPLAY_CHAT_MUTE = "PREF_NETPLAY_CHAT_MUTE";
+
     private static final Pattern IPV4_PATTERN =
             Pattern.compile(
                     "^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$");
@@ -353,6 +364,10 @@ public class NetPlayHelper {
         final Button publicRoomsButton = (Button) netplayDlg.findViewById(R.id.PublicRoomsBtn);
         final Button disconnectButton = (Button) netplayDlg.findViewById(R.id.DisconnectBtn);
         final Button resyncButton = (Button) netplayDlg.findViewById(R.id.ResyncBtn);
+        final Button chatButton = (Button) netplayDlg.findViewById(R.id.ChatBtn);
+        /* Quick chat needs a live peer to talk to. */
+        chatButton.setEnabled(Emulator.getValue(Emulator.NETPLAY_HAS_CONNECTION) == 1
+                && Emulator.getValue(Emulator.NETPLAY_HAS_JOINED) == 1);
 
         /* Deliberately not gated on having a game selected, unlike Start: a
          * client joining from the board doesn't choose the game, the host
@@ -388,6 +403,20 @@ public class NetPlayHelper {
             startButton.setText(mm.getString(R.string.np_start_game));
             startButton.setEnabled(false);
         }
+
+        /* Gamepad default: the first action that is safe to take with one press.
+         * Disconnect ends the session with no confirmation, so while a rollback
+         * session can Resync that goes first; in lockstep it is the only choice. */
+        Button def;
+        if (Emulator.getValue(Emulator.NETPLAY_HAS_CONNECTION) == 1)
+            def = resyncButton.isEnabled() ? resyncButton : disconnectButton;
+        else
+            def = startButton.isEnabled() ? startButton
+                    : (publicRoomsButton.isEnabled() ? publicRoomsButton : joinButton);
+        for (Button b : new Button[] { startButton, publicRoomsButton, joinButton,
+                                       chatButton, disconnectButton, resyncButton })
+            b.setFocusedByDefault(b == def);
+        def.requestFocus();
     }
 
     public void createDialog() {
@@ -416,6 +445,9 @@ public class NetPlayHelper {
 
         final Button resyncButton = (Button) netplayDlg.findViewById(R.id.ResyncBtn);
         resyncButton.setOnClickListener(resyncGameClick);
+
+        final Button chatButton = (Button) netplayDlg.findViewById(R.id.ChatBtn);
+        chatButton.setOnClickListener(chatClick);
 
         prepareButtons();
 
@@ -781,7 +813,7 @@ public class NetPlayHelper {
                     });
         }
 
-        new AlertDialog.Builder(mm)
+        focusPositive(new AlertDialog.Builder(mm)
             .setTitle(mm.getString(R.string.np_create_options_title))
             .setView(box)
             .setPositiveButton(mm.getString(R.string.ok), new DialogInterface.OnClickListener() {
@@ -802,7 +834,7 @@ public class NetPlayHelper {
                 }
             })
             .setNegativeButton(mm.getString(R.string.cancel), null)
-            .show();
+            .show());
     }
 
     /* Ensures the ACCESS_LOCAL_NETWORK runtime permission before a LAN
@@ -921,7 +953,7 @@ public class NetPlayHelper {
             }
         });
         alert.setNegativeButton(mm.getString(R.string.cancel), null);
-        alert.show();
+        focusPositive(alert.show());
     }
 
     /* "host[:port]" -> {host, portStr|null}.  "[v6]:port" unwraps its
@@ -1127,10 +1159,37 @@ public class NetPlayHelper {
      * draws on the activity frame, BEHIND dialogs, so it would be hidden.  An
      * AlertDialog has its own window and sits on top.  UI thread only. */
     void showNetplayError(String msg) {
-        new AlertDialog.Builder(mm)
+        focusPositive(new AlertDialog.Builder(mm)
                 .setMessage(msg)
                 .setPositiveButton(android.R.string.ok, null)
-                .show();
+                .show());
+    }
+
+    /** Gamepad: start a shown dialog on its positive button so one press of the
+     *  pad's confirm button accepts.  setFocusedByDefault also lands focus there
+     *  when the pad takes the dialog out of touch mode; touch is unaffected. */
+    static void focusPositive(AlertDialog dlg) {
+        focusButton(dlg, DialogInterface.BUTTON_POSITIVE);
+    }
+
+    /** Same, for any of a shown dialog's buttons (e.g. a harmless neutral one). */
+    static void focusButton(AlertDialog dlg, int which) {
+        if (dlg == null) return;
+        Button b = dlg.getButton(which);
+        if (b == null) return;
+        b.setFocusedByDefault(true);
+        b.requestFocus();
+    }
+
+    /** Quick chat phrase `id` in this device's language, or null if unknown. */
+    public static String chatPhrase(android.content.Context ctx, int id) {
+        if (id < 0 || id >= CHAT_PHRASES.length) return null;
+        return ctx.getString(CHAT_PHRASES[id]);
+    }
+
+    /** Whether the user muted received quick-chat messages. */
+    public static boolean isChatMuted(MAME4droid mm) {
+        return mm.getPrefsHelper().getSharedPreferences().getBoolean(PREF_NETPLAY_CHAT_MUTE, false);
     }
 
     /* UPnP SOAP calls are network I/O: never on the UI thread. */
@@ -1309,7 +1368,7 @@ public class NetPlayHelper {
         if (!prefs.isNetplayLobbyEnabled() || prefs.isNetplayLobbyConsentGiven())
             return true;
 
-        new AlertDialog.Builder(mm)
+        focusPositive(new AlertDialog.Builder(mm)
                 .setTitle(mm.getString(R.string.np_lobby_consent_title))
                 .setMessage(mm.getString(R.string.np_lobby_consent_body))
                 .setCancelable(false)
@@ -1327,7 +1386,7 @@ public class NetPlayHelper {
                                 if (onDecline != null) onDecline.run();
                             }
                         })
-                .show();
+                .show());
         return false;
     }
 
@@ -1543,9 +1602,16 @@ public class NetPlayHelper {
      * counts as a yes: the join barrier still refuses what cannot work.
      */
     private boolean dropInFitsRollback() {
-        for (int i = 0; i < 600 && !canceled; i++) {
+        int waited = 0;
+        while (waited < 600 && !canceled) {
+            /* The native side dropped the session before launch (BIOS picker
+             * cancelled, failed audit): nothing to measure, stop here. */
+            if (Emulator.getValue(Emulator.NETPLAY_HAS_CONNECTION) == 0) return false;
             int verdict = Emulator.getValue(Emulator.NETPLAY_DROP_IN_STATE);
             if (verdict == 1) return true;
+            /* 3: the host is still on the BIOS picker, so the game is not even
+             * launched -- keep waiting without spending the timeout. */
+            if (verdict != 3) waited++;
             if (verdict == 2) {
                 final String size = dropInStateSize();
                 /* Modal, not a passing notice: it ends the drop-in, and the
@@ -2264,6 +2330,7 @@ public class NetPlayHelper {
             AlertDialog dlg = alert.create();
             dlg.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
             dlg.show();
+            focusPositive(dlg);
             } };
             if (ensureLocalNet(action)) action.run();
         }
@@ -2291,6 +2358,45 @@ public class NetPlayHelper {
 
             new WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_disconnected_game), 3, Color.YELLOW, false);
             prepareButtons();
+        }
+    };
+
+    /* Quick chat: a predefined phrase, sent as its id so the peer reads it in
+     * its own language (no free text, so nothing to moderate).  The neutral
+     * button mutes / unmutes what the peer sends. */
+    Button.OnClickListener chatClick = new Button.OnClickListener() {
+        public void onClick(View v) {
+            final String[] labels = new String[CHAT_PHRASES.length];
+            for (int i = 0; i < CHAT_PHRASES.length; i++)
+                labels[i] = mm.getString(CHAT_PHRASES[i]);
+            final boolean muted = isChatMuted(mm);
+            new AlertDialog.Builder(mm)
+                .setTitle(mm.getString(R.string.np_chat_title))
+                .setItems(labels, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        boolean sent = Emulator.netplaySendChat(which) == 1;
+                        Toast.makeText(mm, sent ? mm.getString(R.string.np_chat_you, labels[which])
+                                                : mm.getString(R.string.np_chat_wait),
+                                Toast.LENGTH_SHORT).show();
+                        /* Sent: straight back to the game, like Resync -- the menu
+                         * pauses both peers, so lingering in it freezes the other
+                         * player too.  dismiss() skips the cancel listener that
+                         * resumes, hence the explicit resume. */
+                        if (sent && netplayDlg != null && netplayDlg.isShowing()) {
+                            netplayDlg.dismiss();
+                            Emulator.resume();
+                        }
+                    }
+                })
+                .setNeutralButton(mm.getString(muted ? R.string.np_chat_unmute : R.string.np_chat_mute),
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                mm.getPrefsHelper().getSharedPreferences().edit()
+                                        .putBoolean(PREF_NETPLAY_CHAT_MUTE, !muted).apply();
+                            }
+                        })
+                .setNegativeButton(mm.getString(R.string.cancel), null)
+                .show();
         }
     };
 
@@ -2596,7 +2702,10 @@ public class NetPlayHelper {
                         if (!dropInFitsRollback()) {
                             dropInLive = false;
                             canceled = true;
-                            reportDropInRefused();
+                            /* A session the native side dropped (BIOS picker
+                             * cancelled) is the host's own choice, not a refusal. */
+                            if (Emulator.getValue(Emulator.NETPLAY_HAS_CONNECTION) != 0)
+                                reportDropInRefused();
                         }
                     }
 
@@ -2849,6 +2958,14 @@ public class NetPlayHelper {
                     });
         progressDialog = joinBld.create();
         progressDialog.show();
+        if (fromBoard && progressText != null) {
+            /* Gamepad: the board join's only button is Cancel, and a stray confirm
+             * press must not abort it (back cancels, as the title says).  Park the
+             * default focus on the status text; Cancel is one d-pad step away. */
+            progressText.setFocusable(true);
+            progressText.setFocusedByDefault(true);
+            progressText.requestFocus();
+        }
         Button shareBtn = progressDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         if (shareBtn != null) {
             shareBtn.setOnClickListener(new View.OnClickListener() {

@@ -154,6 +154,7 @@ extern float myosd_droid_netplay_mouse_read_analog(int i, char axis);
 extern float myosd_droid_netplay_lightgun_read_analog(int i, char axis);
 /* Cross-peer sample-rate sync (see myosd_droid.cpp).                       */
 extern int  myosd_droid_get_effective_sound_rate(void);
+extern "C" const char *myosd_netplay_get_running_bios_name(void); /* resolved BIOS of the running host machine, or "" */
 extern void myosd_droid_set_netplay_sound_rate(int rate);
 /* Local input read WITH menu-combo interception (MAME-specific; lives in the
  * OSD glue myosd_netplay.cpp, so this engine stays input-semantics-agnostic). */
@@ -277,11 +278,8 @@ static void encode_peer_state(netplay_state_t *out_net, const netplay_state_t *i
 uint32_t myosd_netplay_ring_frames = ROLLBACK_MAX_FRAMES;
 
 /* ============================================================
- * SECTION 2 -- Per-frame game-thread trunk
- * netplay_pre_frame_net() / netplay_post_frame_net() are called once per
- * MAME video frame from myosd_netplay.cpp's rollback step (and the
- * lockstep path), just before/after MAME executes the frame -- see the
- * file header's INTEGRATION WITH MAME section.
+ * SECTION 2 -- Per-frame game-thread trunk.  pre/post_frame_net() run once per
+ * video frame from the rollback (and lockstep) step, around MAME's frame.
  * ============================================================ */
 
 /* True when no blocking wait is needed: frame < target_frame (peer data not
@@ -309,11 +307,10 @@ void netplay_pre_frame_net(netplay_t *handle)
     if (handle->mode == NETPLAY_MODE_ROLLBACK) {
         if (!handle->rollback_enabled) return;
 
-        /* 1. Save machine state for this frame via bridge callback.  Do NOT
-         * capture frame 0: slot 0 must retain the stable raw_A from initial
-         * sync (capturing now would store an unsettled post-load state).   */
-        if (handle->rollback_capture_state && handle->frame != 0)
-            handle->rollback_capture_state(handle->frame);
+        /* 1. Machine state for this frame is captured at the clean scheduler
+         * boundary (vblank tail) by the ring boundary capture -- NOT here
+         * mid-vblank.  See myosd_netplay_arm_boundary_capture / the boundary
+         * capture in service_deferred_load. */
 
         pthread_mutex_lock(&handle->sync_mutex);
 
@@ -595,10 +592,11 @@ void netplay_pre_frame_net(netplay_t *handle)
 static void netplay_log_frame_telemetry(netplay_t *handle)
 {
     if ((handle->frame % 60) != 0) return;
-    NLOG("TELEM f=%u tf=%u pf=%u pp=%u fs=%u wc=%u role=%s rb=%d",
+    NLOG("TELEM f=%u tf=%u pf=%u pp=%u fs=%u wc=%u wm=%u role=%s rb=%d",
          handle->frame, handle->target_frame, handle->peer_frame,
          handle->peer_peer_frame, handle->frame_skip,
-         netplay_get_ticks_ms(), handle->player1 ? "HOST" : "CLIENT",
+         netplay_get_ticks_ms(), handle->confirmed_watermark,
+         handle->player1 ? "HOST" : "CLIENT",
          handle->requires_rollback);
 }
 
@@ -648,12 +646,18 @@ void netplay_post_frame_net(netplay_t *handle)
              * lockstep-only peak/floor envelope gave.  Unlocked read is benign. */
             uint32_t jitter = handle->rtt_mdev;
 
-            /* Colour = WORSE of ping and jitter.  Tuned for INTERNET rollback:
-             * rollback hides latency so ping is judged leniently; jitter is the
-             * real enemy, so a scattery link reddens even when the ping is fine. */
+            /* Colour = WORSE of ping and jitter.  Ping is judged BY MODE: rollback
+             * re-simulates so latency is hidden (lenient -- 200ms plays fine), while
+             * lockstep feels RTT directly as input delay (strict).  Jitter is the
+             * real rollback enemy and reddens on its own regardless of ping. */
             int sev = 0;                                /* 0 green,1 yellow,2 red */
-            if (handle->smoothed_rtt > 180)      sev = 2;   /* sluggish even w/ rollback */
-            else if (handle->smoothed_rtt > 100) sev = 1;   /* good, slightly laggy      */
+            if (handle->mode == NETPLAY_MODE_ROLLBACK) {
+                if (handle->smoothed_rtt > 350)      sev = 2;   /* eating into rollback depth */
+                else if (handle->smoothed_rtt > 180) sev = 1;
+            } else {
+                if (handle->smoothed_rtt > 180)      sev = 2;   /* lockstep: felt as delay */
+                else if (handle->smoothed_rtt > 100) sev = 1;
+            }
 
             /* Jitter rating with HYSTERESIS (worsen at high edge, recover past a
              * lower one) so it doesn't flip-flop: green<->yellow 30/20, yellow<->
@@ -708,6 +712,19 @@ void netplay_post_frame_net(netplay_t *handle)
         /* Read local input for this frame (to be sent to peer).          */
         if (handle->frame != 0) {
             ns.digital      = myosd_netplay_read_local_digital();
+            /* DEV (off): synthetic local input changing every 20 frames, so each
+             * simulated cut hides a real input change from the peer's prediction
+             * and the resend must arm the corrective rollback.  Never ship on. */
+            constexpr bool NETPLAY_SIM_INPUT_ENABLED = false;
+            if (NETPLAY_SIM_INPUT_ENABLED) {
+                static const uint32_t sim_pattern[4] = {
+                    0x40,               /* MYOSD_RIGHT        */
+                    0x04 | (1u << 10),  /* MYOSD_LEFT  + BTN1 */
+                    0x40 | (1u << 10),  /* MYOSD_RIGHT + BTN1 */
+                    0x04                /* MYOSD_LEFT         */
+                };
+                ns.digital |= sim_pattern[(handle->frame / 20) % 4];
+            }
             ns.analog_x     = myosd_droid_netplay_joystick_read_analog(0, 'x');
             ns.analog_y     = myosd_droid_netplay_joystick_read_analog(0, 'y');
             ns.analog_rx    = myosd_droid_netplay_joystick_read_analog(0, 'X');
@@ -888,12 +905,9 @@ void netplay_post_frame_net(netplay_t *handle)
 }
 
 /* ============================================================
- * SECTION 3 -- Network receive path
- * netplay_read_data() is the network thread's entry point, called in a
- * loop for every incoming packet.  Forward declarations below: the two
- * warning/resync functions it needs are defined later, in section 5
- * (session lifecycle) -- kept there since they are session-lifecycle
- * concerns, not receive-path logic.
+ * SECTION 3 -- Network receive path.  netplay_read_data() is the network
+ * thread's per-packet entry point; the warn/resync fns it forward-declares
+ * live in section 5 (session lifecycle).
  * ============================================================ */
 
 int  netplay_resync_begin(netplay_t *handle, const char *origin);
@@ -945,9 +959,8 @@ static int netplay_check_build_compat(netplay_t *handle, const netplay_msg_t *ms
  * comparison on purpose -- any tolerance/epsilon is a guaranteed silent
  * desync the moment predicted and confirmed values differ below it.  `ext`
  * is excluded (never applied to emulation).                               */
-/* Which field broke the match, for the log: a mismatch on equal digitals says
- * the cause is one of the analog/mouse/lightgun fields, and naming it is the
- * difference between a diagnosis and a guess. Diagnostic only. */
+/* Which field broke the match, for the log: equal digitals but a mismatch
+ * means an analog/mouse/lightgun field.  Diagnostic only. */
 static const char *netplay_state_diff_field(const netplay_state_t *a, const netplay_state_t *b)
 {
     if (a->digital      != b->digital)      return "digital";
@@ -1021,6 +1034,176 @@ static uint32_t g_client_itemcrc_snap[65536];
 static uint32_t g_client_itemcrc_count = 0;
 static uint32_t g_client_itemcrc_frame = 0xFFFFFFFF;
 
+/* Rollback: check one peer input (chk_frame, real_state) against our history --
+ * early-buffer a future frame, heal a wrong early confirm, confirm, or arm the
+ * corrective rollback on a misprediction.  Shared by DATA and INPUT_RESEND; call
+ * NEWEST -> OLDEST with sync_mutex held (newest_mispredict caps propagation). */
+static void netplay_rb_check_peer_input(netplay_t *handle, uint32_t chk_frame,
+                                        const netplay_state_t &real_state,
+                                        uint32_t &newest_mispredict_chk_frame)
+{
+    /* Only check frames we have stored and haven't confirmed.  */
+    int idx = (int)(chk_frame % ROLLBACK_RING_FRAMES);
+
+    if (chk_frame > handle->frame ||
+       (chk_frame == handle->frame && handle->frame_history[idx].frame != chk_frame)) {
+        /* Early packet. Store it for when we reach this frame. */
+        int early_idx = (int)(chk_frame % EARLY_BUFFER_SIZE);
+        handle->early_peer_frame[early_idx] = chk_frame;
+        handle->early_peer_state[early_idx] = real_state;
+        if (!handle->has_received_data) {
+            NLOG("ROLLBACK: First peer data received! Waking up initial sync wait.");
+        }
+        handle->has_received_data = 1;
+        pthread_cond_signal(&handle->sync_cond);
+        return;
+    }
+
+    if (handle->frame_history[idx].frame != chk_frame) return;
+
+    /* Already confirmed?  Normally a redundant duplicate we can drop
+     * -- but a frame can get confirmed WRONG via the early-buffer
+     * path (unvalidated).  Compare instead: a differing value means
+     * we confirmed it wrong earlier -- heal via re-confirm + forced
+     * corrective rollback.                                         */
+    if (handle->frame_history[idx].peer_confirmed) {
+        if (netplay_state_differs(&handle->frame_history[idx].peer_state, &real_state)) {
+            NLOG("ROLLBACK confirm-fix frame=%u was_dig=0x%x real_dig=0x%x (wrong early confirm healed)",
+                 chk_frame, handle->frame_history[idx].peer_state.digital, real_state.digital);
+            handle->frame_history[idx].peer_state         = real_state;
+            handle->frame_history[idx].applied_peer_state = real_state;
+            netplay_applied_ring_arm("confirm_fix", chk_frame);
+            /* Local ring states >= chk_frame are stale until the
+             * corrective FF re-captures them; mute the CRC
+             * detector for that window (see netplay.h).            */
+            if (!handle->crc_dirty || chk_frame < handle->crc_dirty_low)
+                handle->crc_dirty_low = chk_frame;
+            handle->crc_dirty = 1;
+            if (!handle->requires_rollback ||
+                chk_frame < handle->rollback_to_frame) {
+                handle->rollback_to_frame  = chk_frame;
+                handle->requires_rollback  = 1;
+                handle->rollback_arm_gen = handle->rollback_arm_gen + 1;
+            }
+        }
+        return;
+    }
+
+    /* Mark as confirmed regardless of match / mismatch.       */
+    netplay_state_t pred = handle->frame_history[idx].applied_peer_state; /* Use what MAME executed */
+    handle->frame_history[idx].peer_state   = real_state;
+    handle->frame_history[idx].peer_confirmed = 1;
+
+    /* Trigger rollback on prediction mismatch.                */
+    if (netplay_state_differs(&pred, &real_state)) {
+        NLOG("ROLLBACK mismatch frame=%u field=%s pred_dig=0x%x real_dig=0x%x "
+             "pred_mx=%.3f real_mx=%.3f pred_my=%.3f real_my=%.3f",
+             chk_frame, netplay_state_diff_field(&pred, &real_state),
+             pred.digital, real_state.digital,
+             pred.mouse_x, real_state.mouse_x,
+             pred.mouse_y, real_state.mouse_y);
+        netplay_applied_ring_arm("ROLLBACK_mismatch", chk_frame);
+        /* Mute the CRC detector for the stale window (see
+         * netplay.h) — states >= chk_frame were executed/captured
+         * with the wrong prediction until the FF re-captures them. */
+        if (!handle->crc_dirty || chk_frame < handle->crc_dirty_low)
+            handle->crc_dirty_low = chk_frame;
+        handle->crc_dirty = 1;
+        /* Always rollback to the oldest mispredicted frame.   */
+        if (!handle->requires_rollback ||
+            chk_frame < handle->rollback_to_frame) {
+            handle->rollback_to_frame  = chk_frame;
+            handle->requires_rollback  = 1;
+            handle->rollback_arm_gen = handle->rollback_arm_gen + 1;
+        }
+
+        /* Update applied_peer_state immediately for the mispredicted frame. */
+        handle->frame_history[idx].applied_peer_state = real_state;
+
+        /* Propagate the corrected guess to subsequent unconfirmed
+         * frames up to target_frame (FF clamps handle->frame), capped
+         * below any fresher pass's guess.  applied_peer_state is left
+         * untouched for f <= handle->frame (already executed; do not
+         * falsify history).                                          */
+        uint32_t max_f = (handle->target_frame > handle->frame) ? handle->target_frame : handle->frame;
+        if (newest_mispredict_chk_frame != 0 && newest_mispredict_chk_frame < max_f)
+            max_f = newest_mispredict_chk_frame;
+        for (uint32_t f = chk_frame + 1; f <= max_f; f++) {
+            int f_idx = (int)(f % ROLLBACK_RING_FRAMES);
+            if (!handle->frame_history[f_idx].peer_confirmed) {
+                handle->frame_history[f_idx].peer_state = real_state;
+                if (f > handle->frame)
+                    handle->frame_history[f_idx].applied_peer_state = real_state;
+            }
+        }
+
+        /* Passes run newest -> oldest, so the FIRST mismatch we hit here is
+         * guaranteed to be the newest one; latch it once so any subsequent
+         * (older) pass's propagation caps itself above, per the comment there. */
+        if (newest_mispredict_chk_frame == 0)
+            newest_mispredict_chk_frame = chk_frame;
+    }
+
+    if (!handle->has_received_data) {
+        NLOG("ROLLBACK: First peer data received! Waking up initial sync wait.");
+    }
+    handle->has_received_data = 1;
+    pthread_cond_signal(&handle->sync_cond);
+}
+
+/* Ask the peer to resend its inputs from `frame` (an input hole, see the DATA
+ * case).  Throttled: at most one request per hole frame every 100ms. */
+static void netplay_send_input_need(netplay_t *handle, uint32_t frame)
+{
+    static uint32_t s_last_frame = 0, s_last_ms = 0;
+    uint32_t now_ms = netplay_get_ticks_ms();
+    if (frame == s_last_frame && (uint32_t)(now_ms - s_last_ms) < 100)
+        return;
+    s_last_frame = frame;
+    s_last_ms    = now_ms;
+
+    netplay_msg_t msg;
+    memset(&msg, 0, sizeof(msg));
+    uint32_t uid = __sync_add_and_fetch(&handle->packet_uid, 1);
+    msg.packetid = htonl(uid);
+    msg.msg_type = htonl(NETPLAY_MSG_INPUT_NEED);
+    msg.u.input_need.frame = htonl(frame);
+    NLOG("INPUT_HOLE: requesting resend from frame=%u", frame);
+    handle->send_pkt_data(handle, &msg);
+}
+
+/* Answer INPUT_NEED: our local inputs for [frame, frame + NETPLAY_RESEND_MAX),
+ * clipped to what we have published (target_frame) and still hold in the ring
+ * (a slot already republished for a newer frame is never sent). */
+static void netplay_send_input_resend(netplay_t *handle, uint32_t frame)
+{
+    netplay_msg_t msg;
+    memset(&msg, 0, sizeof(msg));
+    uint32_t count = 0;
+    pthread_mutex_lock(&handle->sync_mutex);
+    for (; count < NETPLAY_RESEND_MAX; count++) {
+        uint32_t t = frame + count;
+        if (t == 0 || t > handle->target_frame ||
+            t + ROLLBACK_RING_FRAMES <= handle->target_frame)
+            break;
+        netplay_frame_history_t *fh = &handle->frame_history[t % ROLLBACK_RING_FRAMES];
+        if (t < handle->frame && fh->frame != t)
+            break;
+        encode_peer_state(&msg.u.input_resend.states[count], &fh->local_state);
+    }
+    pthread_mutex_unlock(&handle->sync_mutex);
+    if (count == 0)
+        return;
+
+    uint32_t uid = __sync_add_and_fetch(&handle->packet_uid, 1);
+    msg.packetid = htonl(uid);
+    msg.msg_type = htonl(NETPLAY_MSG_INPUT_RESEND);
+    msg.u.input_resend.base_frame = htonl(frame);
+    msg.u.input_resend.count      = (uint8_t)count;
+    NLOG("INPUT_RESEND: sending base=%u count=%u", frame, count);
+    handle->send_pkt_data(handle, &msg);
+}
+
 /* Read and process one incoming packet (network thread, non-blocking).
  * Returns 0 on a transport read failure, 1 otherwise.                     */
 int netplay_read_data(netplay_t *handle)
@@ -1037,6 +1220,24 @@ int netplay_read_data(netplay_t *handle)
 
     uint32_t msg_packet_uid = ntohl(msg.packetid);
     msg.msg_type = ntohl(msg.msg_type);
+
+    /* DEV (off): simulate a WiFi cut -- drop every incoming DATA for SIM_CUT_MS
+     * once every SIM_CUT_EVERY_MS, a loss burst longer than PACKET_HISTORY, to
+     * exercise the INPUT_NEED/INPUT_RESEND hole healing.  Never ship on. */
+    constexpr bool     NETPLAY_SIM_CUT_ENABLED = false;
+    constexpr uint32_t SIM_CUT_EVERY_MS        = 6000;
+    constexpr uint32_t SIM_CUT_MS              = 500;
+    if (NETPLAY_SIM_CUT_ENABLED && msg.msg_type == NETPLAY_MSG_DATA && handle->has_begun_game) {
+        static bool s_in_cut = false;
+        bool cut = (netplay_get_ticks_ms() % SIM_CUT_EVERY_MS) < SIM_CUT_MS;
+        if (cut != s_in_cut) {
+            s_in_cut = cut;
+            NLOG("SIM_CUT %s frame=%u wm=%u", cut ? "begin (dropping DATA)" : "end",
+                 handle->frame, handle->confirmed_watermark);
+        }
+        if (cut)
+            return 1;
+    }
 
     /* Strict packet drop (N-1 lockstep/rollback correctness): an older DATA
      * packet is redundant once N+1 arrived, so drop it -- but ONLY for DATA;
@@ -1149,48 +1350,77 @@ int netplay_read_data(netplay_t *handle)
                 /* Remember the newest frame the two sides actually AGREED on: it
                  * bounds when a later divergence started, which the desync
                  * line alone cannot tell you.                             */
-                if (our_crc != 0 && our_crc == msg_checksum &&
-                    (int32_t)(msg_chk_frame - handle->last_crc_match_frame) > 0)
-                    handle->last_crc_match_frame = msg_chk_frame;
+                if (our_crc != 0 && our_crc == msg_checksum) {
+                    if ((int32_t)(msg_chk_frame - handle->last_crc_match_frame) > 0)
+                        handle->last_crc_match_frame = msg_chk_frame;
+                    /* Agreement again: whatever differed a moment ago healed, so
+                     * it was never a desync -- a real one never re-matches.   */
+                    handle->consecutive_desyncs = 0;
+                }
 
                 if (our_crc != 0 && our_crc != msg_checksum) {
                     static int desync_print_count = 0;
                     static bool s_item_probe_done = false;
                     static uint32_t s_last_frame = 0;
                     static uint32_t s_last_desync_warn_ms = 0;
+                    /* Newest frame already counted: the peer repeats the same
+                     * crc_f every packet, so counting packets confirms nothing. */
+                    static uint32_t s_last_desync_chk = 0;
 
                     // HACK: reset statics if frame goes backwards (new session)
                     if (handle->frame < s_last_frame || s_last_frame == 0) {
                         desync_print_count = 0;
                         s_item_probe_done = false;
                         s_last_desync_warn_ms = 0;
+                        s_last_desync_chk = 0;
                     }
                     s_last_frame = handle->frame;
+
+                    /* Warn on any mismatch (default).  CPS-3 also counts how many
+                     * of the 16 RAM sections differ -- a weak filter there, as
+                     * ~1MB of shares makes each ~64KB (see MIN_CONFIRMS). */
+                    bool tolerant = myosd_netplay_desync_tolerant();
+                    int  sec_diffs = -1;   /* -1 = not computed (non-tolerant path) */
+                    bool warn = true;
+                    if (tolerant) {
+                        uint8_t our_fp[NETPLAY_CRC_SECTIONS];
+                        myosd_netplay_section_fingerprints(msg_chk_frame, our_fp, NETPLAY_CRC_SECTIONS);
+                        sec_diffs = 0;
+                        for (int s = 0; s < NETPLAY_CRC_SECTIONS; s++)
+                            if (our_fp[s] != msg.u.data.state_section_fp[s]) sec_diffs++;
+                        warn = (sec_diffs >= NETPLAY_DESYNC_MIN_SECTIONS);
+                    }
+
+                    /* Counted for every driver (logged as persist=), but it
+                     * gates the toast only on the tolerant ones (CPS-3). */
+                    if (msg_chk_frame != s_last_desync_chk) {
+                        s_last_desync_chk = msg_chk_frame;
+                        handle->consecutive_desyncs++;
+                    }
+                    if (tolerant && handle->consecutive_desyncs < NETPLAY_DESYNC_MIN_CONFIRMS)
+                        warn = false;
 
                     /* A real desync is PERMANENT, so once tripped every later
                      * watermark comparison also differs -- throttle the log
                      * (first handful, then 1 in 30) to keep logcat sane.        */
                     if (desync_print_count < 5 || (desync_print_count % 30) == 0) {
-                        NLOG("=== DESYNC DETECTED (confirmed) === frame=%u our_crc=0x%08x peer_crc=0x%08x wm=%u rtt=%u last_match=%u",
-                             msg_chk_frame, our_crc, msg_checksum,
+                        NLOG("=== DESYNC DETECTED (confirmed) === frame=%u our_crc=0x%08x peer_crc=0x%08x tol=%d persist=%d sec_diffs=%d/%d wm=%u rtt=%u last_match=%u",
+                             msg_chk_frame, our_crc, msg_checksum, tolerant ? 1 : 0,
+                             handle->consecutive_desyncs,
+                             sec_diffs, NETPLAY_CRC_SECTIONS,
                              my_watermark, handle->smoothed_rtt,
                              handle->last_crc_match_frame);
                         netplay_applied_ring_arm("DESYNC", msg_chk_frame);
                         if (desync_print_count < 3)
                             myosd_netplay_log_sectional_crc(msg_chk_frame);
                     }
-                    /* User-facing warning, rate-limited to 1 per 10s (reset
-                     * with the other statics above on a new session): a real
-                     * desync re-triggers on EVERY later watermark compare
-                     * (see comment above), which without a cooldown would
-                     * storm the UI with a toast per compare.  This only ever
-                     * runs at all when the CRC detector is compiled/armed
-                     * (NETPLAY_CRC_DETECTOR_ENABLED), since msg_checksum is
-                     * always 0 otherwise and this whole `if` never becomes
-                     * true. */
-                    {
+                    /* Toast per the rule above, 1 per 10s max (reset on a new
+                     * session).  Dead unless the detector is on -- msg_checksum
+                     * is 0 otherwise and we never reach here. */
+                    if (warn) {
                         uint32_t now_ms = netplay_get_ticks_ms();
-                        if (handle->netplay_warn && (now_ms - s_last_desync_warn_ms) > 10000) {
+                        if (handle->netplay_warn &&
+                            (now_ms - s_last_desync_warn_ms) > 10000) {
                             s_last_desync_warn_ms = now_ms;
                             if (handle->mode == NETPLAY_MODE_ROLLBACK)
                                 handle->netplay_warn((char*)"TOASTERR:@desync_rollback");
@@ -1200,11 +1430,13 @@ int netplay_read_data(netplay_t *handle)
                     }
                     desync_print_count++;
 
-                    /* Root-cause probe: fires ONCE per process, on the first
-                     * detected desync frame F.  HOST ships its per-save_item CRC
-                     * table for F; CLIENT diffs and logs only differing items BY
-                     * NAME, naming the exact diverging device/field.             */
-                    if (!s_item_probe_done) {
+                    /* Root-cause probe (DEV forensics; gated off with NLOG so a
+                     * release build does no extra table build/network send on a
+                     * desync -- just the toast above).  Fires ONCE per process,
+                     * on the first detected desync frame F: HOST ships its per-
+                     * save_item CRC table for F; CLIENT diffs and logs only the
+                     * differing items BY NAME.                                   */
+                    if (NETPLAY_LOG_ENABLED && !s_item_probe_done) {
                         s_item_probe_done = true;
                         if (handle->player1) {
                             NLOG("ITEM_DIFF: HOST sending per-item CRC table for frame=%u to client", msg_chk_frame);
@@ -1255,116 +1487,29 @@ int netplay_read_data(netplay_t *handle)
                     decode_peer_state(&real_state, &msg.u.data.rollback_history[hist_idx]);
                 }
 
-                /* Only check frames we have stored and haven't confirmed.  */
-                int idx = (int)(chk_frame % ROLLBACK_RING_FRAMES);
-                
-                if (chk_frame > handle->frame || 
-                   (chk_frame == handle->frame && handle->frame_history[idx].frame != chk_frame)) {
-                    /* Early packet. Store it for when we reach this frame. */
-                    int early_idx = (int)(chk_frame % EARLY_BUFFER_SIZE);
-                    handle->early_peer_frame[early_idx] = chk_frame;
-                    handle->early_peer_state[early_idx] = real_state;
-                    if (!handle->has_received_data) {
-                        NLOG("ROLLBACK: First peer data received! Waking up initial sync wait.");
-                    }
-                    handle->has_received_data = 1;
-                    pthread_cond_signal(&handle->sync_cond);
-                    continue;
-                }
+                netplay_rb_check_peer_input(handle, chk_frame, real_state, newest_mispredict_chk_frame);
+            }
 
-                if (handle->frame_history[idx].frame != chk_frame) continue;
-
-                /* Already confirmed?  Normally a redundant duplicate we can drop
-                 * -- but a frame can get confirmed WRONG via the early-buffer
-                 * path (unvalidated).  Compare instead: a differing value means
-                 * we confirmed it wrong earlier -- heal via re-confirm + forced
-                 * corrective rollback.                                         */
-                if (handle->frame_history[idx].peer_confirmed) {
-                    if (netplay_state_differs(&handle->frame_history[idx].peer_state, &real_state)) {
-                        NLOG("ROLLBACK confirm-fix frame=%u was_dig=0x%x real_dig=0x%x (wrong early confirm healed)",
-                             chk_frame, handle->frame_history[idx].peer_state.digital, real_state.digital);
-                        handle->frame_history[idx].peer_state         = real_state;
-                        handle->frame_history[idx].applied_peer_state = real_state;
-                        netplay_applied_ring_arm("confirm_fix", chk_frame);
-                        /* Local ring states >= chk_frame are stale until the
-                         * corrective FF re-captures them; mute the CRC
-                         * detector for that window (see netplay.h).            */
-                        if (!handle->crc_dirty || chk_frame < handle->crc_dirty_low)
-                            handle->crc_dirty_low = chk_frame;
-                        handle->crc_dirty = 1;
-                        if (!handle->requires_rollback ||
-                            chk_frame < handle->rollback_to_frame) {
-                            handle->rollback_to_frame  = chk_frame;
-                            handle->requires_rollback  = 1;
-                            handle->rollback_arm_gen = handle->rollback_arm_gen + 1;
-                        }
-                    }
-                    continue;
-                }
-
-                /* Mark as confirmed regardless of match / mismatch.       */
-                netplay_state_t pred = handle->frame_history[idx].applied_peer_state; /* Use what MAME executed */
-                handle->frame_history[idx].peer_state   = real_state;
-                handle->frame_history[idx].peer_confirmed = 1;
-
-                /* Trigger rollback on prediction mismatch.                */
-                if (netplay_state_differs(&pred, &real_state)) {
-                    NLOG("ROLLBACK mismatch frame=%u field=%s pred_dig=0x%x real_dig=0x%x "
-                         "pred_mx=%.3f real_mx=%.3f pred_my=%.3f real_my=%.3f",
-                         chk_frame, netplay_state_diff_field(&pred, &real_state),
-                         pred.digital, real_state.digital,
-                         pred.mouse_x, real_state.mouse_x,
-                         pred.mouse_y, real_state.mouse_y);
-                    netplay_applied_ring_arm("ROLLBACK_mismatch", chk_frame);
-                    /* Mute the CRC detector for the stale window (see
-                     * netplay.h) — states >= chk_frame were executed/captured
-                     * with the wrong prediction until the FF re-captures them. */
-                    if (!handle->crc_dirty || chk_frame < handle->crc_dirty_low)
-                        handle->crc_dirty_low = chk_frame;
-                    handle->crc_dirty = 1;
-                    /* Always rollback to the oldest mispredicted frame.   */
-                    if (!handle->requires_rollback ||
-                        chk_frame < handle->rollback_to_frame) {
-                        handle->rollback_to_frame  = chk_frame;
-                        handle->requires_rollback  = 1;
-                        handle->rollback_arm_gen = handle->rollback_arm_gen + 1;
-                    }
-
-                    /* Update applied_peer_state immediately for the mispredicted frame. */
-                    handle->frame_history[idx].applied_peer_state = real_state;
-                    
-                    /* Propagate the corrected guess to subsequent unconfirmed
-                     * frames up to target_frame (FF clamps handle->frame), capped
-                     * below any fresher pass's guess.  applied_peer_state is left
-                     * untouched for f <= handle->frame (already executed; do not
-                     * falsify history).                                          */
-                    uint32_t max_f = (handle->target_frame > handle->frame) ? handle->target_frame : handle->frame;
-                    if (newest_mispredict_chk_frame != 0 && newest_mispredict_chk_frame < max_f)
-                        max_f = newest_mispredict_chk_frame;
-                    for (uint32_t f = chk_frame + 1; f <= max_f; f++) {
-                        int f_idx = (int)(f % ROLLBACK_RING_FRAMES);
-                        if (!handle->frame_history[f_idx].peer_confirmed) {
-                            handle->frame_history[f_idx].peer_state = real_state;
-                            if (f > handle->frame)
-                                handle->frame_history[f_idx].applied_peer_state = real_state;
-                        }
-                    }
-
-                    /* Passes run newest -> oldest, so the FIRST mismatch we hit here is
-                     * guaranteed to be the newest one; latch it once so any subsequent
-                     * (older) pass's propagation caps itself above, per the comment there. */
-                    if (newest_mispredict_chk_frame == 0)
-                        newest_mispredict_chk_frame = chk_frame;
-                }
-
-                if (!handle->has_received_data) {
-                    NLOG("ROLLBACK: First peer data received! Waking up initial sync wait.");
-                }
-                handle->has_received_data = 1;
-                pthread_cond_signal(&handle->sync_cond);
+            /* Input hole: the frame after our confirmed watermark is executed,
+             * unconfirmed and older than anything this packet re-carries, so no
+             * later DATA can ever confirm it (loss burst > PACKET_HISTORY). */
+            uint32_t need_frame = 0;
+            {
+                netplay_confirmed_watermark(handle);
+                uint32_t need = handle->confirmed_watermark + 1;
+                uint32_t oldest_carried = (peer_frame >= ROLLBACK_PACKET_HISTORY)
+                                              ? peer_frame - (ROLLBACK_PACKET_HISTORY - 1) : 1;
+                int nidx = (int)(need % ROLLBACK_RING_FRAMES);
+                if (need < oldest_carried &&
+                    handle->frame_history[nidx].frame == need &&
+                    !handle->frame_history[nidx].peer_confirmed)
+                    need_frame = need;
             }
 
             pthread_mutex_unlock(&handle->sync_mutex);
+
+            if (need_frame != 0)
+                netplay_send_input_need(handle, need_frame);
 
             /* ACK only NEW-frame packets, rate-limited to 8ms -- an
              * unconditional reply turns every DATA packet into an endless
@@ -1562,9 +1707,12 @@ int netplay_read_data(netplay_t *handle)
             handle->sync_pending_frame = ntohl(msg.u.state_chunk.sync_frame);
         }
         
-        /* Accept ANY chunk in ANY order, as long as it's not a duplicate */
-        if (!handle->initial_sync_complete && handle->sync_state_buffer && 
-            handle->sync_chunk_bitmap && chunk_id < handle->sync_total_chunks) {
+        /* Accept ANY chunk in ANY order, as long as it's not a duplicate AND it
+         * belongs to the CURRENT episode: a late chunk from a previous resync
+         * carries a different sync_frame and must not corrupt the new buffer. */
+        if (!handle->initial_sync_complete && handle->sync_state_buffer &&
+            handle->sync_chunk_bitmap && chunk_id < handle->sync_total_chunks &&
+            ntohl(msg.u.state_chunk.sync_frame) == handle->sync_pending_frame) {
             
             uint32_t byte_idx = chunk_id / 8;
             uint8_t  bit_mask = 1 << (chunk_id % 8);
@@ -1648,12 +1796,14 @@ int netplay_read_data(netplay_t *handle)
         if (ack_next >= handle->sync_total_chunks) {
             NLOG("Host finished sending initial sync state!");
             handle->initial_sync_complete = 1;
-            /* Close a resync episode (no-op for the boot sync).            */
-            if (handle->resync_active) {
-                handle->resync_active = 0;
-                handle->resync_last_done_ms = netplay_get_ticks_ms();
-                NLOG("RESYNC done (HOST) frame=%u", handle->sync_state_frame);
-            }
+            /* Do NOT lower resync_active here -- it must stay set (DATA poison)
+             * until the deferred load actually applies the synced state (later,
+             * in service_deferred_load).  Lowering it at ACK time reopened the
+             * stale-DATA window that desynced the drop-in.  We only set
+             * initial_sync_complete so the sync-wait loop exits. */
+            if (handle->resync_active)
+                NLOG("RESYNC state fully ACKed (HOST) frame=%u - awaiting deferred apply",
+                     handle->sync_state_frame);
         } else {
             /* Let the game thread's polling handle the sliding window sending 
              * to avoid ACK storms and blocking the receive thread. */
@@ -1849,14 +1999,24 @@ int netplay_read_data(netplay_t *handle)
         char host_game[MAX_GAME_NAME];
         strncpy(host_game, msg.u.join.game_name, MAX_GAME_NAME - 1);
         host_game[MAX_GAME_NAME - 1] = '\0';
-        if (handle->game_name[0] != '\0' &&
-            strncmp(handle->game_name, host_game, MAX_GAME_NAME) != 0) {
+        /* Compare only the GAME part: the host's game_name may carry a ";bios"
+         * suffix (BIOS pin for drop-in) that the client's local selection does
+         * not have, so a plain full-string compare would false-flag a mismatch.
+         * Pure string handling -- no MAME types leak into this agnostic file. */
+        size_t const host_game_len = strcspn(host_game, ";");
+        bool const game_matches =
+            (strncmp(handle->game_name, host_game, host_game_len) == 0 &&
+             handle->game_name[host_game_len] == '\0');
+        if (handle->game_name[0] != '\0' && !game_matches) {
             NLOG("WARN: game mismatch - local='%s' host='%s'. Adopting host's game.",
                  handle->game_name, host_game);
             if (handle->netplay_warn) {
+                /* Toast the bare game name, not the ";bios" suffix. */
+                char gbuf[MAX_GAME_NAME];
+                size_t n = (host_game_len < sizeof(gbuf) - 1) ? host_game_len : sizeof(gbuf) - 1;
+                memcpy(gbuf, host_game, n); gbuf[n] = '\0';
                 char wmsg[128];
-                /* arg is the host's game name, which Java inserts into the text. */
-                snprintf(wmsg, sizeof(wmsg), "TOAST:@host_running|%s", host_game);
+                snprintf(wmsg, sizeof(wmsg), "TOAST:@host_running|%s", gbuf);
                 handle->netplay_warn(wmsg);
             }
         }
@@ -1929,6 +2089,63 @@ int netplay_read_data(netplay_t *handle)
     }
     break;
 
+    case NETPLAY_MSG_CHAT:
+    {
+        /* Quick chat: a phrase id (never text), shown by Java in the user's own
+         * language.  The sender bursts each one: accept only a newer seq. */
+        if (!handle->has_joined)
+            break;
+        uint32_t seq    = ntohl(msg.u.chat.seq);
+        uint16_t phrase = ntohs(msg.u.chat.phrase);
+        if (seq == 0 || seq <= handle->chat_seq_recv || phrase >= NETPLAY_CHAT_MAX_PHRASE)
+            break;
+        handle->chat_seq_recv = seq;
+        NLOG("CHAT received phrase=%u seq=%u", (unsigned)phrase, seq);
+        if (handle->netplay_warn) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "CHAT:%u", (unsigned)phrase);
+            handle->netplay_warn(buf);
+        }
+    }
+    break;
+
+    case NETPLAY_MSG_INPUT_NEED:
+    {
+        /* The peer is stuck on an input hole: resend our local inputs from the
+         * frame it names (rollback only; nothing sent if it left our ring). */
+        if (!handle->has_begun_game || handle->resync_active ||
+            handle->mode != NETPLAY_MODE_ROLLBACK || !handle->rollback_enabled)
+            break;
+        netplay_send_input_resend(handle, ntohl(msg.u.input_need.frame));
+    }
+    break;
+
+    case NETPLAY_MSG_INPUT_RESEND:
+    {
+        /* Resent inputs for an input hole: the same checks as DATA's passes,
+         * NEWEST -> OLDEST, so a misprediction arms the corrective rollback. */
+        if (!handle->has_begun_game || handle->resync_active ||
+            handle->mode != NETPLAY_MODE_ROLLBACK || !handle->rollback_enabled)
+            break;
+        uint32_t base  = ntohl(msg.u.input_resend.base_frame);
+        uint32_t count = msg.u.input_resend.count;
+        if (count > NETPLAY_RESEND_MAX)
+            break;
+        pthread_mutex_lock(&handle->sync_mutex);
+        uint32_t newest_mispredict_chk_frame = 0;
+        for (uint32_t i = count; i-- > 0; ) {
+            uint32_t chk_frame = base + i;
+            if (chk_frame == 0)
+                continue;
+            netplay_state_t real_state;
+            decode_peer_state(&real_state, &msg.u.input_resend.states[i]);
+            netplay_rb_check_peer_input(handle, chk_frame, real_state, newest_mispredict_chk_frame);
+        }
+        pthread_mutex_unlock(&handle->sync_mutex);
+        NLOG("INPUT_RESEND received base=%u count=%u", base, count);
+    }
+    break;
+
     case NETPLAY_MSG_PUNCH:
         /* NAT hole-punch probe: its only job is the transport-level side
          * effects (opening the sender's NAT mapping, peer latch).          */
@@ -1969,6 +2186,7 @@ int netplay_send_state_chunks(netplay_t *handle)
             int zerr = compress(comp_buf, &destLen, handle->sync_state_buffer, handle->sync_state_size);
             if (zerr == Z_OK) {
                 NLOG("Host compressed sync state from %u bytes to %lu bytes!", handle->sync_state_size, destLen);
+                free(handle->sync_state_buffer);   /* free the raw buffer we are replacing */
                 handle->sync_state_buffer = comp_buf;
                 handle->sync_state_size = (uint32_t)destLen;
                 handle->sync_total_chunks = (handle->sync_state_size + STATE_CHUNK_SIZE - 1) / STATE_CHUNK_SIZE;
@@ -2162,8 +2380,9 @@ int netplay_send_data(netplay_t *handle)
     encode_peer_state(&msg.u.data.peer_state_prev, &snap_prev_state_sent);
 
     /* Extended 16-frame history for Rollback mode.
-     * This guarantees that even if 15 UDP packets are lost, the 16th packet
-     * will instantly recover all missing inputs without desyncing! */
+     * This guarantees that even if PACKET_HISTORY-1 UDP packets are lost in a
+     * row, the next packet instantly recovers all missing inputs; beyond that
+     * the watermark just stalls and recovers, never desyncs (see the define). */
     if (snap_mode == NETPLAY_MODE_ROLLBACK) {
         for (int i = 0; i < ROLLBACK_PACKET_HISTORY; i++) {
             if (snap_hist_valid[i]) {
@@ -2188,15 +2407,27 @@ int netplay_send_data(netplay_t *handle)
      * WATERMARK (a FINAL state -- see netplay_confirmed_watermark).
      * Throttled via the shared NETPLAY_CRC_FRAME_WANTED gate -- producer and
      * consumer cadence must never drift apart.                               */
-    if (snap_mode == NETPLAY_MODE_ROLLBACK && snap_watermark > 0 &&
-        NETPLAY_CRC_FRAME_WANTED(snap_watermark) &&
+    /* Advertise the newest cadence frame <= W, not W itself: W advances in jumps
+     * (no sends on arm/FF frames), so testing W skipped most cadence frames and
+     * the peers rarely compared one.  crc_f <= W keeps snap_crc_clean valid. */
+    uint32_t crc_f = (snap_watermark > 10) ? snap_watermark - (snap_watermark % NETPLAY_CRC_EVERY)
+                                           : snap_watermark;
+    if (snap_mode == NETPLAY_MODE_ROLLBACK && crc_f > 0 &&
+        NETPLAY_CRC_FRAME_WANTED(crc_f) &&
         snap_crc_clean && handle->rollback_capture_checksum)
     {
-        msg.u.data.state_checksum = htonl(handle->rollback_capture_checksum(snap_watermark));
-        msg.u.data.checksum_frame = htonl(snap_watermark);
+        msg.u.data.state_checksum = htonl(handle->rollback_capture_checksum(crc_f));
+        msg.u.data.checksum_frame = htonl(crc_f);
+        /* CPS-3 only: per-section fingerprint for the broad-divergence test
+         * (zero elsewhere -- no other driver reads it). */
+        if (myosd_netplay_desync_tolerant())
+            myosd_netplay_section_fingerprints(crc_f, msg.u.data.state_section_fp, NETPLAY_CRC_SECTIONS);
+        else
+            memset(msg.u.data.state_section_fp, 0, sizeof(msg.u.data.state_section_fp));
     } else {
         msg.u.data.state_checksum = 0;
         msg.u.data.checksum_frame = 0;
+        memset(msg.u.data.state_section_fp, 0, sizeof(msg.u.data.state_section_fp));
     }
     int ret = handle->send_pkt_data(handle, &msg);
 
@@ -2246,6 +2477,20 @@ int netplay_send_join_ack(netplay_t *handle){
     /* Advertise the host's effective MAME samplerate; the client adopts it
      * for the session so both savestates are layout-identical.             */
     msg.u.join.sound_rate = htonl((uint32_t)myosd_droid_get_effective_sound_rate());
+    /* Pin the host's RUNNING BIOS into the advertised game name ("game;bios").
+     * A fresh host picks its BIOS AFTER netplayInit (see the ui.cpp picker), so
+     * it was unknown then; refresh it here, once, so the joiner adopts it and
+     * never shows its own picker.  Idempotent (only if no ';' yet). */
+    {
+        const char *bn = myosd_netplay_get_running_bios_name();
+        if (bn && bn[0] && strchr(handle->game_name, ';') == NULL) {
+            size_t used = strlen(handle->game_name);
+            if (used + 1 + strlen(bn) < sizeof(handle->game_name)) {
+                strcat(handle->game_name, ";");
+                strcat(handle->game_name, bn);
+            }
+        }
+    }
     strncpy(msg.u.join.game_name, handle->game_name, MAX_GAME_NAME - 1);
     msg.u.join.game_name[MAX_GAME_NAME - 1] = '\0';
     /* Build-compatibility handshake fields.                                */
@@ -2308,6 +2553,35 @@ int netplay_send_resync(netplay_t *handle){
     msg.packetid  = htonl(uid);
     msg.msg_type  = htonl(NETPLAY_MSG_RESYNC);
     return handle->send_pkt_data(handle, &msg);
+}
+
+/* Quick chat: send predefined phrase `phrase` -- an id each peer renders in its
+ * own language, so no free text ever crosses the wire.  Burst x3 against UDP
+ * loss (the receiver drops the copies by seq), at most 1 per second.  1 if
+ * sent, 0 if no live peer or rate-limited.  Any thread (Java UI). */
+int myosd_netplay_send_chat(int phrase)
+{
+    netplay_t *handle = netplay_get_handle();
+    if (!handle || !handle->has_connection || !handle->has_joined ||
+        phrase < 0 || phrase >= NETPLAY_CHAT_MAX_PHRASE)
+        return 0;
+    uint32_t now_ms = netplay_get_ticks_ms();
+    if (handle->chat_seq_sent != 0 && (uint32_t)(now_ms - handle->chat_last_send_ms) < 1000)
+        return 0;
+    handle->chat_last_send_ms = now_ms;
+
+    netplay_msg_t msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_type      = htonl(NETPLAY_MSG_CHAT);
+    msg.u.chat.phrase = htons((uint16_t)phrase);
+    msg.u.chat.seq    = htonl(++handle->chat_seq_sent);
+    for (int i = 0; i < 3; i++) {
+        uint32_t uid = __sync_add_and_fetch(&handle->packet_uid, 1);
+        msg.packetid = htonl(uid);
+        handle->send_pkt_data(handle, &msg);
+    }
+    NLOG("CHAT sent phrase=%d seq=%u", phrase, handle->chat_seq_sent);
+    return 1;
 }
 
 /* Send a DISCONNECT burst (5x, since UDP may drop it right before teardown). */
@@ -2435,13 +2709,10 @@ void netplay_track_connection(netplay_t *handle)
     }
 }
 
-/* Boot-time initial state sync / mid-game RESYNC episode.  Returns true if
- * myosd_netplay_input_update() must return immediately this call (either
- * because the savestate layout was found incompatible, or because a resync
- * episode just completed and the current frame must be discarded).
- * Talks to the MAME side only through handle->rollback_* (agnostic function
- * pointers, wired by myosd_netplay.cpp's netplay_iu_on_game_start) and the
- * myosd_netplay_* control helpers (myosd_netplay.h). */
+/* Boot-time initial sync / mid-game RESYNC.  Returns true if input_update must
+ * bail this call (incompatible savestate layout, or a resync just completed and
+ * this frame is discarded).  Talks to MAME only via handle->rollback_* pointers
+ * and the myosd_netplay_* helpers. */
 bool netplay_initial_sync(netplay_t *handle)
 {
     if (!(handle && handle->has_connection && handle->has_begun_game &&
@@ -2520,11 +2791,56 @@ bool netplay_initial_sync(netplay_t *handle)
      * default no-transfer boot this is skipped entirely (handled above). */
     if ((NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER || is_resync) &&
         handle->player1 == 1 && !handle->sync_state_buffer && handle->has_joined && handle->rollback_capture_state) {
-        /* Capture at the CURRENT frame: 0 for the boot-time initial
-         * sync (identical to the old hardcoded slot 0), the live frame
-         * for a mid-game resync -- the client ADOPTS this number.     */
+        /* Frame the client ADOPTS: 0 for the boot-time initial sync/drop-in,
+         * or the newest clean ring frame at/just-before the live frame for a
+         * mid-game resync (resolved right below).                            */
         uint32_t sync_frame = handle->frame;
+
+        /* Serialize a CLEAN vblank-tail ring slot -- the same snapshot the normal
+         * FF path loads, so the client's load-and-continue needs no screen re-arm.
+         * A mid-game handover latches the live frame, but its tail slot may not be
+         * captured yet (that lands after vblank_end), so step back to the newest
+         * frame in the ring.  Skip this and the dirty fallback streams a state with
+         * no armed vblank -> the joiner starves (the intermittent resync hang). */
+        if (sync_frame > 0 && handle->rollback_get_state_buffer) {
+            uint32_t probe = sync_frame;
+            while (probe > 0 &&
+                   handle->rollback_get_state_buffer(probe) == NULL &&
+                   (sync_frame - probe) < (uint32_t)ROLLBACK_RING_FRAMES)
+                probe--;
+            if (probe > 0 && handle->rollback_get_state_buffer(probe) != NULL)
+                sync_frame = probe;
+        }
         handle->sync_state_frame = sync_frame;
+        handle->sync_state_size = handle->rollback_get_state_size();
+
+        /* A boot transfer / drop-in (frame 0) has no earlier ring slot: arm a
+         * boundary capture of the current frame and wait (blocking input_update)
+         * until it lands at the clean vblank tail. */
+        bool ring_ready = (sync_frame != 0) &&
+                          handle->rollback_get_state_buffer &&
+                          handle->rollback_get_state_buffer(sync_frame) != NULL;
+        if (!ring_ready && !myosd_netplay_boot_slot_ready()) {
+            myosd_netplay_arm_boot_slot_capture();
+            return true;
+        }
+
+        /* Serialize the clean vblank-tail slot[sync_frame] (the wait above
+         * guarantees it, for a boot transfer and a mid-game resync alike).  The
+         * cleanup below wipes every slot, so copy the bytes out FIRST, then
+         * re-store them so the host's own deferred load still finds them. */
+        int handover_clean = 0;
+        if (handle->rollback_get_state_buffer) {
+            const uint8_t *pre = handle->rollback_get_state_buffer(sync_frame);
+            if (pre && handle->sync_state_size > 0) {
+                handle->sync_state_buffer = (uint8_t *)malloc(handle->sync_state_size);
+                if (handle->sync_state_buffer) {
+                    memcpy(handle->sync_state_buffer, pre, handle->sync_state_size);
+                    handover_clean = 1;
+                }
+            }
+        }
+
         if (is_resync) {
             /* Drop every PRE-resync ring capture: frame numbering is
              * continuous, so stale slots still resolve by frame id
@@ -2537,36 +2853,39 @@ bool netplay_initial_sync(netplay_t *handle)
             handle->confirmed_watermark = (sync_frame > 0) ? sync_frame - 1 : 0;
             pthread_mutex_unlock(&handle->sync_mutex);
         }
-        handle->rollback_capture_state(sync_frame);
-        const uint8_t *buffer = handle->rollback_get_state_buffer(sync_frame);
-        handle->sync_state_size = handle->rollback_get_state_size();
 
-        /* CRITICAL: Copy the RAW (pre-load) buffer BEFORE calling inject.
-         * inject() stores the data in the slot and calls load(), which triggers
-         * device postload callbacks that may modify machine state.
-         * We send this raw_A buffer to the Client so BOTH machines will apply
-         * load() exactly once (via inject), ending in the same f(raw_A) state. */
-        handle->sync_state_buffer = (uint8_t *)malloc(handle->sync_state_size);
-        if (handle->sync_state_buffer && buffer) {
-            memcpy(handle->sync_state_buffer, buffer, handle->sync_state_size);
-            NLOG("Host captured %u bytes for %s sync at frame %u", handle->sync_state_size,
-                 is_resync ? "RESYNC" : "initial", sync_frame);
-        }
-
-        if (!is_resync) {
-            /* BOOT-TIME: apply to HOST machine (ONE load) immediately.
-             * Machine = f(raw_A), same as the Client after receiving.
-             * Tolerable in-timeslice only because both machines are
-             * still at t~0 and both apply it symmetrically.          */
-            if (handle->rollback_inject_state && buffer && handle->sync_state_size > 0) {
-                handle->rollback_inject_state(sync_frame, buffer, handle->sync_state_size);
-            }
-        } else {
-            /* MID-GAME: an in-timeslice load here would corrupt the
-             * rewound timers against the live basetime.  Latch a
-             * clean-boundary deferred load instead; the client mirrors
-             * with a store-only + deferred load of the same raw_A. */
+        if (handover_clean) {
+            /* Re-store the clean slot the cleanup just wiped (store-only, no
+             * load) so the host's deferred load below finds it; the client
+             * receives these exact clean bytes and mirrors the same load. */
+            if (handle->rollback_store_state)
+                handle->rollback_store_state(sync_frame, handle->sync_state_buffer, handle->sync_state_size);
+            /* The host ADOPTS the serialized slot's frame number, exactly like
+             * the client does.  The scan-back above can leave sync_frame <
+             * handle->frame; loading slot[sync_frame] while the counter stays at
+             * the live frame would run the two peers' machines under different
+             * frame numbers (inputs applied k steps apart) -> desync. */
+            pthread_mutex_lock(&handle->sync_mutex);
+            handle->frame        = sync_frame;
+            handle->target_frame = sync_frame;
+            pthread_mutex_unlock(&handle->sync_mutex);
+            NLOG("Host handover clean-boundary %u bytes at frame %u", handle->sync_state_size, sync_frame);
             myosd_netplay_rollback_arm_pending_load(sync_frame);
+        } else {
+            /* Fallback (only on a malloc failure above -- the wait guarantees a
+             * clean slot): capture and inject at t~0.  Copy the raw buffer BEFORE
+             * inject() (which load()s and may mutate state) so both peers load()
+             * once from the same bytes. */
+            handle->rollback_capture_state(sync_frame);
+            const uint8_t *buffer = handle->rollback_get_state_buffer(sync_frame);
+            handle->sync_state_buffer = (uint8_t *)malloc(handle->sync_state_size);
+            if (handle->sync_state_buffer && buffer) {
+                memcpy(handle->sync_state_buffer, buffer, handle->sync_state_size);
+                NLOG("Host captured %u bytes for initial sync at frame %u",
+                     handle->sync_state_size, sync_frame);
+            }
+            if (!is_resync && handle->rollback_inject_state && buffer && handle->sync_state_size > 0)
+                handle->rollback_inject_state(sync_frame, buffer, handle->sync_state_size);
         }
 
         handle->sync_total_chunks = (handle->sync_state_size + STATE_CHUNK_SIZE - 1) / STATE_CHUNK_SIZE;
@@ -2641,12 +2960,29 @@ bool netplay_initial_sync(netplay_t *handle)
          * the HOST's own double-load, so both converge to g(f(raw_A)). */
         if (handle->player1 != 1 && handle->sync_state_received &&
             !handle->initial_sync_complete && handle->rollback_inject_state) {
-            if (is_resync) {
-                /* Mid-game resync: ADOPT the host's frame and apply
-                 * the state via the clean-boundary deferred load --
-                 * store-only here, since an in-timeslice load
-                 * mid-game corrupts the rewound timers vs the live
-                 * basetime.  Mirrors the host. */
+            if (is_resync || NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER) {
+                /* Layout guard: the host's state must match our savestate size or
+                 * the load runs off the end (silent corruption).  The boot STATE_
+                 * SIZE probe is off in the transfer-off build, so this is the only
+                 * cross-check left for a mid-game resync whose layouts can still
+                 * differ (e.g. samplerate-dependent counts, kinst).  Abort on mismatch. */
+                if (handle->rollback_get_state_size &&
+                    handle->sync_pending_size != (uint32_t)handle->rollback_get_state_size()) {
+                    NLOG("RESYNC: state-size mismatch local=%u peer=%u - aborting netplay",
+                         (unsigned)handle->rollback_get_state_size(), handle->sync_pending_size);
+                    if (handle->netplay_warn)
+                        handle->netplay_warn((char*)"TOAST:@not_rollback_compatible");
+                    free(handle->sync_pending_buffer);
+                    handle->sync_pending_buffer = NULL;
+                    handle->sync_state_received = 0;
+                    handle->has_connection = 0;
+                    break;
+                }
+                /* Adopt the host's frame and apply the state via the
+                 * clean-boundary deferred load -- store-only here, since
+                 * an in-timeslice load corrupts the rewound timers vs the
+                 * live basetime.  Mirrors the host, for a mid-game resync
+                 * and a boot transfer alike. */
                 uint32_t f = handle->sync_pending_frame;
                 /* Free the DIVERGED pre-resync ring captures BEFORE
                  * storing the synced state (mirrors the host side). */
@@ -2664,14 +3000,13 @@ bool netplay_initial_sync(netplay_t *handle)
                 handle->sync_pending_buffer = NULL;
                 handle->sync_state_received = 0;
                 handle->initial_sync_complete = 1;
-                handle->resync_active = 0;
-                {   /* completion stamp: same wall clock as netplay.cpp */
-                    struct timeval tv;
-                    gettimeofday(&tv, NULL);
-                    handle->resync_last_done_ms =
-                        (uint32_t)((tv.tv_sec * 1000) + (tv.tv_usec / 1000));
-                }
-                NLOG("RESYNC done (CLIENT): adopted host frame %u", f);
+                /* Keep resync_active set (DATA stays POISON) until the deferred
+                 * load below actually APPLIES this state -- see the matching
+                 * comment in myosd_netplay_service_deferred_load().  Lowering it
+                 * here (before the store is loaded into the live machine) let a
+                 * late old-timeline DATA confirm against the fresh ring and
+                 * desynced the drop-in a few frames later. */
+                NLOG("RESYNC state stored (CLIENT): adopted host frame %u - awaiting deferred apply", f);
                 break;
             }
             handle->rollback_inject_state(0, handle->sync_pending_buffer, handle->sync_pending_size);
@@ -2708,12 +3043,12 @@ bool netplay_initial_sync(netplay_t *handle)
              handle->initial_sync_complete);
     }
     NLOG("ROLLBACK: %s savestate sync finished!", is_resync ? "RESYNC" : "Initial");
-    if (is_resync) {
-        /* Return WITHOUT advancing netplay this call.  MAME finishes
-         * the current (discarded) frame on the old timeline and the
-         * deferred load applies the synced state at the next clean
-         * scheduler boundary; the next myosd_netplay_input_update
-         * resumes the normal rollback path from the adopted frame. */
+    if (is_resync || NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER) {
+        /* Resync and legacy boot transfer both store the adopted state, arm a
+         * clean-boundary DEFERRED load, and return WITHOUT advancing netplay so the
+         * load applies at the next boundary (the next input_update resumes rollback
+         * from it).  Loading inline instead ran the step against the not-yet-loaded
+         * state and wedged the joiner.  GGPO boot arms no load and falls through. */
         return true;
     }
     return false;
@@ -2765,12 +3100,14 @@ void netplay_start_barrier(netplay_t *handle)
     NLOG("TELEM start_barrier_done role=%s waited_ms=%lld peer_ready=%d",
          handle->player1 ? "HOST" : "CLIENT", (long long)waited, handle->peer_ready);
 
-    /* Drop-in: the joiner has booted and sits at frame 0 while we are mid
-     * game.  Hand it the machine with the mid-game RESYNC, which is why this
-     * needs no new message.  Here and not in the READY handler: on the game
-     * thread initial_sync_complete is already set, so begin() cannot be
-     * refused for arriving too early. */
-    if (handle->player1 && handle->drop_in && handle->peer_ready) {
+    /* Drop-in: the joiner booted and sits at frame 0 while we are mid-game; hand
+     * it the machine via the mid-game RESYNC (no new message needed).  Done here,
+     * not in the READY handler, so initial_sync_complete is already set and begin()
+     * can't be refused as too early.  When transfer is ON the boot handover already
+     * streams our current state to any joiner, so this drop-in resync is skipped
+     * (else both fire -- double handshakes and hangs). */
+    if (!NETPLAY_ROLLBACK_INITIAL_STATE_TRANSFER &&
+        handle->player1 && handle->drop_in && handle->peer_ready) {
         /* The handover IS the state transfer, and lockstep has none: the
          * joiner would sit at frame 0 while we are minutes in.  Checked here
          * because this is the moment of handing the machine over. */
@@ -2962,6 +3299,14 @@ bool myosd_netplay_is_lockstep() {
     return (handle && handle->has_connection && handle->mode == NETPLAY_MODE_LOCKSTEP);
 }
 
+/* Drop-in HOST: the only case that shows the BIOS picker (a drop-in host boots
+ * the game fresh for others to join).  A non-drop-in session, and the joiner,
+ * never pick -- the joiner adopts whatever the host pins in the game name. */
+bool myosd_netplay_is_dropin_host() {
+    netplay_t *handle = netplay_get_handle();
+    return (handle && handle->has_connection && handle->player1 && handle->drop_in);
+}
+
 /* Field accessors so ORIGINAL-MAME core files can read handle fields without
  * the netplay_t layout / netplay.h.                                        */
 time_t myosd_netplay_basetime(void) {
@@ -3011,13 +3356,11 @@ void netplay_ui_set_delay(netplay_t *handle, int value)
         }
         else if (handle->player1 && value != frame_delay)
         {
-            // Mid-game: only server (player1) can trigger the handshake.
-            // Client ignores changes to avoid asymmetric state.  Always
-            // schedule an epoch broadcast -- even Auto<->Fixed at the same
-            // numeric value -- so the peer's is_auto_frameskip flips too.
-            // Under sync_mutex: the game thread's send path snapshots these
-            // same fields, so an unlocked write here could be read half-
-            // written and get stuck mismatched forever.
+            // Mid-game: only server (player1) triggers the handshake; client
+            // ignores changes to avoid asymmetric state.  Always schedule an epoch
+            // broadcast (even Auto<->Fixed at the same value) so the peer's
+            // is_auto_frameskip flips too.  Under sync_mutex -- the send path reads
+            // these same fields and could see a half-written value otherwise.
             pthread_mutex_lock(&handle->sync_mutex);
             uint8_t  new_auto  = (value == 0) ? 1 : 0;
             uint32_t new_value = (value == 0) ? handle->frame_skip : (uint32_t)value;

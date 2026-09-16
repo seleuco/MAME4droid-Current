@@ -1,0 +1,20 @@
+diff --git a/cps3.cpp b/cps3.cpp
+--- a/cps3.cpp
++++ b/cps3.cpp
+@@ -2306,8 +2306,15 @@
+ 
+ void cps3_state::device_post_load()
+ {
++	// DAV HACK: under netplay rollback the SIMM flash and decrypted_gamerom are
++	// excluded from the snapshot, so a load never disturbs them -- the boot-built
++	// RAM copy stays valid.  Re-decrypting 8-16MB here on every rollback load is
++	// pure cost, so skip it under netplay (the cheap gfx dirty-mark stays).
++	bool myosd_netplay_is_active(void);
+ 	// copy data from flashroms back into user regions + decrypt into regions we execute/draw from.
+-	copy_from_nvram();
++	if (!myosd_netplay_is_active())
++		copy_from_nvram();
++	// END DAV HACK
+ 	m_gfxdecode->gfx(0)->mark_all_dirty();
+ 	m_gfxdecode->gfx(1)->mark_all_dirty();
+ }

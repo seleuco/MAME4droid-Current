@@ -20,8 +20,8 @@ android {
         applicationId "com.seleuco.mame4d2024"
         minSdkVersion 29
         targetSdkVersion 37
-        versionCode 142
-        versionName '1.40.6'
+        versionCode 143
+        versionName '1.41'
 
         ndk {
             moduleName = "mame4droid-jni"

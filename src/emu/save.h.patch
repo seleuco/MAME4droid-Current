@@ -1,5 +1,4 @@
 diff --git a/save.h b/save.h
-index 34afc26..20dafd7 100644
 --- a/save.h
 +++ b/save.h
 @@ -356,6 +356,17 @@

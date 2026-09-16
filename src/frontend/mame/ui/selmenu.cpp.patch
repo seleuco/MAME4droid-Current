@@ -1,5 +1,4 @@
 diff --git a/selmenu.cpp b/selmenu.cpp
-index 31c3eee..e81446c 100644
 --- a/selmenu.cpp
 +++ b/selmenu.cpp
 @@ -48,6 +48,40 @@

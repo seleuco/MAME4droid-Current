@@ -1,5 +1,4 @@
 diff --git a/selgame.cpp b/selgame.cpp
-index 62b834e..9425bd8 100644
 --- a/selgame.cpp
 +++ b/selgame.cpp
 @@ -194,6 +194,13 @@

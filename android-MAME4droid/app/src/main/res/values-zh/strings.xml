@@ -109,7 +109,7 @@
     <string name="np_lobby_stats_games">最热门: %1$s</string>
     <string name="np_lobby_stats_best">最常玩的: %1$s</string>
     <string name="np_lobby_stats_countries">来自 %1$d 个国家的玩家</string>
-    <string name="np_lobby_stats_top">最多 %1$s</string>
+    <string name="np_lobby_stats_top">热门国家：%1$s</string>
     <string name="np_lobby_stats_suggest">开一个 %1$s 的中途加入房间，别人就能在游戏中加入你。</string>
     <string name="np_lobby_count">有 %1$d 个游戏</string>
     <string name="np_lobby_refresh">刷新</string>
@@ -597,4 +597,29 @@
     <string name="shaders_load_error">无法加载特效着色器：缺少 shaders.cfg 文件。请重新安装应用，或确认安装文件夹不是只读的。</string>
     <string name="pref_frame_pacing_title">帧率同步与性能提示</string>
     <string name="pref_frame_pacing_summary">在 90/120Hz 屏幕上让显示刷新率匹配游戏速度，并使用 ADPF 的 CPU/温度提示以获得更流畅、更低发热的性能。如设备异常请关闭。</string>
+    <!-- 快捷聊天：np_chat_N 的 ID 是联机协议的一部分（只能追加，不可重排）。 -->
+    <string name="np_btn_chat">发送消息</string>
+    <string name="np_chat_title">快捷消息</string>
+    <string name="np_chat_mute">屏蔽收到的消息</string>
+    <string name="np_chat_unmute">显示收到的消息</string>
+    <string name="np_chat_you">你：%1$s</string>
+    <string name="np_chat_peer">💬 %1$s</string>
+    <string name="np_chat_wait">请稍等再发送下一条消息</string>
+    <string name="np_chat_0">👋 你好</string>
+    <string name="np_chat_1">🤝 打得好</string>
+    <string name="np_chat_2">🙏 谢谢</string>
+    <string name="np_chat_3">😅 抱歉</string>
+    <string name="np_chat_4">🎮 再来一局？</string>
+    <string name="np_chat_5">🔁 再战一场？</string>
+    <string name="np_chat_6">⏸️ 稍等一下</string>
+    <string name="np_chat_7">🪙 投币后按开始</string>
+    <string name="np_chat_8">⚠️ 我们好像不同步了</string>
+    <string name="np_chat_9">🔄 请按“重新同步状态”</string>
+    <string name="np_chat_10">🐢 我这边卡顿</string>
+    <string name="np_chat_11">👍 是</string>
+    <string name="np_chat_12">👎 不是</string>
+    <string name="np_chat_13">✅ 准备好了</string>
+    <string name="np_chat_14">👋 我得走了，再见！</string>
+    <string name="np_chat_15">⚡ 换成回滚模式吧</string>
+    <string name="np_chat_16">🔒 换成锁步模式吧</string>
 </resources>

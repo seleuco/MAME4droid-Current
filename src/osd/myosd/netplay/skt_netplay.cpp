@@ -356,6 +356,9 @@ static size_t netplay_msg_wire_size(uint32_t msg_type)
         case NETPLAY_MSG_STATE_ACK:     return hdr + sizeof(netplay_msg_state_ack_t);
         case NETPLAY_MSG_STATE_SIZE:    return hdr + sizeof(netplay_msg_state_size_t);
         case NETPLAY_MSG_ITEMCRC_CHUNK: return hdr + sizeof(netplay_msg_itemcrc_chunk_t);
+        case NETPLAY_MSG_INPUT_NEED:    return hdr + sizeof(netplay_msg_input_need_t);
+        case NETPLAY_MSG_INPUT_RESEND:  return hdr + sizeof(netplay_msg_input_resend_t);
+        case NETPLAY_MSG_CHAT:          return hdr + sizeof(netplay_msg_chat_t);
         case NETPLAY_MSG_DISCONNECT:
         case NETPLAY_MSG_READY:
         case NETPLAY_MSG_RESYNC:
@@ -393,7 +396,7 @@ static int skt_read_pkt_data(netplay_t *handle,netplay_msg_t *msg)
     }
 
     uint32_t mt = ntohl(msg->msg_type);
-    if (mt < NETPLAY_MSG_DATA || mt > NETPLAY_MSG_PUNCH)
+    if (mt < NETPLAY_MSG_DATA || mt > NETPLAY_MSG_CHAT)
     {
         NLOG("dropped foreign datagram msg_type=%u l=%d", mt, l);
         return 2;

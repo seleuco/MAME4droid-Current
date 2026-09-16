@@ -170,7 +170,8 @@ public class Emulator {
 	final static public int NETPLAY_KEEPS_GAME = 84;
 
 	/** Whether this game can hand over to a drop-in joiner: 0 not measured
-	 *  yet, 1 the savestate fits the rollback ring, 2 too big to ever do it.
+	 *  yet, 1 the savestate fits the rollback ring, 2 too big to ever do it,
+	 *  3 the host is still picking the BIOS (game not launched yet).
 	 *  The room waits for the 1 before going on the board. Read-only. */
 	final static public int NETPLAY_DROP_IN_STATE = 85;
 
@@ -1233,6 +1234,7 @@ public class Emulator {
 	 *  adopts it -- both machines freeze briefly and resume bit-identical.
 	 *  @return 1 if the resync was latched, 0 if not applicable. */
 	public static native int netplayResync();
+	public static native int netplaySendChat(int phrase);
 
 	/* Native netplay toasts arrive as "@key|arg1|arg2": the key maps to a
 	 * localized string resource and the args fill its placeholders, so the
@@ -1320,7 +1322,16 @@ public class Emulator {
 
 		mm.runOnUiThread(new Runnable() {
 			public void run() {
-				if (msg != null && msg.startsWith("TOASTERR:")) {
+				if (msg != null && msg.startsWith("CHAT:")) {
+					/* Quick chat: a phrase id rendered in OUR language, unless the
+					 * user muted received messages. */
+					String phrase = null;
+					try {
+						phrase = com.seleuco.mame4droid.helpers.NetPlayHelper.chatPhrase(mm, Integer.parseInt(msg.substring(5)));
+					} catch (NumberFormatException e) { }
+					if (phrase != null && !com.seleuco.mame4droid.helpers.NetPlayHelper.isChatMuted(mm))
+						new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, mm.getString(R.string.np_chat_peer, phrase), 4, android.graphics.Color.CYAN, false, true);
+				} else if (msg != null && msg.startsWith("TOASTERR:")) {
 					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, resolveNpMsg(msg.substring(9)), 4, android.graphics.Color.RED, false, now);
 				} else if (msg != null && msg.startsWith("TOASTOK:")) {
 					new com.seleuco.mame4droid.widgets.WarnWidget.WarnWidgetHelper(mm, resolveNpMsg(msg.substring(8)), 3, android.graphics.Color.GREEN, false, now);

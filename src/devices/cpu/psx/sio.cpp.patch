@@ -1,0 +1,19 @@
+diff --git a/sio.cpp b/sio.cpp
+--- a/sio.cpp
++++ b/sio.cpp
+@@ -40,8 +40,15 @@
+ {
+ }
+ 
++// DAV HACK: under netplay rollback the core saves/restores the emu_timer schedule
++// faithfully; re-adjusting here resets the timer phase to a full period and breaks
++// save->load->resim determinism.  Trust the restored timer instead.
++bool myosd_netplay_is_active(void);
+ void psxsio_device::device_post_load()
+ {
++	if (myosd_netplay_is_active())
++		return;
++	// END DAV HACK
+ 	sio_timer_adjust();
+ }
+ 

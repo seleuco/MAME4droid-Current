@@ -1,0 +1,17 @@
+diff --git a/ng_memcard.cpp b/ng_memcard.cpp
+--- a/ng_memcard.cpp
++++ b/ng_memcard.cpp
+@@ -41,6 +41,13 @@
+ 	, m_unlock2(1)
+ 	, m_regsel(1)
+ {
++	// DAV HACK: zero-initialise the card SRAM. Upstream leaves m_memcard_data
++	// uninitialised when no .neo image is mounted, so each machine boots with
++	// different heap garbage -> instant netplay desync (the region is save_item'd
++	// and CRC'd). Zero == a freshly formatted card (same as call_create); a real
++	// mounted card is filled afterwards by call_load, so nothing is lost.
++	memset(m_memcard_data, 0, sizeof(m_memcard_data));
++	// END DAV HACK
+ }
+ 
+ 

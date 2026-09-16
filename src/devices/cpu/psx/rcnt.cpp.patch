@@ -1,0 +1,19 @@
+diff --git a/rcnt.cpp b/rcnt.cpp
+--- a/rcnt.cpp
++++ b/rcnt.cpp
+@@ -27,8 +27,15 @@
+ {
+ }
+ 
++// DAV HACK: under netplay rollback the core saves/restores the emu_timer schedule
++// faithfully; re-deriving it here calls the mutating root_current() and breaks
++// save->load->resim determinism.  Trust the restored timer instead.
++bool myosd_netplay_is_active(void);
+ void psxrcnt_device::device_post_load()
+ {
++	if (myosd_netplay_is_active())
++		return;
++	// END DAV HACK
+ 	for (int n = 0; n < 3; n++)
+ 		root_timer_adjust(n);
+ }

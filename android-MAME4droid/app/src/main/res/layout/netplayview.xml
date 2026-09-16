@@ -34,12 +34,12 @@
         android:layout_gravity="center_horizontal"
         android:text="@string/join_peer_game" />
     <Button
-        android:id="@+id/DisconnectBtn"
+        android:id="@+id/ChatBtn"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:enabled="false"
-        android:text="@string/disconnect" />
+        android:text="@string/np_btn_chat" />
     <Button
         android:id="@+id/ResyncBtn"
         android:layout_width="fill_parent"
@@ -47,6 +47,15 @@
         android:layout_gravity="center_horizontal"
         android:enabled="false"
         android:text="@string/resync" />
+    <!-- Last: it ends the session, so it must not sit next to the buttons
+         used during play (a mis-tap here costs the game). -->
+    <Button
+        android:id="@+id/DisconnectBtn"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:enabled="false"
+        android:text="@string/disconnect" />
 
 </LinearLayout>
 

@@ -1,10 +1,9 @@
 diff --git a/video.cpp b/video.cpp
-index a8900d3..ada94c7 100644
 --- a/video.cpp
 +++ b/video.cpp
-@@ -29,6 +29,10 @@
- 
- #include "rendersw.hxx"
+@@ -32,6 +32,10 @@
+ #include <bit>
+ #include <cstdio>
  
 +// DAV HACK
 +bool myosd_netplay_is_rollback();
@@ -13,7 +12,7 @@ index a8900d3..ada94c7 100644
  
  //**************************************************************************
  //  DEBUGGING
-@@ -695,6 +699,28 @@ void video_manager::update_throttle(attotime emutime)
+@@ -696,6 +700,28 @@
  
  */
  
@@ -42,7 +41,7 @@ index a8900d3..ada94c7 100644
  	// outer scope so we can break out in case of a resync
  	while (1)
  	{
-@@ -747,6 +773,12 @@ void video_manager::update_throttle(attotime emutime)
+@@ -748,6 +774,12 @@
  			break;
  		}
  
@@ -55,7 +54,7 @@ index a8900d3..ada94c7 100644
  		// convert this value into attoseconds for easier comparison
  		attoseconds_t real_delta_attoseconds = diff_ticks * attoseconds_per_tick;
  
-@@ -774,8 +806,20 @@ void video_manager::update_throttle(attotime emutime)
+@@ -775,8 +807,20 @@
  		}
  
  		// if we're behind, it's time to just get out

@@ -1,8 +1,7 @@
 diff --git a/state.h b/state.h
-index 1d7716917..d25d1f995 100644
 --- a/state.h
 +++ b/state.h
-@@ -46,6 +46,13 @@ protected:
+@@ -46,6 +46,13 @@
  
  	virtual void process_file(std::string &&file_name) = 0;
  

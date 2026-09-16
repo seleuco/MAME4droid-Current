@@ -109,7 +109,7 @@
     <string name="np_lobby_stats_games">人気のゲーム: %1$s</string>
     <string name="np_lobby_stats_best">最も遊ばれたゲーム: %1$s</string>
     <string name="np_lobby_stats_countries">%1$d か国のプレイヤー</string>
-    <string name="np_lobby_stats_top">上位 %1$s</string>
+    <string name="np_lobby_stats_top">上位の国: %1$s</string>
     <string name="np_lobby_stats_suggest">%1$s の途中参加ルームを開けば、誰かが対戦中に加わることができます。</string>
     <string name="np_lobby_count">%1$d 件のゲームがあります</string>
     <string name="np_lobby_refresh">更新</string>
@@ -597,4 +597,29 @@
     <string name="shaders_load_error">エフェクトシェーダーを読み込めませんでした：shaders.cfg が見つかりません。アプリを再インストールするか、インストール先フォルダーが読み取り専用でないか確認してください。</string>
     <string name="pref_frame_pacing_title">フレームペーシングとパフォーマンスヒント</string>
     <string name="pref_frame_pacing_summary">90/120Hz画面でディスプレイのリフレッシュをゲームの速度に合わせ、ADPFのCPU/温度ヒントを使ってより滑らかで発熱の少ない動作にします。不具合が出る場合は無効にしてください。</string>
+    <!-- クイックチャット: np_chat_N の ID はネットプレイのプロトコルの一部 (追加のみ、並べ替え禁止)。 -->
+    <string name="np_btn_chat">メッセージを送る</string>
+    <string name="np_chat_title">クイックメッセージ</string>
+    <string name="np_chat_mute">受信をミュート</string>
+    <string name="np_chat_unmute">受信を表示</string>
+    <string name="np_chat_you">あなた: %1$s</string>
+    <string name="np_chat_peer">💬 %1$s</string>
+    <string name="np_chat_wait">次のメッセージまで少し待ってください</string>
+    <string name="np_chat_0">👋 こんにちは</string>
+    <string name="np_chat_1">🤝 いい試合でした</string>
+    <string name="np_chat_2">🙏 ありがとう</string>
+    <string name="np_chat_3">😅 ごめんなさい</string>
+    <string name="np_chat_4">🎮 もう一回やる？</string>
+    <string name="np_chat_5">🔁 リベンジする？</string>
+    <string name="np_chat_6">⏸️ ちょっと待って</string>
+    <string name="np_chat_7">🪙 コインを入れてスタートを押して</string>
+    <string name="np_chat_8">⚠️ 同期がずれているみたい</string>
+    <string name="np_chat_9">🔄 「状態を再同期」を押して</string>
+    <string name="np_chat_10">🐢 ラグがあります</string>
+    <string name="np_chat_11">👍 はい</string>
+    <string name="np_chat_12">👎 いいえ</string>
+    <string name="np_chat_13">✅ 準備OK</string>
+    <string name="np_chat_14">👋 もう行かなきゃ、またね！</string>
+    <string name="np_chat_15">⚡ ロールバックに切り替えよう</string>
+    <string name="np_chat_16">🔒 ロックステップに切り替えよう</string>
 </resources>
