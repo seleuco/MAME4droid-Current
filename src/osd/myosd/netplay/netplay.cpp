@@ -128,6 +128,7 @@
 #include <time.h>
 
 #include <string.h>
+#include <math.h>
 #include <zlib.h>
 #include <errno.h>
 
@@ -994,6 +995,17 @@ static int netplay_state_differs(const netplay_state_t *a, const netplay_state_t
             a->lightgun_y   != b->lightgun_y);
 }
 
+/* Blocks behind `bits` differing sketch bits (log only): E[bits] over B buckets
+ * is B/2 * (1 - (1-1/B)^blocks), inverted.  Past half the bits the sketch is
+ * saturated and the real figure is in the hundreds. */
+static int netplay_desync_blocks_estimate(int bits)
+{
+    const double B = NETPLAY_CRC_SECTIONS * 8.0;
+    if (bits <= 0) return 0;
+    if (bits >= (int)(B / 2) - 1) return 100000;
+    return (int)(log(1.0 - 2.0 * bits / B) / log(1.0 - 1.0 / B) + 0.5);
+}
+
 /* Advance and return the "confirmed watermark": the highest
  * frame W whose CRC is FINAL (never alterable by a future rollback), so
  * comparing CRC(W) across peers is an honest desync test.  Monotonic store,
@@ -1356,6 +1368,7 @@ int netplay_read_data(netplay_t *handle)
                     /* Agreement again: whatever differed a moment ago healed, so
                      * it was never a desync -- a real one never re-matches.   */
                     handle->consecutive_desyncs = 0;
+                    handle->massive_desyncs     = 0;
                 }
 
                 if (our_crc != 0 && our_crc != msg_checksum) {
@@ -1376,38 +1389,55 @@ int netplay_read_data(netplay_t *handle)
                     }
                     s_last_frame = handle->frame;
 
-                    /* Warn on any mismatch (default).  CPS-3 also counts how many
-                     * of the 16 RAM sections differ -- a weak filter there, as
-                     * ~1MB of shares makes each ~64KB (see MIN_CONFIRMS). */
+                    /* Warn on any mismatch (default).  On CPS-3 measure how much
+                     * differs first: the SH-2 blip is a few blocks, a real
+                     * desync is tens of them. */
                     bool tolerant = myosd_netplay_desync_tolerant();
-                    int  sec_diffs = -1;   /* -1 = not computed (non-tolerant path) */
-                    bool warn = true;
+                    int  sketch_bits = -1;  /* -1 = not computed (non-tolerant path) */
+                    int  est_blocks  = -1;
+                    bool massive = true;
                     if (tolerant) {
                         uint8_t our_fp[NETPLAY_CRC_SECTIONS];
                         myosd_netplay_section_fingerprints(msg_chk_frame, our_fp, NETPLAY_CRC_SECTIONS);
-                        sec_diffs = 0;
+                        sketch_bits = 0;
                         for (int s = 0; s < NETPLAY_CRC_SECTIONS; s++)
-                            if (our_fp[s] != msg.u.data.state_section_fp[s]) sec_diffs++;
-                        warn = (sec_diffs >= NETPLAY_DESYNC_MIN_SECTIONS);
+                            sketch_bits += __builtin_popcount((uint8_t)(our_fp[s] ^ msg.u.data.state_section_fp[s]));
+                        est_blocks = netplay_desync_blocks_estimate(sketch_bits);
+                        massive = (sketch_bits >= NETPLAY_DESYNC_MIN_BITS);
                     }
 
-                    /* Counted for every driver (logged as persist=), but it
-                     * gates the toast only on the tolerant ones (CPS-3). */
+                    /* Run of mismatched frames and how many were big ones; a
+                     * match ends the run (see the CPS-3 gate below).  Every
+                     * other driver just logs them. */
                     if (msg_chk_frame != s_last_desync_chk) {
                         s_last_desync_chk = msg_chk_frame;
                         handle->consecutive_desyncs++;
+                        if (tolerant && massive) handle->massive_desyncs++;
+                        /* Every CPS-3 comparison, unthrottled: max_quiet_bits is
+                         * how close a filtered mismatch ever got to MIN_BITS. */
+                        if (tolerant) {
+                            static int s_max_quiet_bits = 0;
+                            if (!massive && sketch_bits > s_max_quiet_bits)
+                                s_max_quiet_bits = sketch_bits;
+                            NLOG("SKETCH frame=%u bits=%d est_blocks=%d run=%d massive=%d max_quiet_bits=%d",
+                                 msg_chk_frame, sketch_bits, est_blocks,
+                                 handle->consecutive_desyncs, handle->massive_desyncs,
+                                 s_max_quiet_bits);
+                        }
                     }
-                    if (tolerant && handle->consecutive_desyncs < NETPLAY_DESYNC_MIN_CONFIRMS)
-                        warn = false;
+                    bool warn = !tolerant ||
+                                (handle->consecutive_desyncs >= NETPLAY_DESYNC_MIN_CONFIRMS &&
+                                 handle->massive_desyncs     >= NETPLAY_DESYNC_MIN_MASSIVE);
 
                     /* A real desync is PERMANENT, so once tripped every later
                      * watermark comparison also differs -- throttle the log
                      * (first handful, then 1 in 30) to keep logcat sane.        */
                     if (desync_print_count < 5 || (desync_print_count % 30) == 0) {
-                        NLOG("=== DESYNC DETECTED (confirmed) === frame=%u our_crc=0x%08x peer_crc=0x%08x tol=%d persist=%d sec_diffs=%d/%d wm=%u rtt=%u last_match=%u",
+                        NLOG("=== DESYNC DETECTED (confirmed) === frame=%u our_crc=0x%08x peer_crc=0x%08x tol=%d persist=%d bits=%d/%d est_blocks=%d (x%dB) warn=%d wm=%u rtt=%u last_match=%u",
                              msg_chk_frame, our_crc, msg_checksum, tolerant ? 1 : 0,
                              handle->consecutive_desyncs,
-                             sec_diffs, NETPLAY_CRC_SECTIONS,
+                             sketch_bits, NETPLAY_CRC_SECTIONS * 8, est_blocks,
+                             NETPLAY_CRC_BLOCK_BYTES, warn ? 1 : 0,
                              my_watermark, handle->smoothed_rtt,
                              handle->last_crc_match_frame);
                         netplay_applied_ring_arm("DESYNC", msg_chk_frame);
@@ -1928,6 +1958,7 @@ int netplay_read_data(netplay_t *handle)
             }
             handle->last_crc_match_frame = 0;
             handle->consecutive_desyncs  = 0;
+            handle->massive_desyncs      = 0;
             handle->confirmed_watermark  = 0;
             handle->local_ready = 0;
             handle->peer_ready  = 0;
@@ -1971,6 +2002,7 @@ int netplay_read_data(netplay_t *handle)
             }
             handle->last_crc_match_frame = 0;
             handle->consecutive_desyncs  = 0;
+            handle->massive_desyncs      = 0;
             handle->confirmed_watermark  = 0;
             handle->local_ready = 0;
             handle->peer_ready  = 0;
@@ -2418,7 +2450,7 @@ int netplay_send_data(netplay_t *handle)
     {
         msg.u.data.state_checksum = htonl(handle->rollback_capture_checksum(crc_f));
         msg.u.data.checksum_frame = htonl(crc_f);
-        /* CPS-3 only: per-section fingerprint for the broad-divergence test
+        /* CPS-3 only: the per-block bits its size rule compares
          * (zero elsewhere -- no other driver reads it). */
         if (myosd_netplay_desync_tolerant())
             myosd_netplay_section_fingerprints(crc_f, msg.u.data.state_section_fp, NETPLAY_CRC_SECTIONS);
@@ -3235,6 +3267,7 @@ int netplay_resync_begin(netplay_t *handle, const char *origin)
     handle->confirmed_watermark  = 0;
     handle->last_crc_match_frame = 0;
     handle->consecutive_desyncs  = 0;
+    handle->massive_desyncs      = 0;
     /* The N-1 pair is broadcast every packet; left stale it would advertise
      * an OLD-timeline input for a now-zeroed frame.  Zero it (and the input
      * snapshots) so prediction restarts from silence on both sides.        */

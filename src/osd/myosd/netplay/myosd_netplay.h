@@ -79,7 +79,7 @@ void myosd_netplay_log_sectional_crc(uint32_t frame);               /* log a CRC
 uint32_t myosd_netplay_get_item_crc_table(uint32_t frame, uint32_t *out, uint32_t max_items); /* fill our per-item CRC table */
 void myosd_netplay_diff_item_crc_table(uint32_t frame, const uint32_t *peer, uint32_t peer_count); /* diff our slot vs peer's table */
 void myosd_netplay_diff_item_crc_tables(uint32_t frame, const uint32_t *local, uint32_t local_count, const uint32_t *peer, uint32_t peer_count); /* diff two precomputed tables */
-bool myosd_netplay_desync_tolerant(void);                                    /* running driver needs the broad-divergence rule (CPS-3) */
-void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n); /* n 1-byte per-section RAM fingerprints of a slot */
+bool myosd_netplay_desync_tolerant(void);                                    /* driver warns only on a big divergence (CPS-3) */
+void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n); /* n bytes: one bit per RAM block of a slot */
 
 #endif

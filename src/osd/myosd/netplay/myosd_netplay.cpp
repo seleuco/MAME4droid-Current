@@ -348,6 +348,25 @@ extern "C" void myosd_netplay_service_deferred_load(void)
                  * In fast-forward ch->frame lags, so use g_rb_ff_current or the
                  * slot lands one frame short and corrupts the ring. */
                 uint32_t cf = g_rb_ff_active ? g_rb_ff_current : ch->frame;
+
+                /* DEV (off): a real desync to calibrate the CPS-3 rule -- the host
+                 * quietly reloads a slot SIM_DESYNC_BACK frames old, once, with
+                 * nothing older still rollbackable so it can't heal. */
+                constexpr bool     NETPLAY_SIM_DESYNC_ENABLED = false;
+                constexpr uint32_t SIM_DESYNC_AT   = 1800;   /* ~30s into the session */
+                constexpr uint32_t SIM_DESYNC_BACK = 60;
+                if (NETPLAY_SIM_DESYNC_ENABLED && ch->player1) {
+                    static bool s_sim_done = false;
+                    if (cf < SIM_DESYNC_AT) s_sim_done = false;   /* new session */
+                    else if (!s_sim_done && !g_rb_ff_active && !g_rb_pending_load &&
+                             !ch->resync_active && ch->confirmed_watermark + 1 >= cf) {
+                        s_sim_done = true;
+                        myosd_netplay_state_load(cf - SIM_DESYNC_BACK);
+                        NLOG("SIM_DESYNC host loaded slot %u at frame %u (real desync from here)",
+                             cf - SIM_DESYNC_BACK, cf);
+                    }
+                }
+
                 if (cf != 0 && cf != g_rb_boundary_skip_frame)
                     ch->rollback_capture_state(cf);
             }
@@ -1195,7 +1214,7 @@ static uint32_t myosd_netplay_calc_crc(int idx) {
 }
 
 /* True when this driver's harmless post-handover SH-2 phase blip trips the plain
- * detector (CPS-3), so netplay uses the broad-divergence rule for it instead.
+ * detector (CPS-3), so netplay only warns there on a massive divergence.
  * Policy lives in save_hacks. */
 bool myosd_netplay_desync_tolerant(void)
 {
@@ -1203,13 +1222,13 @@ bool myosd_netplay_desync_tolerant(void)
     return myosd_save_hack_desync_tolerant(osdInterface->machine().system().type.source());
 }
 
-/* Per-section RAM fingerprint (1 byte/section) of `frame`'s slot, for the CPS-3
- * broad-divergence test.  Same include-list/byte-split as calc_crc, each
- * section's CRC32 folded to a byte; out[] left 0 if the slot is gone. */
+/* How much of `frame`'s slot could differ, in n*8 bits: the CRC include-list is
+ * cut in blocks whose CRC parity lands in a bit picked by hashing the block
+ * index, so the bits count differing blocks and ignore where they sit. */
 void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n)
 {
     for (int s = 0; s < n; s++) out[s] = 0;
-    if (n <= 0 || n > 64) return;
+    if (n <= 0) return;
     if (osdInterface == nullptr || !osdInterface->isMachine()) return;
     std::lock_guard<std::recursive_mutex> rb_lock(g_rb_ring_mutex);
     int idx = (int)(frame % ROLLBACK_RING_FRAMES);
@@ -1220,24 +1239,19 @@ void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n)
     constexpr size_t HEADER_SIZE = 32;
     save_manager &save = osdInterface->machine().save();
     int count = save.registration_count();
+    const uint32_t buckets = (uint32_t)n * 8;
 
-    size_t total_inc = 0, offset = HEADER_SIZE;
-    for (int i = 0; i < count; i++) {
-        void *base; uint32_t vs, vc, bc, st;
-        const char *name = save.indexed_item(i, base, vs, vc, bc, st);
-        if (!name) break;
-        if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue;
-        size_t entry_size = (size_t)vs * vc * bc;
-        if (entry_size && offset + entry_size <= data.size() && myosd_netplay_crc_include_item(name))
-            total_inc += entry_size;
-        offset += entry_size;
-    }
-    if (total_inc == 0) return;
-    size_t section_bytes = (total_inc + n - 1) / n;
-    if (section_bytes == 0) section_bytes = 1;
+    util::crc32_creator crc;
+    size_t   fill  = 0;
+    uint32_t block = 0;
+    auto flush = [&]() {
+        uint32_t c = crc.finish().m_raw;
+        uint32_t b = ((block + 1) * 2654435761u >> 8) % buckets;
+        if (__builtin_parity(c)) out[b >> 3] ^= (uint8_t)(1u << (b & 7));
+        crc.reset(); fill = 0; block++;
+    };
 
-    util::crc32_creator crc[64];
-    size_t running = 0; offset = HEADER_SIZE;
+    size_t offset = HEADER_SIZE;
     for (int i = 0; i < count; i++) {
         void *base; uint32_t vs, vc, bc, st;
         const char *name = save.indexed_item(i, base, vs, vc, bc, st);
@@ -1245,23 +1259,19 @@ void myosd_netplay_section_fingerprints(uint32_t frame, uint8_t *out, int n)
         if (myosd_slim_state::entry_class(save, (int)i) == myosd_slim_state::CLASS_EXCLUDE) continue;
         size_t entry_size = (size_t)vs * vc * bc;
         if (entry_size && offset + entry_size <= data.size() && myosd_netplay_crc_include_item(name)) {
-            size_t src = offset, remaining = entry_size;
-            while (remaining > 0) {
-                int s = (int)(running / section_bytes);
-                if (s >= n) s = n - 1;
-                size_t sec_end = (size_t)(s + 1) * section_bytes;
-                size_t take = sec_end - running;
-                if (take > remaining) take = remaining;
-                crc[s].append(data.data() + src, (uint32_t)take);
-                src += take; running += take; remaining -= take;
+            const uint8_t *p = data.data() + offset;
+            size_t rem = entry_size;
+            while (rem > 0) {
+                size_t take = NETPLAY_CRC_BLOCK_BYTES - fill;
+                if (take > rem) take = rem;
+                crc.append(p, (uint32_t)take);
+                p += take; rem -= take; fill += take;
+                if (fill == NETPLAY_CRC_BLOCK_BYTES) flush();
             }
         }
         offset += entry_size;
     }
-    for (int s = 0; s < n; s++) {
-        uint32_t c = crc[s].finish().m_raw;
-        out[s] = (uint8_t)(c ^ (c >> 8) ^ (c >> 16) ^ (c >> 24));
-    }
+    if (fill > 0) flush();
 }
 
 

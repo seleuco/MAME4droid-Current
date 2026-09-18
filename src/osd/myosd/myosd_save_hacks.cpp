@@ -74,7 +74,7 @@ bool myosd_save_hack_desync_tolerant(const char *driver_src)
 	// the SH-2 (DRC) resumes a few cycles off the host, so the snapshot catches
 	// it mid-instruction and the one RAM block it is writing diverges though the
 	// game is bit-fine.  Narrow but persistent -> can't tell from a real desync
-	// generically, so here we wait for a BROAD divergence before warning.
+	// generically, so here we wait for a MASSIVE divergence before warning.
 	if (name_has(driver_src, "cps3"))
 		return true;
 

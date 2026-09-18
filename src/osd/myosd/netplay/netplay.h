@@ -106,15 +106,17 @@
                                           ((f) <= 10 || ((f) % NETPLAY_CRC_EVERY) == 0))
 
     /* Desync detector: whole-RAM CRC, toast on any confirmed mismatch.  CPS-3
-     * (myosd_save_hack_desync_tolerant) also needs >= MIN of the 16 sections to
-     * differ -- it measures spread, not size, so it filters little on its own. */
+     * (myosd_save_hack_desync_tolerant) also weighs HOW MUCH differs: the 16
+     * wire bytes sketch the RAM in 512B blocks, one bit each. */
     #define NETPLAY_CRC_SECTIONS        16
-    #define NETPLAY_DESYNC_MIN_SECTIONS  3
+    #define NETPLAY_CRC_BLOCK_BYTES     512
 
-    /* TOLERANT DRIVERS ONLY (CPS-3): distinct compared frames a mismatch must
-     * survive before the TOAST (log/ITEM_DIFF still fire on the first one).
-     * Not global -- waiting would un-anchor the probe from the root frame. */
-    #define NETPLAY_DESYNC_MIN_CONFIRMS  3
+    /* CPS-3 toast: MIN_CONFIRMS mismatches in a row (a match resets), MIN_MASSIVE
+     * of them over MIN_BITS -- a block flips one bit at most, so 24 bits means
+     * 24 blocks.  Measured on sfiii3n: SH-2 blip <= 4 bits, real desync 12-54. */
+    #define NETPLAY_DESYNC_MIN_BITS      24
+    #define NETPLAY_DESYNC_MIN_CONFIRMS  5
+    #define NETPLAY_DESYNC_MIN_MASSIVE   3
 
     /* Frame-advantage stall cap, split SOFT/HARD: SOFT lets a comfortable
      * stall yield early for smoothness; HARD (within MARGIN of the ring's
@@ -321,8 +323,8 @@
         /* Desync Detector: CRC32 of the savestate for a specific frame */
         uint32_t state_checksum;   /* CRC32 of our state at checksum_frame  */
         uint32_t checksum_frame;   /* frame the CRC above was computed for  */
-        /* Per-section RAM fingerprint (1 byte each); only CPS-3 fills it, for
-         * the broad-divergence test -- zero for every other driver. */
+        /* How much RAM differs: 128 one-bit blocks (NETPLAY_CRC_BLOCK_BYTES).
+         * Only CPS-3 fills it, zero for every other driver. */
         uint8_t  state_section_fp[NETPLAY_CRC_SECTIONS];
 
         /* Extended history for Rollback mode: recovers input across up to
@@ -475,10 +477,11 @@
         netplay_state_t         early_peer_state[EARLY_BUFFER_SIZE]; /* peer input that arrived before we reached its frame */
 
         /* Reset with the rest of the detector on JOIN/JOIN_ACK/resync.
-         * consecutive_desyncs = distinct frames mismatched in a row (any
-         * agreement zeroes it); gates the toast, see MIN_CONFIRMS above.   */
+         * consecutive_desyncs = distinct frames mismatched in a row, of which
+         * massive_desyncs were big ones; any agreement zeroes both.        */
         uint32_t                last_crc_match_frame;
         int                     consecutive_desyncs;
+        int                     massive_desyncs;
 
         /* Confirmed watermark: highest frame W where every frame up to W
          * holds a real peer-confirmed input, so CRC(W) is FINAL and safe to
