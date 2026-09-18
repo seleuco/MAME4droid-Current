@@ -20,7 +20,7 @@ android {
         applicationId "com.seleuco.mame4d2024"
         minSdkVersion 29
         targetSdkVersion 37
-        versionCode 143
+        versionCode 144
         versionName '1.41.1'
 
         ndk {
